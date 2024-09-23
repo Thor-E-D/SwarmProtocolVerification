@@ -1,0 +1,956 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.6//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_6.dtd'>
+<nta>
+	<declaration>// Place global declarations here.
+
+// We first declare the number of each role
+const int NUMBER_OF_Pump = 2;
+typedef int[0,NUMBER_OF_Pump-1] Pump_t;
+
+const int NUMBER_OF_Robot = 2;
+typedef int[0,NUMBER_OF_Robot-1] Robot_t;
+
+// The eventTypes unique ID
+const int DockAvailable_ID = 0;
+const int RobotIsDocked_ID = 1;
+const int WaterSupplied_ID = 2;
+const int RobotIsUndocked_ID = 3;
+
+
+typedef struct {
+    int eventID;
+    int emitterID;
+    int orderCount;
+    int basedOnEmitterID;
+    bool ignored;
+} logEntryType;
+
+// How many times a machine can transition before being forced to propagate.
+int maxUpdatesSincePropagation = 1;
+
+
+// ------------ shared data -----------
+
+// Size of log
+const int logSize = 14;
+
+// The counter for the order
+int eventOrderCounter = 1;
+
+// Log entry to update must be global in to send data from one process to another
+// might need one of these for each log.
+logEntryType tempLogEntry;
+
+// log For propagation
+logEntryType propagationLog[logSize];
+
+
+// ------------ channels --------------
+
+//The log synchronization channels
+urgent broadcast chan propagate_log;
+
+// Pump channels
+urgent chan do_log_update_pump[Pump_t];
+urgent chan reset_pump[Pump_t];
+urgent broadcast chan advance_pump_dock_available[Pump_t];
+urgent broadcast chan advance_pump_robot_is_docked[Pump_t];
+urgent broadcast chan advance_pump_water_supplied[Pump_t];
+urgent broadcast chan advance_pump_robot_is_undocked[Pump_t];
+
+// Robot channels
+urgent chan do_log_update_robot[Robot_t];
+urgent chan reset_robot[Robot_t];
+urgent broadcast chan advance_robot_dock_available[Robot_t];
+urgent broadcast chan advance_robot_robot_is_docked[Robot_t];
+urgent broadcast chan advance_robot_water_supplied[Robot_t];
+urgent broadcast chan advance_robot_robot_is_undocked[Robot_t];
+
+
+// --------- Functions ---------------
+
+
+// Get orderCounter and increment it
+int getOrderCount() {
+    int temp = eventOrderCounter;
+    eventOrderCounter = eventOrderCounter + 1;
+    return temp;
+}
+
+// Set new log entry
+void setLogEntryForUpdate(int eventID, int emitterID, int basedOnEmitterID, bool ignored) {
+    tempLogEntry.eventID = eventID;
+    tempLogEntry.emitterID = emitterID;
+    tempLogEntry.basedOnEmitterID = basedOnEmitterID;
+    tempLogEntry.orderCount = getOrderCount();
+    tempLogEntry.ignored = ignored;
+}
+
+void setPropagationLog(logEntryType tempLog[logSize]) {
+    propagationLog = tempLog;
+}
+
+
+// Update currentLog and return index for new entry
+int updateLog(logEntryType &amp;tempLog[logSize]) {
+    int i = 0;
+    for (i = 0; i &lt; logSize; i++) {
+        if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
+            tempLog[i] = tempLogEntry; // Update log
+            return i;
+        }
+    }
+    return -1;
+    // If we reach here log is full and we are in trouble
+}
+
+// Special function for checking if new log entry has not set the emitter ID it is based on yet and then sets it
+int updateLogRobot(logEntryType &amp;tempLog[logSize]) {
+    // First we check if basedemitterID set to -2 as this is a flag for unknown
+    if (tempLogEntry.basedOnEmitterID == -2) {
+        int i = 0;
+        for (i = 0; i &lt; logSize; i++) {
+            if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
+                return updateLog(tempLog);
+            } else {
+                if (tempLogEntry.eventID == RobotIsDocked_ID) {
+                    // check if previous event is ignored == false
+                    if (tempLog[i].eventID == DockAvailable_ID &amp;&amp; !tempLog[i].ignored) {
+                        tempLogEntry.basedOnEmitterID = tempLog[i].emitterID;
+                        return updateLog(tempLog);
+                    }
+                } else if (tempLogEntry.eventID == RobotIsUndocked_ID) {
+                    // check if previous event is ignored == false
+                    if (tempLog[i].eventID == WaterSupplied_ID &amp;&amp; !tempLog[i].ignored) {
+                        tempLogEntry.basedOnEmitterID = tempLog[i].emitterID;
+                        return updateLog(tempLog);
+                    }
+                }
+            }
+        }
+    }
+    return updateLog(tempLog);
+}
+
+// Special function for checking if new log entry has not set the emitter ID it is based on yet and then sets it
+int updateLogPump(logEntryType &amp;tempLog[logSize]) {
+    // First we check if basedemitterID set to -2 as this is a flag for unknown
+    if (tempLogEntry.basedOnEmitterID == -2) {
+        int i = 0;
+        for (i = 0; i &lt; logSize; i++) {
+            if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
+                return updateLog(tempLog);
+            } else {
+                if (tempLogEntry.eventID == WaterSupplied_ID) {
+                    // check if previous event is ignored == false
+                    if (tempLog[i].eventID == RobotIsDocked_ID &amp;&amp; !tempLog[i].ignored) {
+                        tempLogEntry.basedOnEmitterID = tempLog[i].emitterID;
+                        return updateLog(tempLog);
+                    }
+                }
+            }
+        }
+    }
+    return updateLog(tempLog);
+}
+
+
+
+// Function for extending a log length
+void extendLogLength() {} //TODO
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</declaration>
+	<template>
+		<name>Robot_log</name>
+		<parameter>Robot_t id</parameter>
+		<declaration>// The log
+logEntryType currentLog[logSize];
+
+int updatesSincePropagation = 0;
+bool newUpdates = false;
+
+int counter = 0;
+bool ignoredFlag = false;
+
+// Index for new event in log
+int indexInLog = -1;
+
+// --------- Functions ---------------
+
+// Here is the business logic for handling each different event type.
+// TODO: capture someone did what you did before you put you only found out later own event has to be discarded
+// TODO: add functionality to capture when events have been claimed and need to be ignored.
+logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
+    int i;
+    // tmpLogEntry.ignored = false;
+
+    // We first find the event Type
+    int currentEventType = tmpLogEntry.eventID;
+    if (currentEventType == DockAvailable_ID) {
+        // It is a beginning event so we do not care who broadcasted it        
+
+    } else if (currentEventType == RobotIsDocked_ID) {
+        if (tmpLogEntry.emitterID != id) {
+            tmpLogEntry.ignored = true;
+            
+            // We must ignore the dockAvailable if someone else claimed it first
+            for (i = currentIndex; i &gt;= 0; i--) {
+                // We check if we have already claimed it
+                if (resLog[i].eventID == RobotIsDocked_ID &amp;&amp; resLog[i].emitterID == id &amp;&amp; resLog[i].basedOnEmitterID == tmpLogEntry.basedOnEmitterID &amp;&amp; !(resLog[i].ignored)) {
+                    return tmpLogEntry;
+                } else if (resLog[i].eventID == DockAvailable_ID &amp;&amp; resLog[i].emitterID == tmpLogEntry.basedOnEmitterID) {
+                    
+                    resLog[i].ignored = true;
+                    return tmpLogEntry;
+                }
+            }
+        }
+        
+        // We check if event we are based on is set to ignored (claimed first)
+        for (i = currentIndex; i &gt;= 0; i--) {
+            if (resLog[i].eventID == DockAvailable_ID &amp;&amp; resLog[i].emitterID == tmpLogEntry.basedOnEmitterID &amp;&amp; resLog[i].ignored) {
+                tmpLogEntry.ignored = true;
+                return tmpLogEntry;
+            }
+        }
+    } else if (currentEventType == WaterSupplied_ID) {
+        // Ignore all other than own
+        if (tmpLogEntry.basedOnEmitterID != id) {
+            tmpLogEntry.ignored = true;
+        }
+
+        // We check if event we are based on is set to ignored
+        for (i = currentIndex; i &gt;= 0; i--) {
+            if (resLog[i].eventID == RobotIsDocked_ID &amp;&amp; resLog[i].emitterID == tmpLogEntry.basedOnEmitterID) {
+                if (resLog[i].ignored) {
+                    tmpLogEntry.ignored = true;
+                    return tmpLogEntry;
+                }
+                return tmpLogEntry;
+            } else if (resLog[i].eventID == WaterSupplied_ID &amp;&amp; resLog[i].basedOnEmitterID == id &amp;&amp; !(resLog[i].ignored)) {
+                tmpLogEntry.ignored = true;
+                return tmpLogEntry;
+            }
+        }
+
+    } else if (currentEventType == RobotIsUndocked_ID) {
+        // Ignore if not basedOnEmitterID = id
+        if (tmpLogEntry.emitterID != id) {
+            tmpLogEntry.ignored = true;
+
+            // We must ignore the dockAvailable if someone else claimed it first
+            for (i = currentIndex; i &gt;= 0; i--) {
+                // We check if we have already claimed it
+                if (resLog[i].eventID == RobotIsUndocked_ID &amp;&amp; resLog[i].emitterID == id &amp;&amp; !(resLog[i].ignored)) {
+                    return tmpLogEntry;
+                }
+
+                if (resLog[i].eventID == WaterSupplied_ID &amp;&amp; resLog[i].emitterID == tmpLogEntry.basedOnEmitterID) {
+                    
+                    resLog[i].ignored = true;
+                    return tmpLogEntry;
+                }
+            }
+        }
+
+        // We check if event we are based on is set to ignored (claimed first)
+        for (i = currentIndex; i &gt;= 0; i--) {
+            if (resLog[i].eventID == WaterSupplied_ID &amp;&amp; resLog[i].emitterID == tmpLogEntry.basedOnEmitterID &amp;&amp; resLog[i].ignored) {
+                tmpLogEntry.ignored = true;
+                return tmpLogEntry;
+            }
+        }
+
+    }
+    return tmpLogEntry;
+}
+
+
+
+void mergePropagationLog() {
+    int currentLogCounter = 0;
+    int propagatedLogCounter = 0;
+
+    logEntryType resLog[logSize];
+
+    logEntryType currentLogEntry;
+    logEntryType propagatedLogEntry;
+
+    bool currentLogDone = false;
+    bool propagatedLogDone = false;
+
+    int i;
+    for (i = 0; i &lt; (logSize * 2); i++) {
+        currentLogEntry = currentLog[currentLogCounter];
+        propagatedLogEntry = propagationLog[propagatedLogCounter];
+        
+        // TODO if one is done then we can simply append the rest
+        if (currentLogEntry.orderCount == 0) {
+            currentLogDone = true;
+        }
+        if (propagatedLogEntry.orderCount == 0) {
+            propagatedLogDone = true;
+        }
+
+        // If both are done we are done.
+        if (currentLogDone &amp;&amp; propagatedLogDone) {
+            currentLog = resLog;
+            return;
+        }
+        
+        // If one entry is invalid then we have to choose the other one
+        if (currentLogDone) {
+            propagatedLogCounter++;
+            resLog[i] = handleLogEntry(propagatedLogEntry, resLog, i-1);
+        } else if (propagatedLogDone) {
+            currentLogCounter++;
+            resLog[i] = handleLogEntry(currentLogEntry, resLog, i-1);
+        } else if (propagatedLogEntry.orderCount == currentLogEntry.orderCount) { //They are the same event we use own but skip both
+            propagatedLogCounter++;
+            currentLogCounter++;
+            resLog[i] = handleLogEntry(currentLogEntry, resLog, i-1);
+        } else if (currentLogEntry.orderCount &gt; propagatedLogEntry.orderCount) { // Both entries are valid we can now figure out which one is first
+            propagatedLogCounter++;
+            resLog[i] = handleLogEntry(propagatedLogEntry, resLog, i-1);
+        } else {
+            currentLogCounter++;
+            resLog[i] = handleLogEntry(currentLogEntry, resLog, i-1);
+        }
+
+    }
+}
+
+
+
+
+
+</declaration>
+		<location id="id0" x="221" y="-85">
+			<committed/>
+		</location>
+		<location id="id1" x="-612" y="34">
+			<committed/>
+		</location>
+		<location id="id2" x="-204" y="-136">
+		</location>
+		<location id="id3" x="-561" y="153">
+			<committed/>
+		</location>
+		<location id="id4" x="-612" y="-136">
+			<committed/>
+		</location>
+		<init ref="id2"/>
+		<transition id="id5">
+			<source ref="id2"/>
+			<target ref="id4"/>
+			<label kind="synchronisation" x="-493" y="-187">propagate_log?</label>
+			<label kind="assignment" x="-518" y="-161">mergePropagationLog()</label>
+		</transition>
+		<transition id="id6">
+			<source ref="id2"/>
+			<target ref="id0"/>
+			<label kind="synchronisation" x="-153" y="-170">do_log_update_robot[id]?</label>
+			<label kind="assignment" x="76" y="-178">indexInLog = updateLogRobot(currentLog),
+updatesSincePropagation++,
+newUpdates := true</label>
+		</transition>
+		<transition id="id7">
+			<source ref="id0"/>
+			<target ref="id2"/>
+			<label kind="guard" x="-76" y="-59">!(updatesSincePropagation &gt; maxUpdatesSincePropagation)</label>
+			<nail x="-34" y="-68"/>
+		</transition>
+		<transition id="id8">
+			<source ref="id2"/>
+			<target ref="id2"/>
+			<label kind="guard" x="-136" y="-289">newUpdates</label>
+			<label kind="synchronisation" x="-306" y="-280">propagate_log!</label>
+			<label kind="assignment" x="-442" y="-357">newUpdates := false,
+updatesSincePropagation := 0,
+setPropagationLog(currentLog)</label>
+			<nail x="-136" y="-255"/>
+			<nail x="-272" y="-255"/>
+		</transition>
+		<transition id="id9">
+			<source ref="id4"/>
+			<target ref="id1"/>
+			<label kind="synchronisation" x="-748" y="-93">reset_robot[id]!</label>
+			<label kind="assignment" x="-739" y="-59">counter := 0</label>
+		</transition>
+		<transition id="id10">
+			<source ref="id3"/>
+			<target ref="id1"/>
+			<label kind="guard" x="-1173" y="59">!ignoredFlag &amp;&amp; 
+currentLog[counter].eventID == WaterSupplied_ID</label>
+			<label kind="synchronisation" x="-1096" y="102">advance_robot_water_supplied[id]!</label>
+			<label kind="assignment" x="-841" y="59">counter++</label>
+			<nail x="-748" y="102"/>
+			<nail x="-748" y="68"/>
+		</transition>
+		<transition id="id11">
+			<source ref="id3"/>
+			<target ref="id1"/>
+			<label kind="guard" x="-1190" y="153">!ignoredFlag &amp;&amp; 
+currentLog[counter].eventID == RobotIsUndocked_ID</label>
+			<label kind="synchronisation" x="-1156" y="195">advance_robot_robot_is_undocked[id]!</label>
+			<label kind="assignment" x="-850" y="153">counter++</label>
+			<nail x="-748" y="204"/>
+			<nail x="-748" y="153"/>
+		</transition>
+		<transition id="id12">
+			<source ref="id3"/>
+			<target ref="id1"/>
+			<label kind="guard" x="-765" y="314">!ignoredFlag &amp;&amp; 
+currentLog[counter].eventID == RobotIsDocked_ID</label>
+			<label kind="synchronisation" x="-765" y="357">advance_robot_robot_is_docked[id]!</label>
+			<label kind="assignment" x="-705" y="289">counter++</label>
+			<nail x="-748" y="306"/>
+			<nail x="-748" y="246"/>
+		</transition>
+		<transition id="id13">
+			<source ref="id1"/>
+			<target ref="id2"/>
+			<label kind="guard" x="-544" y="-59">currentLog[counter].orderCount == 0</label>
+		</transition>
+		<transition id="id14">
+			<source ref="id3"/>
+			<target ref="id1"/>
+			<label kind="guard" x="-578" y="93">ignoredFlag</label>
+			<label kind="assignment" x="-578" y="76">counter++</label>
+		</transition>
+		<transition id="id15">
+			<source ref="id3"/>
+			<target ref="id1"/>
+			<label kind="guard" x="-544" y="178">!ignoredFlag &amp;&amp; 
+currentLog[counter].eventID == DockAvailable_ID</label>
+			<label kind="synchronisation" x="-544" y="212">advance_robot_dock_available[id]!</label>
+			<label kind="assignment" x="-535" y="161">counter++</label>
+			<nail x="-561" y="170"/>
+			<nail x="-561" y="238"/>
+			<nail x="-612" y="238"/>
+		</transition>
+		<transition id="id16">
+			<source ref="id1"/>
+			<target ref="id3"/>
+			<label kind="guard" x="-459" y="93">currentLog[counter].orderCount != 0</label>
+			<label kind="assignment" x="-476" y="68">ignoredFlag := currentLog[counter].ignored</label>
+			<nail x="-459" y="102"/>
+		</transition>
+		<transition id="id17">
+			<source ref="id0"/>
+			<target ref="id2"/>
+			<label kind="guard" x="68" y="0">updatesSincePropagation &gt; maxUpdatesSincePropagation</label>
+			<label kind="synchronisation" x="-212" y="-25">propagate_log!</label>
+			<label kind="assignment" x="17" y="34">setPropagationLog(currentLog),
+updatesSincePropagation := 0,
+newUpdates := false</label>
+			<nail x="-34" y="42"/>
+		</transition>
+	</template>
+	<template>
+		<name>Pump_log</name>
+		<parameter>Pump_t id</parameter>
+		<declaration>// The log
+logEntryType currentLog[logSize];
+
+int updatesSincePropagation = 0;
+bool newUpdates = false;
+
+int counter = 0;
+bool ignoredFlag = false;
+
+// Index for new event in log
+int indexInLog = -1;
+
+// --------- Functions ---------------
+
+// Here is the business logic for handling each different event type.
+// TODO: capture someone did what you did before you put you only found out later own event has to be discarded
+logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
+    int i;
+    // We first find the event Type
+    int currentEventType = tmpLogEntry.eventID;
+    if (currentEventType == DockAvailable_ID) {
+        // Ignore all other than own
+        if (tmpLogEntry.emitterID != id) {
+            tmpLogEntry.ignored = true;
+        }
+    } else if (currentEventType == RobotIsDocked_ID) {
+        // Ignore if not basedOnEmitterID = id
+        if (tmpLogEntry.basedOnEmitterID != id) {
+            tmpLogEntry.ignored = true;
+        }
+        
+        // We check if event we are based on is set to ignored
+        for (i = currentIndex; i &gt;= 0; i--) {
+            if (resLog[i].eventID == DockAvailable_ID &amp;&amp; resLog[i].emitterID == tmpLogEntry.basedOnEmitterID) {
+                if (resLog[i].ignored) {
+                    tmpLogEntry.ignored = true;
+                    return tmpLogEntry;
+                }
+                return tmpLogEntry;
+            } else if (resLog[i].eventID == RobotIsDocked_ID &amp;&amp; resLog[i].basedOnEmitterID == id &amp;&amp; !(resLog[i].ignored)) {
+                tmpLogEntry.ignored = true;
+                return tmpLogEntry;
+            }
+        }
+
+    } else if (currentEventType == WaterSupplied_ID) {
+        // Ignore all other than own
+        if (tmpLogEntry.emitterID != id) {
+            tmpLogEntry.ignored = true;
+
+            // We must ignore the dockAvailable if someone else claimed it first
+            for (i = currentIndex; i &gt;= 0; i--) {
+                // We check if we have already claimed it
+                if (resLog[i].eventID == WaterSupplied_ID &amp;&amp; resLog[i].emitterID == id &amp;&amp; !(resLog[i].ignored)) {
+                    return tmpLogEntry;
+                } else if (resLog[i].eventID == RobotIsDocked_ID &amp;&amp; resLog[i].emitterID == tmpLogEntry.basedOnEmitterID) {
+                    resLog[i].ignored = true;
+                    return tmpLogEntry;
+                }
+            }
+        }
+
+        // We check if event we are based on is set to ignored
+        for (i = currentIndex; i &gt;= 0; i--) {
+            if (resLog[i].eventID == RobotIsDocked_ID &amp;&amp; resLog[i].emitterID == tmpLogEntry.basedOnEmitterID &amp;&amp; resLog[i].ignored) {
+                tmpLogEntry.ignored = true;
+                return tmpLogEntry;
+            }
+        }
+        
+    } else if (currentEventType == RobotIsUndocked_ID) {
+        // Ignore if not basedOnEmitterID = id
+        if (tmpLogEntry.basedOnEmitterID != id) {
+            tmpLogEntry.ignored = true;
+        }
+
+        // We check if event we are based on is set to ignored
+        for (i = currentIndex; i &gt;= 0; i--) {
+            if (resLog[i].eventID == WaterSupplied_ID &amp;&amp; resLog[i].emitterID == tmpLogEntry.basedOnEmitterID) {
+                if (resLog[i].ignored) {
+                    tmpLogEntry.ignored = true;
+                    return tmpLogEntry;
+                }
+                return tmpLogEntry;
+            }  else if (resLog[i].eventID == RobotIsUndocked_ID &amp;&amp; resLog[i].basedOnEmitterID == id &amp;&amp; !(resLog[i].ignored)) {
+                tmpLogEntry.ignored = true;
+                return tmpLogEntry;
+            }
+        }
+    }
+    return tmpLogEntry;
+}
+
+
+
+void mergePropagationLog() {
+    int currentLogCounter = 0;
+    int propagatedLogCounter = 0;
+
+    logEntryType resLog[logSize];
+
+    logEntryType currentLogEntry;
+    logEntryType propagatedLogEntry;
+
+    bool currentLogDone = false;
+    bool propagatedLogDone = false;
+
+    int i;
+    for (i = 0; i &lt; (logSize * 2); i++) {
+        currentLogEntry = currentLog[currentLogCounter];
+        propagatedLogEntry = propagationLog[propagatedLogCounter];
+        
+        // TODO if one is done then we can simply append the rest
+        if (currentLogEntry.orderCount == 0) {
+            currentLogDone = true;
+        }
+        if (propagatedLogEntry.orderCount == 0) {
+            propagatedLogDone = true;
+        }
+
+        // If both are done we are done.
+        if (currentLogDone &amp;&amp; propagatedLogDone) {
+            currentLog = resLog;
+            return;
+        }
+        
+        // If one entry is invalid then we have to choose the other one
+        if (currentLogDone) {
+            propagatedLogCounter++;
+            resLog[i] = handleLogEntry(propagatedLogEntry, resLog, i-1);
+        } else if (propagatedLogDone) {
+            currentLogCounter++;
+            resLog[i] = handleLogEntry(currentLogEntry, resLog, i-1);
+        } else if (propagatedLogEntry.orderCount == currentLogEntry.orderCount) { //They are the same event we use one but skip both
+            propagatedLogCounter++;
+            currentLogCounter++;
+            resLog[i] = handleLogEntry(currentLogEntry, resLog, i-1);
+        } else if (currentLogEntry.orderCount &gt; propagatedLogEntry.orderCount) { // Both entries are valid we can now figure out which one is first
+            propagatedLogCounter++;
+            resLog[i] = handleLogEntry(propagatedLogEntry, resLog, i-1);
+        } else {
+            currentLogCounter++;
+            resLog[i] = handleLogEntry(currentLogEntry, resLog, i-1);
+        }
+
+    }
+}
+
+
+void handleOwnEvent(int eventID, int basedOnEventID, logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
+    
+}
+
+
+void handleOtherEvent(int eventID, int basedOnEventID, logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
+    int i;
+    // Not based on our event so we do not care
+    if (tmpLogEntry.basedOnEmitterID != id) {
+        tmpLogEntry.ignored = true;
+    } else {
+        // We check first if a based on event is unignored and else if own is found that is ignored we ignore the based on event
+        for (i = currentIndex; i &gt;= 0; i--) {
+            if (resLog[i].eventID == basedOnEventID &amp;&amp; resLog[i].emitterID == tmpLogEntry.basedOnEmitterID) {
+                if (!resLog[i].ignored) {
+                    return;
+                } else {
+                    mpLogEntry.ignored = true;
+                    return;
+                }
+            }
+        }
+    }
+}
+
+
+
+</declaration>
+		<location id="id18" x="-306" y="-238">
+		</location>
+		<location id="id19" x="-102" y="-238">
+			<committed/>
+		</location>
+		<location id="id20" x="-110" y="-119">
+			<committed/>
+		</location>
+		<location id="id21" x="-646" y="-238">
+			<committed/>
+		</location>
+		<location id="id22" x="-595" y="60">
+			<committed/>
+		</location>
+		<location id="id23" x="-646" y="-59">
+			<committed/>
+		</location>
+		<init ref="id18"/>
+		<transition id="id24">
+			<source ref="id18"/>
+			<target ref="id21"/>
+			<label kind="synchronisation" x="-552" y="-297">propagate_log?</label>
+			<label kind="assignment" x="-578" y="-272">mergePropagationLog()</label>
+		</transition>
+		<transition id="id25">
+			<source ref="id21"/>
+			<target ref="id23"/>
+			<label kind="synchronisation" x="-867" y="-170">reset_pump[id]!</label>
+			<label kind="assignment" x="-832" y="-148">counter := 0</label>
+		</transition>
+		<transition id="id26">
+			<source ref="id23"/>
+			<target ref="id18"/>
+			<label kind="guard" x="-595" y="-178">currentLog[counter].orderCount == 0</label>
+		</transition>
+		<transition id="id27">
+			<source ref="id19"/>
+			<target ref="id20"/>
+			<label kind="assignment" x="-68" y="-187">indexInLog = updateLogPump(currentLog)</label>
+		</transition>
+		<transition id="id28">
+			<source ref="id20"/>
+			<target ref="id18"/>
+			<label kind="synchronisation" x="-263" y="-93">propagate_log!</label>
+			<label kind="assignment" x="-365" y="-127">setPropagationLog(currentLog)</label>
+		</transition>
+		<transition id="id29">
+			<source ref="id18"/>
+			<target ref="id19"/>
+			<label kind="synchronisation" x="-272" y="-280">do_log_update_pump[id]?</label>
+		</transition>
+		<transition id="id30">
+			<source ref="id22"/>
+			<target ref="id23"/>
+			<label kind="guard" x="-1207" y="-34">!ignoredFlag &amp;&amp; 
+currentLog[counter].eventID == WaterSupplied_ID</label>
+			<label kind="synchronisation" x="-1130" y="9">advance_pump_water_supplied[id]!</label>
+			<label kind="assignment" x="-875" y="-34">counter++</label>
+			<nail x="-782" y="9"/>
+			<nail x="-782" y="-25"/>
+		</transition>
+		<transition id="id31">
+			<source ref="id22"/>
+			<target ref="id23"/>
+			<label kind="guard" x="-1224" y="60">!ignoredFlag &amp;&amp; 
+currentLog[counter].eventID == RobotIsUndocked_ID</label>
+			<label kind="synchronisation" x="-1190" y="102">advance_pump_robot_is_undocked[id]!</label>
+			<label kind="assignment" x="-884" y="60">counter++</label>
+			<nail x="-782" y="111"/>
+			<nail x="-782" y="60"/>
+		</transition>
+		<transition id="id32">
+			<source ref="id22"/>
+			<target ref="id23"/>
+			<label kind="guard" x="-799" y="221">!ignoredFlag &amp;&amp; 
+currentLog[counter].eventID == RobotIsDocked_ID</label>
+			<label kind="synchronisation" x="-799" y="264">advance_pump_robot_is_docked[id]!</label>
+			<label kind="assignment" x="-739" y="196">counter++</label>
+			<nail x="-782" y="213"/>
+			<nail x="-782" y="153"/>
+		</transition>
+		<transition id="id33">
+			<source ref="id22"/>
+			<target ref="id23"/>
+			<label kind="guard" x="-612" y="0">ignoredFlag</label>
+			<label kind="assignment" x="-612" y="-17">counter++</label>
+		</transition>
+		<transition id="id34">
+			<source ref="id22"/>
+			<target ref="id23"/>
+			<label kind="guard" x="-578" y="85">!ignoredFlag &amp;&amp; 
+currentLog[counter].eventID == DockAvailable_ID</label>
+			<label kind="synchronisation" x="-578" y="119">advance_pump_dock_available[id]!</label>
+			<label kind="assignment" x="-569" y="68">counter++</label>
+			<nail x="-595" y="77"/>
+			<nail x="-595" y="145"/>
+			<nail x="-646" y="145"/>
+		</transition>
+		<transition id="id35">
+			<source ref="id23"/>
+			<target ref="id22"/>
+			<label kind="guard" x="-493" y="0">currentLog[counter].orderCount != 0</label>
+			<label kind="assignment" x="-510" y="-25">ignoredFlag := currentLog[counter].ignored</label>
+			<nail x="-493" y="9"/>
+		</transition>
+	</template>
+	<template>
+		<name x="5" y="5">Pump</name>
+		<parameter>Pump_t id</parameter>
+		<declaration>// Place local declarations here.
+</declaration>
+		<location id="id36" x="-510" y="68">
+			<name x="-688" y="59">ClearingDock</name>
+			<urgent/>
+		</location>
+		<location id="id37" x="-510" y="-204">
+			<name x="-697" y="-238">WaitingForRobotToDock</name>
+			<urgent/>
+		</location>
+		<location id="id38" x="-202" y="-204">
+			<name x="-212" y="-238">PumpingWater</name>
+			<urgent/>
+		</location>
+		<location id="id39" x="-202" y="68">
+			<name x="-304" y="85">WaitingForRobotToUndock</name>
+			<urgent/>
+		</location>
+		<location id="id40" x="136" y="68">
+			<name x="126" y="34">Done</name>
+		</location>
+		<init ref="id36"/>
+		<transition id="id41">
+			<source ref="id40"/>
+			<target ref="id36"/>
+			<label kind="synchronisation" x="-255" y="144">reset_pump[id]?</label>
+			<nail x="68" y="136"/>
+			<nail x="-408" y="136"/>
+		</transition>
+		<transition id="id42">
+			<source ref="id36"/>
+			<target ref="id36"/>
+			<label kind="synchronisation" x="-569" y="136">reset_pump[id]?</label>
+			<nail x="-476" y="136"/>
+			<nail x="-544" y="136"/>
+		</transition>
+		<transition id="id43">
+			<source ref="id38"/>
+			<target ref="id39"/>
+			<label kind="synchronisation" x="-68" y="-195">do_log_update_pump[id]!</label>
+			<label kind="assignment" x="8" y="-136">setLogEntryForUpdate(
+WaterSupplied_ID,id,
+-2,false)</label>
+			<nail x="0" y="-136"/>
+			<nail x="0" y="0"/>
+		</transition>
+		<transition id="id44">
+			<source ref="id39"/>
+			<target ref="id36"/>
+			<label kind="synchronisation" x="-408" y="34">reset_pump[id]?</label>
+		</transition>
+		<transition id="id45">
+			<source ref="id38"/>
+			<target ref="id36"/>
+			<label kind="synchronisation" x="-357" y="-68">reset_pump[id]?</label>
+		</transition>
+		<transition id="id46">
+			<source ref="id37"/>
+			<target ref="id36"/>
+			<label kind="synchronisation" x="-442" y="-161">reset_pump[id]?</label>
+			<nail x="-374" y="-68"/>
+		</transition>
+		<transition id="id47">
+			<source ref="id36"/>
+			<target ref="id37"/>
+			<label kind="synchronisation" x="-663" y="-102">do_log_update_pump[id]!</label>
+			<label kind="assignment" x="-663" y="-76">setLogEntryForUpdate(
+DockAvailable_ID,id,
+-1,false)</label>
+			<nail x="-510" y="0"/>
+			<nail x="-510" y="-136"/>
+		</transition>
+		<transition id="id48">
+			<source ref="id36"/>
+			<target ref="id37"/>
+			<label kind="synchronisation" x="-969" y="-110">advance_pump_dock_available[id]?</label>
+			<nail x="-680" y="0"/>
+			<nail x="-680" y="-136"/>
+		</transition>
+		<transition id="id49">
+			<source ref="id39"/>
+			<target ref="id40"/>
+			<label kind="synchronisation" x="-187" y="42">advance_pump_robot_is_undocked[id]?</label>
+		</transition>
+		<transition id="id50">
+			<source ref="id38"/>
+			<target ref="id39"/>
+			<label kind="synchronisation" x="-195" y="-85">advance_pump_water_supplied[id]?</label>
+		</transition>
+		<transition id="id51">
+			<source ref="id37"/>
+			<target ref="id38"/>
+			<label kind="synchronisation" x="-501" y="-229">advance_pump_robot_is_docked[id]?</label>
+		</transition>
+	</template>
+	<template>
+		<name>Robot</name>
+		<parameter>Robot_t id</parameter>
+		<location id="id52" x="-66" y="102">
+			<name x="-178" y="110">Undocking</name>
+			<urgent/>
+		</location>
+		<location id="id53" x="272" y="102">
+			<name x="262" y="68">Done</name>
+		</location>
+		<location id="id54" x="-66" y="-170">
+			<name x="-42" y="-195">WaitingForWater</name>
+			<urgent/>
+		</location>
+		<location id="id55" x="-374" y="-170">
+			<name x="-442" y="-204">Docking</name>
+			<urgent/>
+		</location>
+		<location id="id56" x="-374" y="102">
+			<name x="-595" y="76">WaitingForAvailableDock</name>
+			<urgent/>
+		</location>
+		<init ref="id56"/>
+		<transition id="id57">
+			<source ref="id53"/>
+			<target ref="id56"/>
+			<label kind="synchronisation" x="-93" y="246">reset_robot[id]?</label>
+			<nail x="374" y="102"/>
+			<nail x="374" y="280"/>
+			<nail x="-272" y="272"/>
+		</transition>
+		<transition id="id58">
+			<source ref="id52"/>
+			<target ref="id53"/>
+			<label kind="synchronisation" x="0" y="170">do_log_update_robot[id]!</label>
+			<label kind="assignment" x="-110" y="195">setLogEntryForUpdate(RobotIsUndocked_ID,id,-2,false)</label>
+			<nail x="0" y="170"/>
+			<nail x="238" y="170"/>
+		</transition>
+		<transition id="id59">
+			<source ref="id55"/>
+			<target ref="id54"/>
+			<label kind="synchronisation" x="-331" y="-289">do_log_update_robot[id]!</label>
+			<label kind="assignment" x="-433" y="-263">setLogEntryForUpdate(RobotIsDocked_ID,id,-2,false)</label>
+			<nail x="-306" y="-238"/>
+			<nail x="-136" y="-238"/>
+		</transition>
+		<transition id="id60">
+			<source ref="id56"/>
+			<target ref="id56"/>
+			<label kind="synchronisation" x="-493" y="178">reset_robot[id]?</label>
+			<nail x="-408" y="170"/>
+			<nail x="-340" y="170"/>
+		</transition>
+		<transition id="id61">
+			<source ref="id52"/>
+			<target ref="id56"/>
+			<label kind="synchronisation" x="-263" y="51">reset_robot[id]?</label>
+			<nail x="-221" y="-34"/>
+		</transition>
+		<transition id="id62">
+			<source ref="id54"/>
+			<target ref="id56"/>
+			<label kind="synchronisation" x="-229" y="-85">reset_robot[id]?</label>
+		</transition>
+		<transition id="id63">
+			<source ref="id55"/>
+			<target ref="id56"/>
+			<label kind="synchronisation" x="-340" y="-110">reset_robot[id]?</label>
+			<nail x="-221" y="-34"/>
+		</transition>
+		<transition id="id64">
+			<source ref="id52"/>
+			<target ref="id53"/>
+			<label kind="synchronisation" x="-59" y="76">advance_robot_robot_is_undocked[id]?</label>
+		</transition>
+		<transition id="id65">
+			<source ref="id54"/>
+			<target ref="id52"/>
+			<label kind="synchronisation" x="-51" y="-51">advance_robot_water_supplied[id]?</label>
+		</transition>
+		<transition id="id66">
+			<source ref="id55"/>
+			<target ref="id54"/>
+			<label kind="synchronisation" x="-357" y="-187">advance_robot_robot_is_docked[id]?</label>
+		</transition>
+		<transition id="id67">
+			<source ref="id56"/>
+			<target ref="id55"/>
+			<label kind="synchronisation" x="-654" y="-42">advance_robot_dock_available[id]?</label>
+		</transition>
+	</template>
+	<system>// Place template instantiations here.
+// List one or more processes to be composed into a system.
+system Pump, Pump_log, Robot, Robot_log;
+</system>
+	<queries>
+		<query>
+			<formula>A[] forall(i:Robot_t) forall(j:Pump_t) deadlock imply Robot(i).Done and Pump(j).Done</formula>
+			<comment/>
+			<option key="--diagnostic" value="0"/>
+			<result outcome="failure" type="quality" timestamp="2024-09-18 16:36:16 +0200">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+	</queries>
+</nta>
