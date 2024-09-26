@@ -10,6 +10,14 @@ typedef int[0,NUMBER_OF_Pump-1] Pump_t;
 const int NUMBER_OF_Robot = 2;
 typedef int[0,NUMBER_OF_Robot-1] Robot_t;
 
+
+int amountOfLogs = NUMBER_OF_Pump + NUMBER_OF_Robot;
+int currentLogToPropagate;
+int amountOfPropagation = 0;
+
+
+
+
 // The eventTypes unique ID
 const int DockAvailable_ID = 0;
 const int RobotIsDocked_ID = 1;
@@ -198,6 +206,16 @@ void addIntToList(int &amp;tmpList[logSize], int newEntry) {
 }
 
 
+void setNextLogToPropagate() {
+    if (amountOfPropagation &lt; amountOfLogs-2) {
+        currentLogToPropagate = (currentLogToPropagate+1) % amountOfLogs;
+        amountOfPropagation++;
+    } else {
+        // reset
+        amountOfPropagation = -1;
+    }
+}
+
 
 // Function for extending a log length
 void extendLogLength() {} //TODO
@@ -227,6 +245,9 @@ logEntryType currentLog[logSize];
 
 
 int counter = 0;
+
+// Unique id overall logs
+int log_id_start = 0;
 
 // list for orderCounts we emitted
 int emittedOrderCounts[logSize];
@@ -359,7 +380,7 @@ void mergePropagationLog() {
 		<location id="id0" x="0" y="-136">
 			<committed/>
 		</location>
-		<location id="id1" x="-204" y="34">
+		<location id="id1" x="-51" y="51">
 			<committed/>
 		</location>
 		<location id="id2" x="-612" y="34">
@@ -377,6 +398,7 @@ void mergePropagationLog() {
 		<transition id="id6">
 			<source ref="id3"/>
 			<target ref="id5"/>
+			<label kind="guard" x="-663" y="-136">currentLogToPropagate == log_id_start + id</label>
 			<label kind="synchronisation" x="-544" y="-187">propagate_log?</label>
 			<label kind="assignment" x="-578" y="-161">mergePropagationLog()</label>
 			<nail x="-476" y="-136"/>
@@ -384,8 +406,9 @@ void mergePropagationLog() {
 		<transition id="id7">
 			<source ref="id5"/>
 			<target ref="id2"/>
-			<label kind="synchronisation" x="-816" y="-59">reset_robot[id]!</label>
-			<label kind="assignment" x="-773" y="-34">counter := 0</label>
+			<label kind="synchronisation" x="-833" y="-59">reset_robot[id]!</label>
+			<label kind="assignment" x="-858" y="-34">counter := 0,
+setNextLogToPropagate()</label>
 		</transition>
 		<transition id="id8">
 			<source ref="id4"/>
@@ -417,12 +440,14 @@ void mergePropagationLog() {
 		<transition id="id11">
 			<source ref="id0"/>
 			<target ref="id1"/>
-			<label kind="assignment" x="-127" y="-25">updateLogRobot(currentLog,emittedOrderCounts)</label>
+			<label kind="assignment" x="-8" y="-34">updateLogRobot(currentLog,emittedOrderCounts),
+currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs</label>
 		</transition>
 		<transition id="id12">
 			<source ref="id2"/>
 			<target ref="id3"/>
-			<label kind="guard" x="-612" y="-76">currentLog[counter].orderCount == 0</label>
+			<label kind="guard" x="-620" y="-51">currentLog[counter].orderCount == 0</label>
+			<label kind="synchronisation" x="-578" y="-25">propagate_log!</label>
 		</transition>
 		<transition id="id13">
 			<source ref="id4"/>
@@ -443,8 +468,8 @@ void mergePropagationLog() {
 		<transition id="id15">
 			<source ref="id1"/>
 			<target ref="id3"/>
-			<label kind="synchronisation" x="-331" y="-42">propagate_log!</label>
-			<label kind="assignment" x="-467" y="-8">setPropagationLog(currentLog)</label>
+			<label kind="synchronisation" x="-229" y="-51">propagate_log!</label>
+			<label kind="assignment" x="-365" y="-25">setPropagationLog(currentLog)</label>
 		</transition>
 		<transition id="id16">
 			<source ref="id3"/>
@@ -460,6 +485,9 @@ logEntryType currentLog[logSize];
 
 
 int counter = 0;
+
+// Unique id overall logs
+int log_id_start = NUMBER_OF_Robot;
 
 // list for orderCounts we emitted
 int emittedOrderCounts[logSize];
@@ -588,7 +616,7 @@ void mergePropagationLog() {
 		<location id="id18" x="-102" y="-238">
 			<committed/>
 		</location>
-		<location id="id19" x="-306" y="-68">
+		<location id="id19" x="-85" y="-42">
 			<committed/>
 		</location>
 		<location id="id20" x="-748" y="-238">
@@ -604,6 +632,7 @@ void mergePropagationLog() {
 		<transition id="id23">
 			<source ref="id17"/>
 			<target ref="id20"/>
+			<label kind="guard" x="-714" y="-238">currentLogToPropagate == log_id_start + id</label>
 			<label kind="synchronisation" x="-586" y="-289">propagate_log?</label>
 			<label kind="assignment" x="-612" y="-272">mergePropagationLog()</label>
 			<nail x="-484" y="-238"/>
@@ -612,23 +641,26 @@ void mergePropagationLog() {
 			<source ref="id20"/>
 			<target ref="id22"/>
 			<label kind="synchronisation" x="-833" y="-170">reset_pump[id]!</label>
-			<label kind="assignment" x="-824" y="-144">counter := 0</label>
+			<label kind="assignment" x="-824" y="-144">counter := 0,
+setNextLogToPropagate()</label>
 		</transition>
 		<transition id="id25">
 			<source ref="id22"/>
 			<target ref="id17"/>
 			<label kind="guard" x="-646" y="-178">currentLog[counter].orderCount == 0</label>
+			<label kind="synchronisation" x="-628" y="-165">propagate_log!</label>
 		</transition>
 		<transition id="id26">
 			<source ref="id18"/>
 			<target ref="id19"/>
-			<label kind="assignment" x="-229" y="-127">updateLogPump(currentLog,emittedOrderCounts)</label>
+			<label kind="assignment" x="-76" y="-127">updateLogPump(currentLog,emittedOrderCounts),
+currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs</label>
 		</transition>
 		<transition id="id27">
 			<source ref="id19"/>
 			<target ref="id17"/>
-			<label kind="synchronisation" x="-425" y="-136">propagate_log!</label>
-			<label kind="assignment" x="-552" y="-102">setPropagationLog(currentLog)</label>
+			<label kind="synchronisation" x="-323" y="-144">propagate_log!</label>
+			<label kind="assignment" x="-365" y="-102">setPropagationLog(currentLog)</label>
 		</transition>
 		<transition id="id28">
 			<source ref="id17"/>
@@ -877,7 +909,7 @@ system Pump, Pump_log, Robot, Robot_log;
 		<query>
 			<formula>A[] forall(i:Robot_t) forall(j:Pump_t) deadlock imply Robot(i).Done and Pump(j).Done</formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2024-09-25 11:35:38 +0200">
+			<result outcome="success" type="quality" timestamp="2024-09-25 14:40:10 +0200">
 			</result>
 		</query>
 	</queries>
