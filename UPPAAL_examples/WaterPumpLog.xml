@@ -16,8 +16,6 @@ int currentLogToPropagate;
 int amountOfPropagation = 0;
 
 
-
-
 // The eventTypes unique ID
 const int DockAvailable_ID = 0;
 const int RobotIsDocked_ID = 1;
@@ -74,112 +72,6 @@ urgent broadcast chan advance_robot_robot_is_undocked[Robot_t];
 
 // --------- Functions ---------------
 
-
-// Get orderCounter and increment it
-int getOrderCount() {
-    int temp = eventOrderCounter;
-    eventOrderCounter = eventOrderCounter + 1;
-    return temp;
-}
-
-// Set new log entry
-void setLogEntryForUpdate(int eventID, int emitterID, int basedOnOrderCount, bool ignored) {
-    tempLogEntry.eventID = eventID;
-    tempLogEntry.emitterID = emitterID;
-    tempLogEntry.orderCount = getOrderCount();
-    tempLogEntry.basedOnOrderCount = basedOnOrderCount;
-    tempLogEntry.ignored = ignored;
-}
-
-void setPropagationLog(logEntryType tempLog[logSize]) {
-    propagationLog = tempLog;
-}
-
-
-// Update currentLog and return index for new entry
-void updateLog(logEntryType &amp;tempLog[logSize]) {
-    int i = 0;
-    for (i = 0; i &lt; logSize; i++) {
-        if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
-            tempLog[i] = tempLogEntry; // Update log
-            return;
-        }
-    }
-    return;
-    // If we reach here log is full and we are in trouble
-}
-
-// Log helper function. TODO merge with addIntToList same functionality.
-void addEntryToEmitterOrderCountsList(int &amp;emittedOrderCounts[logSize]) {
-    int j = 0;
-    for (j = 0; j &lt; logSize; j++) {
-        if (emittedOrderCounts[j] == 0) { //Empty entry
-            emittedOrderCounts[j] = tempLogEntry.orderCount;
-            return;
-        }
-    }
-}
-
-// Special function for checking if new log entry has not set the emitter ID it is based on yet and then sets it
-void updateLogRobot(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize]) {    
-    addEntryToEmitterOrderCountsList(emittedOrderCounts);
-    // We check if basedemitterID set to -2 as this is a flag for unknown
-    if (tempLogEntry.basedOnOrderCount == -2) {
-        int i = 0;
-        for (i = 0; i &lt; logSize; i++) {
-            if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
-                updateLog(tempLog);
-                return;
-            } else {
-                if (tempLogEntry.eventID == RobotIsDocked_ID) {
-                    // check if previous event is ignored == false
-                    if (tempLog[i].eventID == DockAvailable_ID &amp;&amp; !tempLog[i].ignored) {
-                        tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
-                        updateLog(tempLog);
-                        return;
-                    }
-                } else if (tempLogEntry.eventID == RobotIsUndocked_ID) {
-                    // check if previous event is ignored == false
-                    if (tempLog[i].eventID == WaterSupplied_ID &amp;&amp; !tempLog[i].ignored) {
-                        tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
-                        updateLog(tempLog);
-                        return;
-                    }
-                }
-            }
-        }
-    }
-    updateLog(tempLog);
-    return;
-}
-
-// Special function for checking if new log entry has not set the emitter ID it is based on yet and then sets it
-void updateLogPump(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize]) {
-    addEntryToEmitterOrderCountsList(emittedOrderCounts);
-    // First we check if basedemitterID set to -2 as this is a flag for unknown
-    if (tempLogEntry.basedOnOrderCount == -2) {
-        int i = 0;
-        for (i = 0; i &lt; logSize; i++) {
-            if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
-                updateLog(tempLog);
-                return;
-            } else {
-                if (tempLogEntry.eventID == WaterSupplied_ID) {
-                    // check if previous event is ignored == false
-                    if (tempLog[i].eventID == RobotIsDocked_ID &amp;&amp; !tempLog[i].ignored) {
-                        tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
-                        updateLog(tempLog);
-                        return;
-                    }
-                }
-            }
-        }
-    }
-    updateLog(tempLog);
-    return;
-}
-
-
 // Function to check if number is in list
 bool isIntInList(int tmpList[logSize], int possibleEntry) {
     int i = 0;
@@ -215,6 +107,101 @@ void setNextLogToPropagate() {
         amountOfPropagation = -1;
     }
 }
+
+
+// Get orderCounter and increment it
+int getOrderCount() {
+    int temp = eventOrderCounter;
+    eventOrderCounter = eventOrderCounter + 1;
+    return temp;
+}
+
+// Set new log entry
+void setLogEntryForUpdate(int eventID, int emitterID, int basedOnOrderCount, bool ignored) {
+    tempLogEntry.eventID = eventID;
+    tempLogEntry.emitterID = emitterID;
+    tempLogEntry.orderCount = getOrderCount();
+    tempLogEntry.basedOnOrderCount = basedOnOrderCount;
+    tempLogEntry.ignored = ignored;
+}
+
+void setPropagationLog(logEntryType tempLog[logSize]) {
+    propagationLog = tempLog;
+}
+
+
+// Update currentLog and return index for new entry
+void updateLog(logEntryType &amp;tempLog[logSize]) {
+    int i = 0;
+    for (i = 0; i &lt; logSize; i++) {
+        if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
+            tempLog[i] = tempLogEntry; // Update log
+            return;
+        }
+    }
+    return;
+    // If we reach here log is full and we are in trouble
+}
+
+// Special function for checking if new log entry has not set the emitter ID it is based on yet and then sets it
+void updateLogRobot(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize]) {    
+    addIntToList(emittedOrderCounts, tempLogEntry.orderCount);
+    // We check if basedemitterID set to -2 as this is a flag for unknown
+    if (tempLogEntry.basedOnOrderCount == -2) {
+        int i = 0;
+        for (i = 0; i &lt; logSize; i++) {
+            if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
+                updateLog(tempLog);
+                return;
+            } else {
+                if (tempLogEntry.eventID == RobotIsDocked_ID) {
+                    // check if previous event is ignored == false
+                    if (tempLog[i].eventID == DockAvailable_ID &amp;&amp; !tempLog[i].ignored) {
+                        tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
+                        updateLog(tempLog);
+                        return;
+                    }
+                } else if (tempLogEntry.eventID == RobotIsUndocked_ID) {
+                    // check if previous event is ignored == false
+                    if (tempLog[i].eventID == WaterSupplied_ID &amp;&amp; !tempLog[i].ignored) {
+                        tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
+                        updateLog(tempLog);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    updateLog(tempLog);
+    return;
+}
+
+// Special function for checking if new log entry has not set the emitter ID it is based on yet and then sets it
+void updateLogPump(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize]) {
+    addIntToList(emittedOrderCounts, tempLogEntry.orderCount);
+    // First we check if basedemitterID set to -2 as this is a flag for unknown
+    if (tempLogEntry.basedOnOrderCount == -2) {
+        int i = 0;
+        for (i = 0; i &lt; logSize; i++) {
+            if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
+                updateLog(tempLog);
+                return;
+            } else {
+                if (tempLogEntry.eventID == WaterSupplied_ID) {
+                    // check if previous event is ignored == false
+                    if (tempLog[i].eventID == RobotIsDocked_ID &amp;&amp; !tempLog[i].ignored) {
+                        tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
+                        updateLog(tempLog);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    updateLog(tempLog);
+    return;
+}
+
 
 
 // Function for extending a log length
@@ -255,11 +242,11 @@ int emittedOrderCounts[logSize];
 // list of orderCounts of events we have discarded
 int discardedEvents[logSize];
 
+bool olderEntryIgnored = false;
+
 // --------- Functions ---------------
 
 // Here is the business logic for handling each different event type.
-// TODO: capture someone did what you did before you put you only found out later own event has to be discarded
-// TODO: add functionality to capture when events have been claimed and need to be ignored.
 logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
     // We first find the event Type
     int currentEventType = tmpLogEntry.eventID;
@@ -274,11 +261,11 @@ logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[lo
                   if (resLog[j].eventID == DockAvailable_ID &amp;&amp; resLog[j].orderCount == tmpLogEntry.basedOnOrderCount) {
                   // We must ignore the dockAvailable since someone else claimed it first
                   resLog[j].ignored = true;
+                  olderEntryIgnored = true;
                   return tmpLogEntry;
                 }
             }
         }
-        // TODO: We have to check if own event should be ignored cause origin of it is set to ignored/claimed ONLY important once logs don't propagate instantly.
         
 
     } else if (currentEventType == WaterSupplied_ID) {
@@ -324,21 +311,7 @@ void mergePropagationLog() {
 
         // If both are done we are done.
         if (currentLogDone &amp;&amp; propagatedLogDone) {
-            // We have to ensure no ignored events are in resLog.
-            int j;
-            int h = 0;
-            logEntryType tmpLog[logSize];
-            currentLog = tmpLog;
-            for(j = 0; j &lt; logSize; j++) {
-                if (resLog[j].orderCount == 0) {
-                    return;
-                } else if (!resLog[j].ignored) {
-                    currentLog[h] = resLog[j];
-                    h++;
-                } else {
-                    addIntToList(discardedEvents, resLog[j].orderCount);
-                }
-            }
+            currentLog = resLog; 
             return;
         }
         
@@ -373,6 +346,26 @@ void mergePropagationLog() {
             } else {
                 resLog[i] = tmpLogEntry;
             }
+            if (olderEntryIgnored) {
+                int j;
+                int h = 0;
+                logEntryType tmpLog[logSize];
+                for(j = 0; j &lt; logSize; j++) {
+                    if (resLog[j].orderCount == 0) {
+                        j = logSize;
+                    } else if (!resLog[j].ignored) {
+                        tmpLog[h] = resLog[j];
+                        h++;
+                    } else {
+                        i--;
+                        addIntToList(discardedEvents, resLog[j].orderCount);
+                    }
+                }
+                resLog = tmpLog;
+                olderEntryIgnored = false;
+            }
+
+
         }
     }
 }
@@ -495,10 +488,11 @@ int emittedOrderCounts[logSize];
 // list of orderCounts of events we have discarded
 int discardedEvents[logSize];
 
+bool olderEntryIgnored = false;
+
 // --------- Functions ---------------
 
 // Here is the business logic for handling each different event type.
-// TODO: capture someone did what you did before you put you only found out later own event has to be discarded
 logEntryType handleLogEntry(logEntryType tmpLogEntry) {    
 
     // We first find the event Type
@@ -555,21 +549,7 @@ void mergePropagationLog() {
 
         // If both are done we are done.
         if (currentLogDone &amp;&amp; propagatedLogDone) {
-            // We have to ensure no ignored events are in resLog.
-            int j;
-            int h = 0;
-            logEntryType tmpLog[logSize];
-            currentLog = tmpLog;
-            for(j = 0; j &lt; logSize; j++) {
-                if (resLog[j].orderCount == 0) {
-                    return;
-                } else if (!resLog[j].ignored) {
-                    currentLog[h] = resLog[j];
-                    h++;
-                } else {
-                    addIntToList(discardedEvents, resLog[j].orderCount);
-                }
-            }
+            currentLog = resLog;
             return;
         }
         
@@ -603,6 +583,24 @@ void mergePropagationLog() {
                 addIntToList(discardedEvents, tmpLogEntry.orderCount);
             } else {
                 resLog[i] = tmpLogEntry;
+            }
+            if (olderEntryIgnored) {
+                int j;
+                int h = 0;
+                logEntryType tmpLog[logSize];
+                for(j = 0; j &lt; logSize; j++) {
+                    if (resLog[j].orderCount == 0) {
+                        j = logSize;
+                    } else if (!resLog[j].ignored) {
+                        tmpLog[h] = resLog[j];
+                        h++;
+                    } else {
+                        i--;
+                        addIntToList(discardedEvents, resLog[j].orderCount);
+                    }
+                }
+                resLog = tmpLog;
+                olderEntryIgnored = false;
             }
         }
     }
@@ -909,7 +907,7 @@ system Pump, Pump_log, Robot, Robot_log;
 		<query>
 			<formula>A[] forall(i:Robot_t) forall(j:Pump_t) deadlock imply Robot(i).Done and Pump(j).Done</formula>
 			<comment/>
-			<result outcome="success" type="quality" timestamp="2024-09-25 14:40:10 +0200">
+			<result outcome="success" type="quality" timestamp="2024-09-26 15:38:04 +0200">
 			</result>
 		</query>
 	</queries>
