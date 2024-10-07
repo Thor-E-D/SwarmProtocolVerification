@@ -145,6 +145,51 @@ void updateLog(logEntryType &amp;tempLog[logSize]) {
     // If we reach here log is full and we are in trouble
 }
 
+// Handle events with same type that the machine emits. returns if older entries in the resLog have been ignored.
+bool handleOwnEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int currentIndex, int id) {
+    if (tmpLogEntry.emitterID == id) {
+        if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
+            tmpLogEntry.ignored = true;
+        }
+    } else {
+        int j;
+        tmpLogEntry.ignored = true;
+        // Check if event it was based on has to be discarded
+        for (j = currentIndex; j &gt;= 0; j--) {
+            if (resLog[j].emitterID == id &amp;&amp; resLog[j].basedOnOrderCount == tmpLogEntry.basedOnOrderCount) { // We already claimed event.
+                return false;
+            } else if (resLog[j].orderCount == tmpLogEntry.basedOnOrderCount) {
+                // We must ignore the dockAvailable since someone else claimed it first
+                resLog[j].ignored = true;
+                return true;
+            }
+         }
+    }
+    return false;
+}
+
+// Handles events that other machines emit but this machine subscribe to.
+void handleOtherEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;emittedOrderCounts[logSize], int currentIndex) {
+    if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
+        tmpLogEntry.ignored = true;
+    } 
+
+    if ((tmpLogEntry.basedOnOrderCount == -1)) { //If it is a starting event and not based on anything. TODO refactor into if event is tied.
+        return;
+    } else if (!(isIntInList(emittedOrderCounts, tmpLogEntry.basedOnOrderCount))) {
+        tmpLogEntry.ignored = true;
+    } else {
+        int j;
+        // Check if event if any one else claimed it
+        for (j = currentIndex; j &gt;= 0; j--) {
+            if (resLog[j].basedOnOrderCount == tmpLogEntry.basedOnOrderCount) {
+                tmpLogEntry.ignored = true;
+            }
+         }
+    }
+}
+
+
 // Special function for checking if new log entry has not set the emitter ID it is based on yet and then sets it
 void updateLogRobot(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize]) {    
     addIntToList(emittedOrderCounts, tempLogEntry.orderCount);
@@ -157,15 +202,13 @@ void updateLogRobot(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCou
                 return;
             } else {
                 if (tempLogEntry.eventID == RobotIsDocked_ID) {
-                    // check if previous event is ignored == false
-                    if (tempLog[i].eventID == DockAvailable_ID &amp;&amp; !tempLog[i].ignored) {
+                    if (tempLog[i].eventID == DockAvailable_ID) {
                         tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
                         updateLog(tempLog);
                         return;
                     }
                 } else if (tempLogEntry.eventID == RobotIsUndocked_ID) {
-                    // check if previous event is ignored == false
-                    if (tempLog[i].eventID == WaterSupplied_ID &amp;&amp; !tempLog[i].ignored) {
+                    if (tempLog[i].eventID == WaterSupplied_ID) {
                         tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
                         updateLog(tempLog);
                         return;
@@ -190,8 +233,7 @@ void updateLogPump(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCoun
                 return;
             } else {
                 if (tempLogEntry.eventID == WaterSupplied_ID) {
-                    // check if previous event is ignored == false
-                    if (tempLog[i].eventID == RobotIsDocked_ID &amp;&amp; !tempLog[i].ignored) {
+                    if (tempLog[i].eventID == RobotIsDocked_ID) {
                         tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
                         updateLog(tempLog);
                         return;
@@ -251,57 +293,18 @@ bool olderEntryIgnored = false;
 
 // --------- Functions ---------------
 
-void handleOwnEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
-    if (tmpLogEntry.emitterID == id) {
-        if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
-            tmpLogEntry.ignored = true;
-        }
-    } else {
-        int j;
-        tmpLogEntry.ignored = true;
-        // Check if event it was based on has to be discarded
-        for (j = currentIndex; j &gt;= 0; j--) {
-            if (resLog[j].emitterID == id &amp;&amp; resLog[j].basedOnOrderCount == tmpLogEntry.basedOnOrderCount) {
-                return;
-            } else if (resLog[j].orderCount == tmpLogEntry.basedOnOrderCount) {
-                // We must ignore the dockAvailable since someone else claimed it first
-                resLog[j].ignored = true;
-                olderEntryIgnored = true;
-                return;
-            }
-         }
-    }
-}
-
-void handleOtherEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
-    if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
-        tmpLogEntry.ignored = true;
-    } else if (!(isIntInList(emittedOrderCounts, tmpLogEntry.basedOnOrderCount))) {
-        tmpLogEntry.ignored = true;
-    } else {
-        int j;
-        // Check if event if any one else claimed it
-        for (j = currentIndex; j &gt;= 0; j--) {
-            if (resLog[j].basedOnOrderCount == tmpLogEntry.basedOnOrderCount) {
-                tmpLogEntry.ignored = true;
-            }
-         }
-    }
-}
-
-
 // Here is the business logic for handling each different event type.
 logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
     // We first find the event Type
     int currentEventType = tmpLogEntry.eventID;
     if (currentEventType == DockAvailable_ID) {
-        // It is a beginning event so we do not care who broadcasted it
+        handleOtherEvent(tmpLogEntry, resLog, discardedEvents, emittedOrderCounts, currentIndex);
     } else if (currentEventType == RobotIsDocked_ID) {
-        handleOwnEvent(tmpLogEntry, resLog, currentIndex);
+        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex,id);
     } else if (currentEventType == WaterSupplied_ID) {
-        handleOtherEvent(tmpLogEntry, resLog, currentIndex);
+        handleOtherEvent(tmpLogEntry, resLog, discardedEvents, emittedOrderCounts, currentIndex);
     } else if (currentEventType == RobotIsUndocked_ID) {
-        handleOwnEvent(tmpLogEntry, resLog, currentIndex);
+        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex,id);
     }
     return tmpLogEntry;
 }
@@ -551,57 +554,19 @@ bool olderEntryIgnored = false;
 
 // --------- Functions ---------------
 
-void handleOwnEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
-    if (tmpLogEntry.emitterID == id) {
-        if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
-            tmpLogEntry.ignored = true;
-        }
-    } else {
-        int j;
-        tmpLogEntry.ignored = true;
-        // Check if event it was based on has to be discarded
-        for (j = currentIndex; j &gt;= 0; j--) {
-            if (resLog[j].emitterID == id &amp;&amp; resLog[j].basedOnOrderCount == tmpLogEntry.basedOnOrderCount) {
-                return;
-            } else if (resLog[j].orderCount == tmpLogEntry.basedOnOrderCount) {
-                // We must ignore the dockAvailable since someone else claimed it first
-                resLog[j].ignored = true;
-                olderEntryIgnored = true;
-                return;
-            }
-         }
-    }
-}
-
-void handleOtherEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
-    if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
-        tmpLogEntry.ignored = true;
-    } else if (!(isIntInList(emittedOrderCounts, tmpLogEntry.basedOnOrderCount))) {
-        tmpLogEntry.ignored = true;
-    } else {
-        int j;
-        // Check if event if any one else claimed it
-        for (j = currentIndex; j &gt;= 0; j--) {
-            if (resLog[j].basedOnOrderCount == tmpLogEntry.basedOnOrderCount) {
-                tmpLogEntry.ignored = true;
-            }
-         }
-    }
-}
-
 // Here is the business logic for handling each different event type.
 logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {    
 
     // We first find the event Type
     int currentEventType = tmpLogEntry.eventID;
     if (currentEventType == DockAvailable_ID) {
-        handleOwnEvent(tmpLogEntry, resLog, currentIndex);
+        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex,id);
     } else if (currentEventType == RobotIsDocked_ID) {
-        handleOtherEvent(tmpLogEntry, resLog, currentIndex);
+        handleOtherEvent(tmpLogEntry, resLog, discardedEvents, emittedOrderCounts, currentIndex);
     } else if (currentEventType == WaterSupplied_ID) {
-        handleOwnEvent(tmpLogEntry, resLog, currentIndex);
+        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex, id);
     } else if (currentEventType == RobotIsUndocked_ID) {
-        handleOtherEvent(tmpLogEntry, resLog, currentIndex);
+        handleOtherEvent(tmpLogEntry, resLog, discardedEvents, emittedOrderCounts, currentIndex);
     }
     return tmpLogEntry;
 }
@@ -1028,7 +993,7 @@ system Pump, Pump_log, Robot, Robot_log;
 			<formula>A[] forall(i:Robot_t) forall(j:Pump_t) deadlock imply Robot(i).Done and Pump(j).Done</formula>
 			<comment/>
 			<option key="--diagnostic" value="0"/>
-			<result outcome="success" type="quality" timestamp="2024-09-27 11:37:56 +0200">
+			<result outcome="success" type="quality" timestamp="2024-09-30 13:42:11 +0200">
 				<option key="--diagnostic" value="0"/>
 			</result>
 		</query>
