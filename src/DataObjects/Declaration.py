@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Callable, List, Tuple
-from DataObjects.Channel import Channel  # Import the Channel class from channel.py
+from .Channel import Channel  # Import the Channel class from channel.py
 
 # Define the Declaration class with function call handling
 @dataclass

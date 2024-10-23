@@ -10,3 +10,5 @@
 pyvenv.cfg
 .venv
 pip-selfcheck.json
+src/__pycache__
+src/DataObjects/__pycache__

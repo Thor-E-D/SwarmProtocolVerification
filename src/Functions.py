@@ -1,8 +1,8 @@
 def generate_function_is_int_in_list() -> str:
     return """
-bool isIntInList(int tmpList[log_size], int possibleEntry) {
+bool isIntInList(int tmpList[logSize], int possibleEntry) {
     int i = 0;
-    for (i = 0; i &lt log_size; i++) {
+    for (i = 0; i &lt; logSize; i++) {
         if (tmpList[i] == possibleEntry) {
             return true;
         } else if (tmpList[i] == 0) {
@@ -56,7 +56,6 @@ void setLogEntryForUpdate(int eventID, int emitterID, int basedOnOrderCount, boo
     tempLogEntry.emitterID = emitterID;
     tempLogEntry.orderCount = getOrderCount();
     tempLogEntry.basedOnOrderCount = basedOnOrderCount;
-    tempLogEntry.tiedTo = -1;
     tempLogEntry.ignored = ignored;
 }
 """

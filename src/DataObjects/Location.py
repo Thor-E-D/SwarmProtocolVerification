@@ -5,15 +5,17 @@ import xml.etree.ElementTree as ET
 @dataclass
 class Location:
     id: int
+    x: Optional[int] = 0
+    y: Optional[int] = 0
     name: Optional[str] = None
     urgent: bool = False
     committed: bool = False
 
     def to_xml(self) -> str:
-        location_elem = ET.Element("location", attrib={"id": "id" + str(self.id), "x": "0", "y": "0"})
+        location_elem = ET.Element("location", attrib={"id": "id" + str(self.id), "x": f"{self.x}", "y": f"{self.y}"})
 
         if self.name:
-            name_elem = ET.SubElement(location_elem, "name", attrib={"x": "0", "y": "0"})
+            name_elem = ET.SubElement(location_elem, "name", attrib={"x": f"{self.x + 1}", "y": f"{self.y + 1}"})
             name_elem.text = self.name
 
         if self.urgent:
