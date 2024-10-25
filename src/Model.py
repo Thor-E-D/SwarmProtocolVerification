@@ -177,10 +177,13 @@ if __name__ == "__main__":
     jsonTransfers = [] 
     jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Robot.json"))
     jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Pump.json"))
+    #jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Warehouse\\Door.json"))
+    #jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Warehouse\\Forklift.json"))
+    #jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Warehouse\\Transport.json"))
 
     name_amount_dict = {}
     for jsonTransfer in jsonTransfers:
-        name_amount_dict[jsonTransfer.name] = 2
+        name_amount_dict[jsonTransfer.name] = 1
 
     currentModel = createModel(jsonTransfers, name_amount_dict)
-    save_xml_to_file(currentModel, "example_file", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis")
+    save_xml_to_file(currentModel, "example_file", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Warehouse")

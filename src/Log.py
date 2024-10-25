@@ -15,9 +15,7 @@ class Log(Template):
         declaration.add_variable("bool newUpdates = false;")
         declaration.add_variable("int counter = 0;")
 
-
         declaration.add_variable(f"int log_id_start = {jsonTransfer.log_id_start};")
-
 
         declaration.add_variable("int emittedOrderCounts[logSize];")
         declaration.add_variable("int discardedEvents[logSize];")
@@ -56,14 +54,16 @@ class Log(Template):
             assignment="""currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
 updatesSincePropagation := 0,
 newUpdates := false,
-setPropagationLog(currentLog)"""
+setPropagationLog(currentLog)""",
+            nails = [(-136, -187)]
         ))
 
         transitions.append(Transition(
             id=Utils.get_next_id(),
             source=l1,
             target=l3,
-            synchronisation="propagate_log!"
+            synchronisation="propagate_log!",
+            nails = [(-272, -195)]
         ))
 
         transitions.append(Transition(
@@ -73,7 +73,8 @@ setPropagationLog(currentLog)"""
             synchronisation=f"{jsonTransfer.do_update_channel_name}[id]?",
             assignment=f"""updateLog{jsonTransfer.name}(currentLog,emittedOrderCounts),
 updatesSincePropagation++,
-newUpdates := true"""
+newUpdates := true""",
+            nails = [(0, -51)]
         ))
 
         transitions.append(Transition(
@@ -135,14 +136,23 @@ setNextLogToPropagate()"""
         ))
 
 
+        start_y = l7.y + 51
+        start_x = l7.x - 85
+
+
         for subscription in jsonTransfer.subscriptions:
+            nails = [(start_x + 68, start_y), (start_x, start_y)]
+            start_y += 34
+            start_x -= 34
+
             transitions.append(Transition(
                 id=Utils.get_next_id(),
                 source=l7,
                 target=l5,
                 guard=f"currentLog[counter].eventID == {Utils.get_eventtype_UID(subscription)}",
                 synchronisation=f"{jsonTransfer.advance_channel_names[subscription]}[id]!",
-                assignment="counter++"
+                assignment="counter++",
+                nails=nails
             ))
         
         # Initialize the superclass with the data
