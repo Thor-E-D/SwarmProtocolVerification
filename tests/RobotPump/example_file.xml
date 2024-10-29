@@ -1,0 +1,646 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.6//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_6.dtd'>
+<nta><declaration>
+const int NUMBER_OF_Robot = 2;
+typedef int[0,NUMBER_OF_Robot-1] Robot_t;
+const int NUMBER_OF_Pump = 2;
+typedef int[0,NUMBER_OF_Pump-1] Pump_t;
+int amountOfLogs = NUMBER_OF_Robot + NUMBER_OF_Pump;
+int currentLogToPropagate;
+int amountOfPropagation = 0;
+const int DockAvailable_ID = 0;
+const int RobotIsDocked_ID = 1;
+const int WaterSupplied_ID = 2;
+const int RobotIsUndocked_ID = 3;
+const int amountOfUniqueEvents = 4;
+typedef struct {
+    int eventID;
+    int emitterID;
+    int orderCount;
+    int basedOnOrderCount;
+    int tiedTo;
+    bool ignored;
+} logEntryType;
+int maxUpdatesSincePropagation = 1;
+const int maxAmountOfTied = 1;
+const int eventsTiedTo[amountOfUniqueEvents][maxAmountOfTied] = {{-1}, {DockAvailable_ID}, {DockAvailable_ID}, {DockAvailable_ID}};
+const int logSize = 10;
+int eventOrderCounter = 1;
+logEntryType tempLogEntry;
+logEntryType propagationLog[logSize];
+logEntryType globalLog[logSize];
+urgent broadcast chan propagate_log;
+urgent chan do_log_update_Robot[Robot_t];
+urgent chan reset_Robot[Robot_t];
+urgent broadcast chan advance_Robot_DockAvailable[Robot_t];
+urgent broadcast chan advance_Robot_RobotIsDocked[Robot_t];
+urgent broadcast chan advance_Robot_WaterSupplied[Robot_t];
+urgent broadcast chan advance_Robot_RobotIsUndocked[Robot_t];
+urgent chan do_log_update_Pump[Pump_t];
+urgent chan reset_Pump[Pump_t];
+urgent broadcast chan advance_Pump_DockAvailable[Pump_t];
+urgent broadcast chan advance_Pump_RobotIsDocked[Pump_t];
+urgent broadcast chan advance_Pump_WaterSupplied[Pump_t];
+urgent broadcast chan advance_Pump_RobotIsUndocked[Pump_t];
+
+bool isInSubsciptions(int tmpList[amountOfUniqueEvents], int possibleEntry) {
+    int i = 0;
+    for (i = 0; i &lt; amountOfUniqueEvents; i++) {
+        if (tmpList[i] == possibleEntry) {
+            return true;
+        } else if (tmpList[i] == -1) {
+            return false;
+        }
+    }
+    return false;
+}
+
+bool isIntInList(int tmpList[logSize], int possibleEntry) {
+    int i = 0;
+    for (i = 0; i &lt; logSize; i++) {
+        if (tmpList[i] == possibleEntry) {
+            return true;
+        } else if (tmpList[i] == 0) {
+            return false;
+        }
+    }
+    return false;
+}
+
+
+void addIntToList(int &amp;tmpList[logSize], int newEntry) {
+    int i = 0;
+    for (i = 0; i &lt; logSize; i++) {
+        if (tmpList[i] == 0) {
+            tmpList[i] = newEntry;
+            return;
+        }
+    }
+}
+
+
+int getEventIDfromOrderCount(int orderCount) {
+    int i = 0;
+    for (i = 0; i &lt; logSize; i++) {
+        if (globalLog[i].orderCount == orderCount) {
+            return globalLog[i].eventID;
+        }
+    }
+    return -1;
+}
+
+void setNextLogToPropagate() {
+    if (amountOfPropagation &lt; amountOfLogs-2) {
+        currentLogToPropagate = (currentLogToPropagate+1) % amountOfLogs;
+        amountOfPropagation++;
+    } else {
+        // reset
+        amountOfPropagation = -1;
+    }
+}
+
+
+int getOrderCount() {
+    int temp = eventOrderCounter;
+    eventOrderCounter = eventOrderCounter + 1;
+    return temp;
+}
+
+
+void setLogEntryForUpdate(int eventID, int emitterID, int basedOnOrderCount, bool ignored) {
+    tempLogEntry.eventID = eventID;
+    tempLogEntry.emitterID = emitterID;
+    tempLogEntry.orderCount = getOrderCount();
+    tempLogEntry.basedOnOrderCount = basedOnOrderCount;
+    tempLogEntry.tiedTo = -1;
+    tempLogEntry.ignored = ignored;
+}
+
+
+void findAndSetTiedTo(logEntryType &amp;tempLog[logSize]) {
+    int k;
+    int j;
+    int i;
+    for(i = 0; i &lt; logSize; i++) {
+        if (tempLog[i].orderCount != 0) {
+            if (tempLog[i].emitterID == tempLogEntry.emitterID) {
+                for (j = 0; j&lt;maxAmountOfTied; j++) {
+                    for (k = 0; k&lt;maxAmountOfTied; k++) {
+                        if (eventsTiedTo[tempLogEntry.eventID][j] == eventsTiedTo[tempLog[i].eventID][k] &amp;&amp; tempLog[i].tiedTo != -1) {
+                            tempLogEntry.tiedTo = tempLog[i].tiedTo;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for(i = 0; i &lt; logSize; i++) {
+        if (tempLog[i].orderCount != 0) {
+            for (j = 0; j&lt;maxAmountOfTied; j++) {
+                if (tempLog[i].eventID == eventsTiedTo[tempLogEntry.eventID][j]) {
+                    tempLogEntry.tiedTo = tempLog[i].orderCount;
+                    return;
+                }
+            }
+        }
+    }  
+}
+
+void setPropagationLog(logEntryType tempLog[logSize]) {
+    propagationLog = tempLog;
+}
+
+
+void updateGlobalLog() {
+    int i;
+    logEntryType resLog[logSize];
+    int count = 0;
+    bool addedEntry = false;
+
+    for (i = 0; i &lt; (logSize); i++) {
+        if (globalLog[count].orderCount == 0) {
+            if (addedEntry) {
+                resLog[i] = globalLog[count];
+                globalLog = resLog;
+                return;
+            }
+            resLog[i] = tempLogEntry;
+            globalLog = resLog;
+            return;
+        }
+        else if (globalLog[count].orderCount &gt; tempLogEntry.orderCount) {
+            resLog[i] = tempLogEntry;
+            count = count - 1;
+            addedEntry = true;
+        } else {
+            resLog[i] = globalLog[count];
+        }
+        count = count + 1;
+    }
+    globalLog = resLog;
+}
+
+void updateLog(logEntryType &amp;tempLog[logSize]) {
+    int i = 0;
+    findAndSetTiedTo(tempLog);
+    updateGlobalLog();
+    for (i = 0; i &lt; logSize; i++) {
+        if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
+            tempLog[i] = tempLogEntry; // Update log
+            return;
+        }
+    }
+    return;
+    // If we reach here log is full and we are in trouble
+}
+
+
+bool handleOwnEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int currentIndex, int id) {
+    if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
+        tmpLogEntry.ignored = true;
+    } else if (tmpLogEntry.emitterID != id) {
+        int j;
+        tmpLogEntry.ignored = true;
+        // Check if we have already tied into this so an event we emitted that is tied to the same thing
+        for (j = currentIndex; j &gt;= 0; j--) {
+            if (resLog[j].emitterID == id &amp;&amp; resLog[j].eventID == tmpLogEntry.eventID &amp;&amp; resLog[j].tiedTo == tmpLogEntry.tiedTo) {
+                return false;
+                }
+        }
+        for (j = currentIndex; j &gt;= 0; j--) {
+            if (resLog[j].tiedTo == tmpLogEntry.tiedTo || tmpLogEntry.tiedTo == resLog[j].orderCount) {
+                resLog[j].ignored = true;
+            }
+        }
+        return true; 
+    }
+    return false;
+}
+
+
+void handleOtherEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;subsciptions[amountOfUniqueEvents], int currentIndex) {
+    int i;
+    if ((isInSubsciptions(subsciptions, getEventIDfromOrderCount(tmpLogEntry.basedOnOrderCount)) &amp;&amp; isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) || isIntInList(discardedEvents, tmpLogEntry.tiedTo)) {
+        tmpLogEntry.ignored = true;
+    }
+    
+    for (i = currentIndex; i &gt;= 0; i--) {
+        if (tmpLogEntry.tiedTo != -1 &amp;&amp; resLog[i].eventID == tmpLogEntry.eventID &amp;&amp; resLog[i].tiedTo == tmpLogEntry.tiedTo) {
+            tmpLogEntry.ignored = true;
+        }
+    }
+}
+
+
+void updateLogRobot(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize], int log_id_start) {    
+    addIntToList(emittedOrderCounts, tempLogEntry.orderCount);
+    // We check if basedemitterID set to -2 as this is a flag for unknown
+    tempLogEntry.emitterID = tempLogEntry.emitterID + log_id_start;
+    if (tempLogEntry.basedOnOrderCount == -2) {
+        int i = 0;
+        for (i = 0; i &lt; logSize; i++) {
+            if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
+                updateLog(tempLog);
+                return;
+            } else { 
+                if (tempLogEntry.eventID == RobotIsDocked_ID) {
+                    if (tempLog[i].eventID == DockAvailable_ID) {
+                        tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
+                        updateLog(tempLog);
+                        return;
+                    }
+                } else if (tempLogEntry.eventID == RobotIsUndocked_ID) {
+                    if (tempLog[i].eventID == WaterSupplied_ID) {
+                        tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
+                        updateLog(tempLog);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    updateLog(tempLog);
+    return;
+}
+
+void updateLogPump(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize], int log_id_start) {    
+    addIntToList(emittedOrderCounts, tempLogEntry.orderCount);
+    // We check if basedemitterID set to -2 as this is a flag for unknown
+    tempLogEntry.emitterID = tempLogEntry.emitterID + log_id_start;
+    if (tempLogEntry.basedOnOrderCount == -2) {
+        int i = 0;
+        for (i = 0; i &lt; logSize; i++) {
+            if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
+                updateLog(tempLog);
+                return;
+            } else { 
+                if (tempLogEntry.eventID == WaterSupplied_ID) {
+                    if (tempLog[i].eventID == RobotIsDocked_ID) {
+                        tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
+                        updateLog(tempLog);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    updateLog(tempLog);
+    return;
+}
+</declaration><template>
+	<name>Robot_log</name>
+	<parameter>Robot_t id</parameter>
+<declaration>
+logEntryType currentLog[logSize];
+int updatesSincePropagation = 0;
+bool newUpdates = false;
+int counter = 0;
+int log_id_start = 0;
+int emittedOrderCounts[logSize];
+int discardedEvents[logSize];
+bool olderEntryIgnored = false;
+int subscriptions[amountOfUniqueEvents] = {DockAvailable_ID, RobotIsDocked_ID, WaterSupplied_ID, RobotIsUndocked_ID};
+
+logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
+    // We first find the event Type
+    int currentEventType = tmpLogEntry.eventID;
+    if (currentEventType == DockAvailable_ID) {
+        handleOtherEvent(tmpLogEntry, resLog, discardedEvents, subscriptions, currentIndex);
+    } else if (currentEventType == WaterSupplied_ID) {
+        handleOtherEvent(tmpLogEntry, resLog, discardedEvents, subscriptions, currentIndex);
+    } else if (currentEventType == RobotIsDocked_ID) {
+        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex, id + log_id_start);
+    } else if (currentEventType == RobotIsUndocked_ID) {
+        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex, id + log_id_start);
+    } else {
+        tmpLogEntry.ignored = true;
+    }
+    return tmpLogEntry;
+}
+
+
+void mergePropagationLog() {
+    int currentLogCounter = 0;
+    int propagatedLogCounter = 0;
+
+    logEntryType resLog[logSize];
+
+    logEntryType currentLogEntry;
+    logEntryType propagatedLogEntry;
+    logEntryType tmpLogEntry;
+
+    bool currentLogDone = false;
+    bool propagatedLogDone = false;
+
+    int i;
+    for (i = 0; i &lt; (logSize * 2); i++) {
+        currentLogEntry = currentLog[currentLogCounter];
+        propagatedLogEntry = propagationLog[propagatedLogCounter];
+        
+        // TODO if one is done then we can simply append the rest
+        if (currentLogEntry.orderCount == 0) {
+            currentLogDone = true;
+        }
+        if (propagatedLogEntry.orderCount == 0) {
+            propagatedLogDone = true;
+        }
+
+        // If both are done we are done.
+        if (currentLogDone &amp;&amp; propagatedLogDone) {
+            currentLog = resLog; 
+            return;
+        }
+        
+        // If one entry is invalid then we have to choose the other one
+        if (currentLogDone) {
+            propagatedLogCounter++;
+            tmpLogEntry = propagatedLogEntry;
+        } else if (propagatedLogDone) {
+            currentLogCounter++;
+            tmpLogEntry = currentLogEntry;
+        } else if (propagatedLogEntry.orderCount == currentLogEntry.orderCount) { //They are the same event we use one but skip both
+            propagatedLogCounter++;
+            currentLogCounter++;
+            tmpLogEntry = currentLogEntry;
+        } else if (currentLogEntry.orderCount &gt; propagatedLogEntry.orderCount) { // Both entries are valid we can now figure out which one is first
+            propagatedLogCounter++;
+            tmpLogEntry = propagatedLogEntry;
+        } else {
+            currentLogCounter++;
+            tmpLogEntry = currentLogEntry;
+        }
+        
+        // If it was already ignored we don't have to add it else we have to handle it
+        if (isIntInList(discardedEvents, tmpLogEntry.orderCount)) {
+            i--;
+        } else {
+            tmpLogEntry = handleLogEntry(tmpLogEntry,resLog,i-1);
+            if (tmpLogEntry.ignored) {
+                // Value should be discarded
+                i--;
+                addIntToList(discardedEvents, tmpLogEntry.orderCount);
+            } else {
+                resLog[i] = tmpLogEntry;
+            }
+            if (olderEntryIgnored) {
+                int j;
+                int h = 0;
+                logEntryType tmpLog[logSize];
+                for(j = 0; j &lt; logSize; j++) {
+                    if (resLog[j].orderCount == 0) {
+                        j = logSize;
+                    } else if (!resLog[j].ignored) {
+                        tmpLog[h] = resLog[j];
+                        h++;
+                    } else {
+                        i--;
+                        addIntToList(discardedEvents, resLog[j].orderCount);
+                    }
+                }
+                resLog = tmpLog;
+                olderEntryIgnored = false;
+            }
+
+
+        }
+    }
+}
+
+</declaration>
+<location id="id1" x="-204" y="-238"><committed /></location>
+<location id="id2" x="-748" y="-136"><committed /></location>
+<location id="id3" x="-204" y="-136" />
+<location id="id4" x="229" y="-127"><committed /></location>
+<location id="id5" x="-612" y="34"><committed /></location>
+<location id="id6" x="25" y="76"><committed /></location>
+<location id="id7" x="-561" y="153"><committed /></location>
+	<init ref="id3"/>
+<transition id="id8"><source ref="id3" /><target ref="id1" /><label kind="guard" x="-136" y="-187">newUpdates</label><label kind="assignment" x="-136" y="-217">currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+updatesSincePropagation := 0,
+newUpdates := false,
+setPropagationLog(currentLog)</label><nail x="-136" y="-187" /></transition>
+<transition id="id9"><source ref="id1" /><target ref="id3" /><label kind="synchronisation" x="-272" y="-210">propagate_log!</label><nail x="-272" y="-195" /></transition>
+<transition id="id10"><source ref="id3" /><target ref="id4" /><label kind="synchronisation" x="0" y="-66">do_log_update_Robot[id]?</label><label kind="assignment" x="0" y="-81">updateLogRobot(currentLog,emittedOrderCounts,log_id_start),
+updatesSincePropagation++,
+newUpdates := true</label><nail x="0" y="-51" /></transition>
+<transition id="id11"><source ref="id4" /><target ref="id3" /><label kind="guard" x="12" y="-132">!(updatesSincePropagation &gt; maxUpdatesSincePropagation)</label></transition>
+<transition id="id12"><source ref="id4" /><target ref="id6" /><label kind="guard" x="127" y="-26">updatesSincePropagation &gt; maxUpdatesSincePropagation</label><label kind="assignment" x="127" y="-56">currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+updatesSincePropagation := 0,
+newUpdates := false</label></transition>
+<transition id="id13"><source ref="id6" /><target ref="id3" /><label kind="synchronisation" x="-90" y="-45">propagate_log!</label><label kind="assignment" x="-90" y="-60">setPropagationLog(currentLog)</label></transition>
+<transition id="id14"><source ref="id3" /><target ref="id2" /><label kind="guard" x="-476" y="-136">currentLogToPropagate == log_id_start + id</label><label kind="synchronisation" x="-476" y="-151">propagate_log?</label><label kind="assignment" x="-476" y="-166">mergePropagationLog()</label></transition>
+<transition id="id15"><source ref="id2" /><target ref="id5" /><label kind="synchronisation" x="-680" y="-66">reset_Robot[id]!</label><label kind="assignment" x="-680" y="-81">counter := 0,
+setNextLogToPropagate()</label></transition>
+<transition id="id16"><source ref="id5" /><target ref="id3" /><label kind="guard" x="-408" y="-51">currentLog[counter].orderCount == 0</label><label kind="synchronisation" x="-408" y="-66">propagate_log!</label></transition>
+<transition id="id17"><source ref="id5" /><target ref="id7" /><label kind="guard" x="-587" y="93">currentLog[counter].orderCount != 0</label></transition>
+<transition id="id18"><source ref="id7" /><target ref="id5" /><label kind="guard" x="-612" y="204">currentLog[counter].eventID == DockAvailable_ID</label><label kind="synchronisation" x="-612" y="189">advance_Robot_DockAvailable[id]!</label><label kind="assignment" x="-612" y="174">counter++</label><nail x="-578" y="204" /><nail x="-646" y="204" /></transition>
+<transition id="id19"><source ref="id7" /><target ref="id5" /><label kind="guard" x="-646" y="238">currentLog[counter].eventID == RobotIsDocked_ID</label><label kind="synchronisation" x="-646" y="223">advance_Robot_RobotIsDocked[id]!</label><label kind="assignment" x="-646" y="208">counter++</label><nail x="-612" y="238" /><nail x="-680" y="238" /></transition>
+<transition id="id20"><source ref="id7" /><target ref="id5" /><label kind="guard" x="-680" y="272">currentLog[counter].eventID == WaterSupplied_ID</label><label kind="synchronisation" x="-680" y="257">advance_Robot_WaterSupplied[id]!</label><label kind="assignment" x="-680" y="242">counter++</label><nail x="-646" y="272" /><nail x="-714" y="272" /></transition>
+<transition id="id21"><source ref="id7" /><target ref="id5" /><label kind="guard" x="-714" y="306">currentLog[counter].eventID == RobotIsUndocked_ID</label><label kind="synchronisation" x="-714" y="291">advance_Robot_RobotIsUndocked[id]!</label><label kind="assignment" x="-714" y="276">counter++</label><nail x="-680" y="306" /><nail x="-748" y="306" /></transition>
+</template><template>
+	<name>Pump_log</name>
+	<parameter>Pump_t id</parameter>
+<declaration>
+logEntryType currentLog[logSize];
+int updatesSincePropagation = 0;
+bool newUpdates = false;
+int counter = 0;
+int log_id_start = 2;
+int emittedOrderCounts[logSize];
+int discardedEvents[logSize];
+bool olderEntryIgnored = false;
+int subscriptions[amountOfUniqueEvents] = {DockAvailable_ID, RobotIsDocked_ID, WaterSupplied_ID, RobotIsUndocked_ID};
+
+logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
+    // We first find the event Type
+    int currentEventType = tmpLogEntry.eventID;
+    if (currentEventType == RobotIsDocked_ID) {
+        handleOtherEvent(tmpLogEntry, resLog, discardedEvents, subscriptions, currentIndex);
+    } else if (currentEventType == RobotIsUndocked_ID) {
+        handleOtherEvent(tmpLogEntry, resLog, discardedEvents, subscriptions, currentIndex);
+    } else if (currentEventType == DockAvailable_ID) {
+        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex, id + log_id_start);
+    } else if (currentEventType == WaterSupplied_ID) {
+        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex, id + log_id_start);
+    } else {
+        tmpLogEntry.ignored = true;
+    }
+    return tmpLogEntry;
+}
+
+
+void mergePropagationLog() {
+    int currentLogCounter = 0;
+    int propagatedLogCounter = 0;
+
+    logEntryType resLog[logSize];
+
+    logEntryType currentLogEntry;
+    logEntryType propagatedLogEntry;
+    logEntryType tmpLogEntry;
+
+    bool currentLogDone = false;
+    bool propagatedLogDone = false;
+
+    int i;
+    for (i = 0; i &lt; (logSize * 2); i++) {
+        currentLogEntry = currentLog[currentLogCounter];
+        propagatedLogEntry = propagationLog[propagatedLogCounter];
+        
+        // TODO if one is done then we can simply append the rest
+        if (currentLogEntry.orderCount == 0) {
+            currentLogDone = true;
+        }
+        if (propagatedLogEntry.orderCount == 0) {
+            propagatedLogDone = true;
+        }
+
+        // If both are done we are done.
+        if (currentLogDone &amp;&amp; propagatedLogDone) {
+            currentLog = resLog; 
+            return;
+        }
+        
+        // If one entry is invalid then we have to choose the other one
+        if (currentLogDone) {
+            propagatedLogCounter++;
+            tmpLogEntry = propagatedLogEntry;
+        } else if (propagatedLogDone) {
+            currentLogCounter++;
+            tmpLogEntry = currentLogEntry;
+        } else if (propagatedLogEntry.orderCount == currentLogEntry.orderCount) { //They are the same event we use one but skip both
+            propagatedLogCounter++;
+            currentLogCounter++;
+            tmpLogEntry = currentLogEntry;
+        } else if (currentLogEntry.orderCount &gt; propagatedLogEntry.orderCount) { // Both entries are valid we can now figure out which one is first
+            propagatedLogCounter++;
+            tmpLogEntry = propagatedLogEntry;
+        } else {
+            currentLogCounter++;
+            tmpLogEntry = currentLogEntry;
+        }
+        
+        // If it was already ignored we don't have to add it else we have to handle it
+        if (isIntInList(discardedEvents, tmpLogEntry.orderCount)) {
+            i--;
+        } else {
+            tmpLogEntry = handleLogEntry(tmpLogEntry,resLog,i-1);
+            if (tmpLogEntry.ignored) {
+                // Value should be discarded
+                i--;
+                addIntToList(discardedEvents, tmpLogEntry.orderCount);
+            } else {
+                resLog[i] = tmpLogEntry;
+            }
+            if (olderEntryIgnored) {
+                int j;
+                int h = 0;
+                logEntryType tmpLog[logSize];
+                for(j = 0; j &lt; logSize; j++) {
+                    if (resLog[j].orderCount == 0) {
+                        j = logSize;
+                    } else if (!resLog[j].ignored) {
+                        tmpLog[h] = resLog[j];
+                        h++;
+                    } else {
+                        i--;
+                        addIntToList(discardedEvents, resLog[j].orderCount);
+                    }
+                }
+                resLog = tmpLog;
+                olderEntryIgnored = false;
+            }
+
+
+        }
+    }
+}
+
+</declaration>
+<location id="id38" x="-204" y="-238"><committed /></location>
+<location id="id39" x="-748" y="-136"><committed /></location>
+<location id="id40" x="-204" y="-136" />
+<location id="id41" x="229" y="-127"><committed /></location>
+<location id="id42" x="-612" y="34"><committed /></location>
+<location id="id43" x="25" y="76"><committed /></location>
+<location id="id44" x="-561" y="153"><committed /></location>
+	<init ref="id40"/>
+<transition id="id45"><source ref="id40" /><target ref="id38" /><label kind="guard" x="-136" y="-187">newUpdates</label><label kind="assignment" x="-136" y="-217">currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+updatesSincePropagation := 0,
+newUpdates := false,
+setPropagationLog(currentLog)</label><nail x="-136" y="-187" /></transition>
+<transition id="id46"><source ref="id38" /><target ref="id40" /><label kind="synchronisation" x="-272" y="-210">propagate_log!</label><nail x="-272" y="-195" /></transition>
+<transition id="id47"><source ref="id40" /><target ref="id41" /><label kind="synchronisation" x="0" y="-66">do_log_update_Pump[id]?</label><label kind="assignment" x="0" y="-81">updateLogPump(currentLog,emittedOrderCounts,log_id_start),
+updatesSincePropagation++,
+newUpdates := true</label><nail x="0" y="-51" /></transition>
+<transition id="id48"><source ref="id41" /><target ref="id40" /><label kind="guard" x="12" y="-132">!(updatesSincePropagation &gt; maxUpdatesSincePropagation)</label></transition>
+<transition id="id49"><source ref="id41" /><target ref="id43" /><label kind="guard" x="127" y="-26">updatesSincePropagation &gt; maxUpdatesSincePropagation</label><label kind="assignment" x="127" y="-56">currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+updatesSincePropagation := 0,
+newUpdates := false</label></transition>
+<transition id="id50"><source ref="id43" /><target ref="id40" /><label kind="synchronisation" x="-90" y="-45">propagate_log!</label><label kind="assignment" x="-90" y="-60">setPropagationLog(currentLog)</label></transition>
+<transition id="id51"><source ref="id40" /><target ref="id39" /><label kind="guard" x="-476" y="-136">currentLogToPropagate == log_id_start + id</label><label kind="synchronisation" x="-476" y="-151">propagate_log?</label><label kind="assignment" x="-476" y="-166">mergePropagationLog()</label></transition>
+<transition id="id52"><source ref="id39" /><target ref="id42" /><label kind="synchronisation" x="-680" y="-66">reset_Pump[id]!</label><label kind="assignment" x="-680" y="-81">counter := 0,
+setNextLogToPropagate()</label></transition>
+<transition id="id53"><source ref="id42" /><target ref="id40" /><label kind="guard" x="-408" y="-51">currentLog[counter].orderCount == 0</label><label kind="synchronisation" x="-408" y="-66">propagate_log!</label></transition>
+<transition id="id54"><source ref="id42" /><target ref="id44" /><label kind="guard" x="-587" y="93">currentLog[counter].orderCount != 0</label></transition>
+<transition id="id55"><source ref="id44" /><target ref="id42" /><label kind="guard" x="-612" y="204">currentLog[counter].eventID == DockAvailable_ID</label><label kind="synchronisation" x="-612" y="189">advance_Pump_DockAvailable[id]!</label><label kind="assignment" x="-612" y="174">counter++</label><nail x="-578" y="204" /><nail x="-646" y="204" /></transition>
+<transition id="id56"><source ref="id44" /><target ref="id42" /><label kind="guard" x="-646" y="238">currentLog[counter].eventID == RobotIsDocked_ID</label><label kind="synchronisation" x="-646" y="223">advance_Pump_RobotIsDocked[id]!</label><label kind="assignment" x="-646" y="208">counter++</label><nail x="-612" y="238" /><nail x="-680" y="238" /></transition>
+<transition id="id57"><source ref="id44" /><target ref="id42" /><label kind="guard" x="-680" y="272">currentLog[counter].eventID == WaterSupplied_ID</label><label kind="synchronisation" x="-680" y="257">advance_Pump_WaterSupplied[id]!</label><label kind="assignment" x="-680" y="242">counter++</label><nail x="-646" y="272" /><nail x="-714" y="272" /></transition>
+<transition id="id58"><source ref="id44" /><target ref="id42" /><label kind="guard" x="-714" y="306">currentLog[counter].eventID == RobotIsUndocked_ID</label><label kind="synchronisation" x="-714" y="291">advance_Pump_RobotIsUndocked[id]!</label><label kind="assignment" x="-714" y="276">counter++</label><nail x="-680" y="306" /><nail x="-748" y="306" /></transition>
+</template><template>
+	<name>Robot</name>
+	<parameter>Robot_t id</parameter>
+<declaration>
+</declaration>
+<location id="id22" x="123" y="516"><name x="125" y="518">Undocking</name><urgent /></location>
+<location id="id23" x="69" y="270"><name x="71" y="272">WaitingForAvailableDock</name><urgent /></location>
+<location id="id24" x="37" y="147"><name x="39" y="149">Docking</name><urgent /></location>
+<location id="id25" x="125" y="393"><name x="127" y="395">Done</name><urgent /></location>
+<location id="id26" x="105" y="25"><name x="107" y="27">WaitingForWater</name><urgent /></location>
+	<init ref="id23"/>
+<transition id="id27"><source ref="id22" /><target ref="id23" /><label kind="synchronisation" x="103" y="480">reset_Robot[id]?</label><nail x="103" y="495" /></transition>
+<transition id="id28"><source ref="id23" /><target ref="id23" /><label kind="synchronisation" x="69" y="255">reset_Robot[id]?</label></transition>
+<transition id="id29"><source ref="id24" /><target ref="id23" /><label kind="synchronisation" x="43" y="157">reset_Robot[id]?</label><nail x="43" y="172" /></transition>
+<transition id="id30"><source ref="id25" /><target ref="id23" /><label kind="synchronisation" x="114" y="354">reset_Robot[id]?</label><nail x="114" y="369" /></transition>
+<transition id="id31"><source ref="id26" /><target ref="id23" /><label kind="synchronisation" x="104" y="35">reset_Robot[id]?</label><nail x="104" y="50" /></transition>
+<transition id="id32"><source ref="id24" /><target ref="id26" /><label kind="synchronisation" x="31" y="107">advance_Robot_RobotIsDocked[id]?</label><nail x="31" y="122" /></transition>
+<transition id="id33"><source ref="id24" /><target ref="id26" /><label kind="synchronisation" x="50" y="108">do_log_update_Robot[id]!</label><label kind="assignment" x="50" y="93">setLogEntryForUpdate(
+    RobotIsDocked_ID,id,
+    -2,false)</label><nail x="50" y="123" /></transition>
+<transition id="id34"><source ref="id22" /><target ref="id25" /><label kind="synchronisation" x="109" y="477">advance_Robot_RobotIsUndocked[id]?</label><nail x="109" y="492" /></transition>
+<transition id="id35"><source ref="id22" /><target ref="id25" /><label kind="synchronisation" x="123" y="476">do_log_update_Robot[id]!</label><label kind="assignment" x="123" y="461">setLogEntryForUpdate(
+    RobotIsUndocked_ID,id,
+    -2,false)</label><nail x="123" y="491" /></transition>
+<transition id="id36"><source ref="id23" /><target ref="id24" /><label kind="synchronisation" x="46" y="235">advance_Robot_DockAvailable[id]?</label><nail x="46" y="250" /></transition>
+<transition id="id37"><source ref="id26" /><target ref="id22" /><label kind="synchronisation" x="131" y="28">advance_Robot_WaterSupplied[id]?</label><nail x="131" y="43" /></transition>
+</template><template>
+	<name>Pump</name>
+	<parameter>Pump_t id</parameter>
+<declaration>
+</declaration>
+<location id="id59" x="49" y="516"><name x="51" y="518">PumpingWater</name><urgent /></location>
+<location id="id60" x="43" y="147"><name x="45" y="149">ClearingDock</name><urgent /></location>
+<location id="id61" x="94" y="25"><name x="96" y="27">WaitingForRobotToDock</name><urgent /></location>
+<location id="id62" x="54" y="393"><name x="56" y="395">WaitingForRobotToUndock</name><urgent /></location>
+<location id="id63" x="101" y="270"><name x="103" y="272">Done</name><urgent /></location>
+	<init ref="id60"/>
+<transition id="id64"><source ref="id59" /><target ref="id60" /><label kind="synchronisation" x="34" y="478">reset_Pump[id]?</label><nail x="34" y="493" /></transition>
+<transition id="id65"><source ref="id60" /><target ref="id60" /><label kind="synchronisation" x="43" y="132">reset_Pump[id]?</label></transition>
+<transition id="id66"><source ref="id61" /><target ref="id60" /><label kind="synchronisation" x="97" y="35">reset_Pump[id]?</label><nail x="97" y="50" /></transition>
+<transition id="id67"><source ref="id62" /><target ref="id60" /><label kind="synchronisation" x="47" y="353">reset_Pump[id]?</label><nail x="47" y="368" /></transition>
+<transition id="id68"><source ref="id63" /><target ref="id60" /><label kind="synchronisation" x="90" y="231">reset_Pump[id]?</label><nail x="90" y="246" /></transition>
+<transition id="id69"><source ref="id60" /><target ref="id61" /><label kind="synchronisation" x="27" y="110">advance_Pump_DockAvailable[id]?</label><nail x="27" y="125" /></transition>
+<transition id="id70"><source ref="id60" /><target ref="id61" /><label kind="synchronisation" x="49" y="107">do_log_update_Pump[id]!</label><label kind="assignment" x="49" y="92">setLogEntryForUpdate(
+    DockAvailable_ID,id,
+    -1,false)</label><nail x="49" y="122" /></transition>
+<transition id="id71"><source ref="id59" /><target ref="id62" /><label kind="synchronisation" x="36" y="477">advance_Pump_WaterSupplied[id]?</label><nail x="36" y="492" /></transition>
+<transition id="id72"><source ref="id59" /><target ref="id62" /><label kind="synchronisation" x="50" y="476">do_log_update_Pump[id]!</label><label kind="assignment" x="50" y="461">setLogEntryForUpdate(
+    WaterSupplied_ID,id,
+    -2,false)</label><nail x="50" y="491" /></transition>
+<transition id="id73"><source ref="id61" /><target ref="id59" /><label kind="synchronisation" x="120" y="28">advance_Pump_RobotIsDocked[id]?</label><nail x="120" y="43" /></transition>
+<transition id="id74"><source ref="id62" /><target ref="id63" /><label kind="synchronisation" x="63" y="354">advance_Pump_RobotIsUndocked[id]?</label><nail x="63" y="369" /></transition>
+</template><system>// Place template instantiations here.
+// List one or more processes to be composed into a system.
+system Robot, Robot_log, Pump, Pump_log;
+</system></nta>

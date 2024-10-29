@@ -1,0 +1,65 @@
+{
+  "initial": "ClearingDock",
+  "subscriptions": [
+    "DockAvailable",
+    "RobotIsDocked",
+    "WaterSupplied",
+    "RobotIsUndocked"
+  ],
+  "transitions": [
+    {
+      "source": "ClearingDock",
+      "target": "ClearingDock",
+      "label": {
+        "tag": "Execute",
+        "cmd": "dockAvailable",
+        "logType": [
+          "DockAvailable"
+        ]
+      }
+    },
+    {
+      "source": "PumpingWater",
+      "target": "PumpingWater",
+      "label": {
+        "tag": "Execute",
+        "cmd": "waterSupplied",
+        "logType": [
+          "WaterSupplied"
+        ]
+      }
+    },
+    {
+      "source": "ClearingDock",
+      "target": "WaitingForRobotToDock",
+      "label": {
+        "tag": "Input",
+        "eventType": "DockAvailable"
+      }
+    },
+    {
+      "source": "WaitingForRobotToDock",
+      "target": "PumpingWater",
+      "label": {
+        "tag": "Input",
+        "eventType": "RobotIsDocked"
+      }
+    },
+    {
+      "source": "PumpingWater",
+      "target": "WaitingForRobotToUndock",
+      "label": {
+        "tag": "Input",
+        "eventType": "WaterSupplied"
+      }
+    },
+    {
+      "source": "WaitingForRobotToUndock",
+      "target": "Done",
+      "label": {
+        "tag": "Input",
+        "eventType": "RobotIsUndocked"
+      }
+    }
+  ]
+}

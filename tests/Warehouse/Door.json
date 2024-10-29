@@ -1,0 +1,45 @@
+{
+  "initial": "l0",
+  "subscriptions": [
+    "Request",
+    "Close",
+    "Deliver"
+  ],
+  "transitions": [
+    {
+      "source": "l0",
+      "target": "l0",
+      "label": {
+        "tag": "Execute",
+        "cmd": "close",
+        "logType": [
+          "Close"
+        ]
+      }
+    },
+    {
+      "source": "l0",
+      "target": "l1",
+      "label": {
+        "tag": "Input",
+        "eventType": "Request"
+      }
+    },
+    {
+      "source": "l1",
+      "target": "l0",
+      "label": {
+        "tag": "Input",
+        "eventType": "Deliver"
+      }
+    },
+    {
+      "source": "l0",
+      "target": "l3",
+      "label": {
+        "tag": "Input",
+        "eventType": "Close"
+      }
+    }
+  ]
+}

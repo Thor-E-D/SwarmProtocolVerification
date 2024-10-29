@@ -228,31 +228,31 @@ system {system_instansiator_string};
 
 def wareHousedemo():
     jsonTransfers = []
-    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Warehouse\\Door.json"))
-    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Warehouse\\Forklift.json"))
-    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Warehouse\\Transport.json"))
+    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\Warehouse\\Door.json"))
+    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\Warehouse\\Forklift.json"))
+    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\Warehouse\\Transport.json"))
 
     name_amount_dict = {}
     for jsonTransfer in jsonTransfers:
         name_amount_dict[jsonTransfer.name] = 1
 
     currentModel = createModel(jsonTransfers, name_amount_dict)
-    save_xml_to_file(currentModel, "warehouse_example_v2", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Warehouse")
+    save_xml_to_file(currentModel, "warehouse_example", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\Warehouse")
 
 def plantRobotDemo():
     jsonTransfers = [] 
-    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Robot.json"))
-    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Pump.json"))
+    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\RobotPump\\Robot.json"))
+    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\RobotPump\\Pump.json"))
 
     name_amount_dict = {}
     for jsonTransfer in jsonTransfers:
         name_amount_dict[jsonTransfer.name] = 2
 
     currentModel = createModel(jsonTransfers, name_amount_dict)
-    save_xml_to_file(currentModel, "example_file", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis")
+    save_xml_to_file(currentModel, "example_file", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\RobotPump")
 
 
 if __name__ == "__main__":
     # Should just load all json files in a given folder.
-    plantRobotDemo()
-    #wareHousedemo()
+    #plantRobotDemo()
+    wareHousedemo()

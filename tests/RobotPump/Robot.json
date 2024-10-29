@@ -1,0 +1,65 @@
+{
+  "initial": "WaitingForAvailableDock",
+  "subscriptions": [
+    "DockAvailable",
+    "RobotIsDocked",
+    "WaterSupplied",
+    "RobotIsUndocked"
+  ],
+  "transitions": [
+    {
+      "source": "Docking",
+      "target": "Docking",
+      "label": {
+        "tag": "Execute",
+        "cmd": "docked",
+        "logType": [
+          "RobotIsDocked"
+        ]
+      }
+    },
+    {
+      "source": "Undocking",
+      "target": "Undocking",
+      "label": {
+        "tag": "Execute",
+        "cmd": "Done",
+        "logType": [
+          "RobotIsUndocked"
+        ]
+      }
+    },
+    {
+      "source": "WaitingForAvailableDock",
+      "target": "Docking",
+      "label": {
+        "tag": "Input",
+        "eventType": "DockAvailable"
+      }
+    },
+    {
+      "source": "Docking",
+      "target": "WaitingForWater",
+      "label": {
+        "tag": "Input",
+        "eventType": "RobotIsDocked"
+      }
+    },
+    {
+      "source": "WaitingForWater",
+      "target": "Undocking",
+      "label": {
+        "tag": "Input",
+        "eventType": "WaterSupplied"
+      }
+    },
+    {
+      "source": "Undocking",
+      "target": "Done",
+      "label": {
+        "tag": "Input",
+        "eventType": "RobotIsUndocked"
+      }
+    }
+  ]
+}
