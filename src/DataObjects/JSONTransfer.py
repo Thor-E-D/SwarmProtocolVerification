@@ -7,6 +7,16 @@ class EventData:
     source: str
     target: str
 
+    def __hash__(self):
+        return hash((self.event_name, self.source, self.target))
+    
+    def __eq__(self, other):
+        if not isinstance(other, EventData):
+            return False
+        return (self.event_name == other.event_name and 
+                self.source == other.source and 
+                self.target == other.target)
+
 @dataclass
 class JSONTransfer:
     name: str
@@ -18,6 +28,7 @@ class JSONTransfer:
     reset_channel_name: Optional[str] = None
     advance_channel_names: Optional[Dict[str, str]] = None
     log_id_start: Optional[int] = None
+    total_amount_of_events: Optional[int] = None
 
     
     def __str__(self):

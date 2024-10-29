@@ -1,3 +1,19 @@
+def generate_function_is_in_subsciption() -> str:
+    return """
+bool isInSubsciptions(int tmpList[amountOfUniqueEvents], int possibleEntry) {
+    int i = 0;
+    for (i = 0; i &lt; amountOfUniqueEvents; i++) {
+        if (tmpList[i] == possibleEntry) {
+            return true;
+        } else if (tmpList[i] == -1) {
+            return false;
+        }
+    }
+    return false;
+}"""
+
+
+
 def generate_function_is_int_in_list() -> str:
     return """
 bool isIntInList(int tmpList[logSize], int possibleEntry) {
@@ -25,6 +41,18 @@ void addIntToList(int &amp;tmpList[logSize], int newEntry) {
     }
 }
 """
+
+def generate_function_get_event_id_from_order_count() -> str:
+    return """
+int getEventIDfromOrderCount(int orderCount) {
+    int i = 0;
+    for (i = 0; i &lt; logSize; i++) {
+        if (globalLog[i].orderCount == orderCount) {
+            return globalLog[i].eventID;
+        }
+    }
+    return -1;
+}"""
 
 def generate_function_set_next_log_to_propagate() -> str:
     return """
@@ -56,9 +84,42 @@ void setLogEntryForUpdate(int eventID, int emitterID, int basedOnOrderCount, boo
     tempLogEntry.emitterID = emitterID;
     tempLogEntry.orderCount = getOrderCount();
     tempLogEntry.basedOnOrderCount = basedOnOrderCount;
+    tempLogEntry.tiedTo = -1;
     tempLogEntry.ignored = ignored;
 }
 """
+
+def generate_function_find_and_set_tiedto() -> str:
+    return """
+void findAndSetTiedTo(logEntryType &amp;tempLog[logSize]) {
+    int k;
+    int j;
+    int i;
+    for(i = 0; i &lt; logSize; i++) {
+        if (tempLog[i].orderCount != 0) {
+            if (tempLog[i].emitterID == tempLogEntry.emitterID) {
+                for (j = 0; j&lt;maxAmountOfTied; j++) {
+                    for (k = 0; k&lt;maxAmountOfTied; k++) {
+                        if (eventsTiedTo[tempLogEntry.eventID][j] == eventsTiedTo[tempLog[i].eventID][k] &amp;&amp; tempLog[i].tiedTo != -1) {
+                            tempLogEntry.tiedTo = tempLog[i].tiedTo;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for(i = 0; i &lt; logSize; i++) {
+        if (tempLog[i].orderCount != 0) {
+            for (j = 0; j&lt;maxAmountOfTied; j++) {
+                if (tempLog[i].eventID == eventsTiedTo[tempLogEntry.eventID][j]) {
+                    tempLogEntry.tiedTo = tempLog[i].orderCount;
+                    return;
+                }
+            }
+        }
+    }  
+}"""
 
 def generate_function_set_propagation_log() -> str:
     return """
@@ -67,10 +128,43 @@ void setPropagationLog(logEntryType tempLog[logSize]) {
 }
 """
 
+def generate_function_update_global_log() -> str:
+    return """
+void updateGlobalLog() {
+    int i;
+    logEntryType resLog[logSize];
+    int count = 0;
+    bool addedEntry = false;
+
+    for (i = 0; i &lt; (logSize); i++) {
+        if (globalLog[count].orderCount == 0) {
+            if (addedEntry) {
+                resLog[i] = globalLog[count];
+                globalLog = resLog;
+                return;
+            }
+            resLog[i] = tempLogEntry;
+            globalLog = resLog;
+            return;
+        }
+        else if (globalLog[count].orderCount &gt; tempLogEntry.orderCount) {
+            resLog[i] = tempLogEntry;
+            count = count - 1;
+            addedEntry = true;
+        } else {
+            resLog[i] = globalLog[count];
+        }
+        count = count + 1;
+    }
+    globalLog = resLog;
+}"""
+
 def generate_function_update_log() -> str:
     return """
 void updateLog(logEntryType &amp;tempLog[logSize]) {
     int i = 0;
+    findAndSetTiedTo(tempLog);
+    updateGlobalLog();
     for (i = 0; i &lt; logSize; i++) {
         if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
             tempLog[i] = tempLogEntry; // Update log
@@ -85,23 +179,23 @@ void updateLog(logEntryType &amp;tempLog[logSize]) {
 def generate_function_handle_own_event() -> str:
     return """
 bool handleOwnEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int currentIndex, int id) {
-    if (tmpLogEntry.emitterID == id) {
-        if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
-            tmpLogEntry.ignored = true;
-        }
-    } else {
+    if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
+        tmpLogEntry.ignored = true;
+    } else if (tmpLogEntry.emitterID != id) {
         int j;
         tmpLogEntry.ignored = true;
-        // Check if event it was based on has to be discarded
+        // Check if we have already tied into this so an event we emitted that is tied to the same thing
         for (j = currentIndex; j &gt;= 0; j--) {
-            if (resLog[j].emitterID == id &amp;&amp; resLog[j].basedOnOrderCount == tmpLogEntry.basedOnOrderCount) { // We already claimed event.
+            if (resLog[j].emitterID == id &amp;&amp; resLog[j].eventID == tmpLogEntry.eventID &amp;&amp; resLog[j].tiedTo == tmpLogEntry.tiedTo) {
                 return false;
-            } else if (resLog[j].orderCount == tmpLogEntry.basedOnOrderCount) {
-                // We must ignore the dockAvailable since someone else claimed it first
+                }
+        }
+        for (j = currentIndex; j &gt;= 0; j--) {
+            if (resLog[j].tiedTo == tmpLogEntry.tiedTo || tmpLogEntry.tiedTo == resLog[j].orderCount) {
                 resLog[j].ignored = true;
-                return true;
             }
-         }
+        }
+        return true; 
     }
     return false;
 }
@@ -109,23 +203,16 @@ bool handleOwnEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSi
 
 def generate_function_handle_other_event() -> str:
     return """
-void handleOtherEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;emittedOrderCounts[logSize], int currentIndex) {
-    if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
+void handleOtherEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;subsciptions[amountOfUniqueEvents], int currentIndex) {
+    int i;
+    if ((isInSubsciptions(subsciptions, getEventIDfromOrderCount(tmpLogEntry.basedOnOrderCount)) &amp;&amp; isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) || isIntInList(discardedEvents, tmpLogEntry.tiedTo)) {
         tmpLogEntry.ignored = true;
-    } 
-
-    if ((tmpLogEntry.basedOnOrderCount == -1)) { //If it is a starting event and not based on anything. TODO refactor into if event is tied.
-        return;
-    } else if (!(isIntInList(emittedOrderCounts, tmpLogEntry.basedOnOrderCount))) {
-        tmpLogEntry.ignored = true;
-    } else {
-        int j;
-        // Check if event if any one else claimed it
-        for (j = currentIndex; j &gt;= 0; j--) {
-            if (resLog[j].basedOnOrderCount == tmpLogEntry.basedOnOrderCount) {
-                tmpLogEntry.ignored = true;
-            }
-         }
+    }
+    
+    for (i = currentIndex; i &gt;= 0; i--) {
+        if (tmpLogEntry.tiedTo != -1 &amp;&amp; resLog[i].eventID == tmpLogEntry.eventID &amp;&amp; resLog[i].tiedTo == tmpLogEntry.tiedTo) {
+            tmpLogEntry.ignored = true;
+        }
     }
 }
 """
@@ -133,9 +220,10 @@ void handleOtherEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[log
 # This function expects the name of the function and a map of what each event is based on
 def generate_function_update_log_name(name: str, event_condition_map: dict[str, list[str]]) -> str:
     function_str = f"""
-void updateLog{name}(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize]) {{    
+void updateLog{name}(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize], int log_id_start) {{    
     addIntToList(emittedOrderCounts, tempLogEntry.orderCount);
     // We check if basedemitterID set to -2 as this is a flag for unknown
+    tempLogEntry.emitterID = tempLogEntry.emitterID + log_id_start;
     if (tempLogEntry.basedOnOrderCount == -2) {{
         int i = 0;
         for (i = 0; i &lt; logSize; i++) {{
@@ -190,15 +278,20 @@ logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[lo
             first = False
         else:
             function_str += f" else if (currentEventType == {event}) {{\n"
-        function_str += "        handleOtherEvent(tmpLogEntry, resLog, discardedEvents, emittedOrderCounts, currentIndex);\n"
+        function_str += "        handleOtherEvent(tmpLogEntry, resLog, discardedEvents, subscriptions, currentIndex);\n"
         function_str += "    }"
     
     # Generate the "own" events handling with `handleOwnEvent`
     for event in own_events:
         function_str += f" else if (currentEventType == {event}) {{\n"
-        function_str += "        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex, id);\n"
+        function_str += "        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex, id + log_id_start);\n"
         function_str += "    }"
     
+    function_str += f" else {{\n"
+    function_str += "        tmpLogEntry.ignored = true;\n"
+    function_str += "    }"
+
+
     # Finish the function
     function_str += "\n    return tmpLogEntry;\n"
     function_str += "}\n"

@@ -22,17 +22,23 @@ const int RobotIsDocked_ID = 1;
 const int WaterSupplied_ID = 2;
 const int RobotIsUndocked_ID = 3;
 
+const int amountOfUniqueEvents = 4;
 
 typedef struct {
     int eventID;
     int emitterID;
     int orderCount;
     int basedOnOrderCount;
+    int tiedTo;
     bool ignored;
 } logEntryType;
 
 // How many times a machine can transition before being forced to propagate.
 int maxUpdatesSincePropagation = 1;
+
+
+const int maxAmountOfTied = 1;
+const int eventsTiedTo[amountOfUniqueEvents][maxAmountOfTied] = {{-1}, {DockAvailable_ID}, {DockAvailable_ID}, {DockAvailable_ID}};
 
 // ------------ shared data -----------
 
@@ -124,6 +130,7 @@ void setLogEntryForUpdate(int eventID, int emitterID, int basedOnOrderCount, boo
     tempLogEntry.emitterID = emitterID;
     tempLogEntry.orderCount = getOrderCount();
     tempLogEntry.basedOnOrderCount = basedOnOrderCount;
+    tempLogEntry.tiedTo = -1;
     tempLogEntry.ignored = ignored;
 }
 
@@ -131,10 +138,40 @@ void setPropagationLog(logEntryType tempLog[logSize]) {
     propagationLog = tempLog;
 }
 
+void findAndSetTiedTo(logEntryType &amp;tempLog[logSize]) {
+    int k;
+    int j;
+    int i;
+    for(i = 0; i &lt; logSize; i++) {
+        if (tempLog[i].orderCount != 0) {
+            if (tempLog[i].emitterID == tempLogEntry.emitterID) {
+                for (j = 0; j&lt;maxAmountOfTied; j++) {
+                    for (k = 0; k&lt;maxAmountOfTied; k++) {
+                        if (eventsTiedTo[tempLogEntry.eventID][j] == eventsTiedTo[tempLog[i].eventID][k]) {
+                            tempLogEntry.tiedTo = tempLog[i].tiedTo;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for(i = 0; i &lt; logSize; i++) {
+        if (tempLog[i].orderCount != 0) {
+            for (j = 0; j&lt;maxAmountOfTied; j++) {
+                if (tempLog[i].eventID == eventsTiedTo[tempLogEntry.eventID][j]) {
+                    tempLogEntry.tiedTo = tempLog[i].orderCount;
+                    return;
+                }
+            }
+        }
+    }  
+}
 
 // Update currentLog and return index for new entry
 void updateLog(logEntryType &amp;tempLog[logSize]) {
     int i = 0;
+    findAndSetTiedTo(tempLog);
     for (i = 0; i &lt; logSize; i++) {
         if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
             tempLog[i] = tempLogEntry; // Update log
@@ -147,53 +184,47 @@ void updateLog(logEntryType &amp;tempLog[logSize]) {
 
 // Handle events with same type that the machine emits. returns if older entries in the resLog have been ignored.
 bool handleOwnEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int currentIndex, int id) {
-    if (tmpLogEntry.emitterID == id) {
-        if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
-            tmpLogEntry.ignored = true;
-        }
-    } else {
+    if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
+        tmpLogEntry.ignored = true;
+    } else if (tmpLogEntry.emitterID != id) {
         int j;
         tmpLogEntry.ignored = true;
-        // Check if event it was based on has to be discarded
+        // Check if we have already tied into this so an event we emitted that is tied to the same thing
         for (j = currentIndex; j &gt;= 0; j--) {
-            if (resLog[j].emitterID == id &amp;&amp; resLog[j].basedOnOrderCount == tmpLogEntry.basedOnOrderCount) { // We already claimed event.
+            if (resLog[j].emitterID == id &amp;&amp; resLog[j].eventID == tmpLogEntry.eventID &amp;&amp; resLog[j].tiedTo == tmpLogEntry.tiedTo) {
                 return false;
-            } else if (resLog[j].orderCount == tmpLogEntry.basedOnOrderCount) {
-                // We must ignore the dockAvailable since someone else claimed it first
+                }
+        }
+        for (j = currentIndex; j &gt;= 0; j--) {
+            if (resLog[j].tiedTo == tmpLogEntry.tiedTo || tmpLogEntry.tiedTo == resLog[j].orderCount) {
                 resLog[j].ignored = true;
-                return true;
             }
-         }
+        }
+        return true; 
     }
     return false;
 }
 
 // Handles events that other machines emit but this machine subscribe to.
 void handleOtherEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;emittedOrderCounts[logSize], int currentIndex) {
-    if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
+    int i;
+    if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount) || isIntInList(discardedEvents, tmpLogEntry.tiedTo)) {
         tmpLogEntry.ignored = true;
-    } 
-
-    if ((tmpLogEntry.basedOnOrderCount == -1)) { //If it is a starting event and not based on anything. TODO refactor into if event is tied.
-        return;
-    } else if (!(isIntInList(emittedOrderCounts, tmpLogEntry.basedOnOrderCount))) {
-        tmpLogEntry.ignored = true;
-    } else {
-        int j;
-        // Check if event if any one else claimed it
-        for (j = currentIndex; j &gt;= 0; j--) {
-            if (resLog[j].basedOnOrderCount == tmpLogEntry.basedOnOrderCount) {
-                tmpLogEntry.ignored = true;
-            }
-         }
+    }
+    
+    for (i = currentIndex; i &gt;= 0; i--) {
+        if (tmpLogEntry.tiedTo != -1 &amp;&amp; resLog[i].eventID == tmpLogEntry.eventID &amp;&amp; resLog[i].tiedTo == tmpLogEntry.tiedTo) {
+            tmpLogEntry.ignored = true;
+        }
     }
 }
 
 
 // Special function for checking if new log entry has not set the emitter ID it is based on yet and then sets it
-void updateLogRobot(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize]) {    
+void updateLogRobot(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize], int log_id_start) {    
     addIntToList(emittedOrderCounts, tempLogEntry.orderCount);
     // We check if basedemitterID set to -2 as this is a flag for unknown
+    tempLogEntry.emitterID = tempLogEntry.emitterID + log_id_start;
     if (tempLogEntry.basedOnOrderCount == -2) {
         int i = 0;
         for (i = 0; i &lt; logSize; i++) {
@@ -222,9 +253,10 @@ void updateLogRobot(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCou
 }
 
 // Special function for checking if new log entry has not set the emitter ID it is based on yet and then sets it
-void updateLogPump(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize]) {
+void updateLogPump(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize], int log_id_start) {
     addIntToList(emittedOrderCounts, tempLogEntry.orderCount);
     // First we check if basedemitterID set to -2 as this is a flag for unknown
+    tempLogEntry.emitterID = tempLogEntry.emitterID + log_id_start;
     if (tempLogEntry.basedOnOrderCount == -2) {
         int i = 0;
         for (i = 0; i &lt; logSize; i++) {
@@ -300,11 +332,11 @@ logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[lo
     if (currentEventType == DockAvailable_ID) {
         handleOtherEvent(tmpLogEntry, resLog, discardedEvents, emittedOrderCounts, currentIndex);
     } else if (currentEventType == RobotIsDocked_ID) {
-        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex,id);
+        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex,id + log_id_start);
     } else if (currentEventType == WaterSupplied_ID) {
         handleOtherEvent(tmpLogEntry, resLog, discardedEvents, emittedOrderCounts, currentIndex);
     } else if (currentEventType == RobotIsUndocked_ID) {
-        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex,id);
+        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex,id + log_id_start);
     }
     return tmpLogEntry;
 }
@@ -524,7 +556,7 @@ newUpdates := false</label>
 			<source ref="id3"/>
 			<target ref="id0"/>
 			<label kind="synchronisation" x="-93" y="-178">do_log_update_robot[id]?</label>
-			<label kind="assignment" x="127" y="-212">updateLogRobot(currentLog,emittedOrderCounts),
+			<label kind="assignment" x="127" y="-212">updateLogRobot(currentLog,emittedOrderCounts, log_id_start),
 updatesSincePropagation++,
 newUpdates := true</label>
 		</transition>
@@ -560,11 +592,11 @@ logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[lo
     // We first find the event Type
     int currentEventType = tmpLogEntry.eventID;
     if (currentEventType == DockAvailable_ID) {
-        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex,id);
+        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex,id + log_id_start);
     } else if (currentEventType == RobotIsDocked_ID) {
         handleOtherEvent(tmpLogEntry, resLog, discardedEvents, emittedOrderCounts, currentIndex);
     } else if (currentEventType == WaterSupplied_ID) {
-        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex, id);
+        olderEntryIgnored = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, currentIndex, id + log_id_start);
     } else if (currentEventType == RobotIsUndocked_ID) {
         handleOtherEvent(tmpLogEntry, resLog, discardedEvents, emittedOrderCounts, currentIndex);
     }
@@ -746,7 +778,7 @@ newUpdates := false</label>
 			<source ref="id21"/>
 			<target ref="id22"/>
 			<label kind="synchronisation" x="-127" y="-272">do_log_update_pump[id]?</label>
-			<label kind="assignment" x="85" y="-323">updateLogPump(currentLog,emittedOrderCounts),
+			<label kind="assignment" x="85" y="-323">updateLogPump(currentLog,emittedOrderCounts, log_id_start),
 updatesSincePropagation++,
 newUpdates := true</label>
 		</transition>
@@ -993,9 +1025,6 @@ system Pump, Pump_log, Robot, Robot_log;
 			<formula>A[] forall(i:Robot_t) forall(j:Pump_t) deadlock imply Robot(i).Done and Pump(j).Done</formula>
 			<comment/>
 			<option key="--diagnostic" value="0"/>
-			<result outcome="success" type="quality" timestamp="2024-09-30 13:42:11 +0200">
-				<option key="--diagnostic" value="0"/>
-			</result>
 		</query>
 	</queries>
 </nta>

@@ -14,6 +14,14 @@ class Transition:
     assignment: Optional[str] = None
     nails: List[tuple] = field(default_factory=list)
 
+    def __hash__(self):
+        return hash(self.id)
+    
+    def __eq__(self, other):
+        if not isinstance(other, Transition):
+            return False
+        return self.id == other.id
+
     def to_xml(self) -> str:
         transition_elem = ET.Element("transition", attrib={"id": "id" + str(self.id)})
         

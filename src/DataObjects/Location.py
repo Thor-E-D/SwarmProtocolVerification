@@ -11,6 +11,9 @@ class Location:
     urgent: bool = False
     committed: bool = False
 
+    def __hash__(self):
+        return hash(self.id)
+
     def to_xml(self) -> str:
         location_elem = ET.Element("location", attrib={"id": "id" + str(self.id), "x": f"{self.x}", "y": f"{self.y}"})
 

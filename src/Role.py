@@ -10,6 +10,8 @@ from graphviz import Digraph
 import math
 
 class Role(Template):
+
+    # TODO: Make this used only if debugging of some sort is enabled
     def graphVizHelper(self, locations, transitions):
         graph = Digraph()
 

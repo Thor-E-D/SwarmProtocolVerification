@@ -3,10 +3,12 @@ from DataObjects.Declaration import Declaration
 from DataObjects.JSONTransfer import JSONTransfer
 from DataObjects.Channel import Channel
 from typing import List, Dict
+from collections import defaultdict
 from Utils import Utils
 from Functions import *
 from Log import Log
 from Role import Role
+from GraphAnalyser import analyze_graph
 
 currentModel = ""
 
@@ -52,9 +54,36 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
 
         amount_names[jsonTransfer.name] = f"{jsonTransfer.name}_t"
 
+    for jsonTransfer in jsonTransfers:
+        jsonTransfer.total_amount_of_events = len(eventnames_dict)
+
     final_xml = """<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.6//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_6.dtd'>
 <nta>"""
+
+    logs = []
+    roles = []
+
+    set_of_preceding_events = defaultdict(set)
+    max_amount_of_preceding_events = 1
+
+    for jsonTransfer in jsonTransfers:
+        log = Log(jsonTransfer.name, amount_names[jsonTransfer.name] + " id", jsonTransfer)
+        logs.append(log)
+        role = Role(jsonTransfer.name, amount_names[jsonTransfer.name] + " id", jsonTransfer)
+        roles.append(role)
+
+        all_events = jsonTransfer.own_events.copy()
+        all_events.extend(jsonTransfer.other_events)
+
+        preceding_events = (analyze_graph(all_events, jsonTransfer.initial))
+        for key_event in preceding_events:
+            name_of_event = Utils.get_eventtype_UID(key_event.event_name)
+            for event in preceding_events[key_event]:
+                set_of_preceding_events[name_of_event].add(Utils.get_eventtype_UID(event.event_name))
+            
+            if len(set_of_preceding_events[name_of_event]) > max_amount_of_preceding_events:
+                max_amount_of_preceding_events = len(set_of_preceding_events[name_of_event])
 
     declaration = Declaration()
 
@@ -76,26 +105,48 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
     declaration.add_variable("int currentLogToPropagate;")
     declaration.add_variable("int amountOfPropagation = 0;")
 
-    # Refactor these so they are instasiated based on the JSON files
+    eventsTiedTo = "const int eventsTiedTo[amountOfUniqueEvents][maxAmountOfTied] = {"
     counter = 0
     for event_key in eventnames_dict:
         declaration.add_variable(f"const int {eventnames_dict[event_key]} = {counter};")
         counter += 1
+
+        tiedTo = "{"
+        tiedTolength = 0
+        if eventnames_dict[event_key] in set_of_preceding_events:
+                tiedTolength = len(set_of_preceding_events[eventnames_dict[event_key]])
+                for event_name in set_of_preceding_events[eventnames_dict[event_key]]:
+                    tiedTo += "" + event_name + ", "
+                        
+        
+        tiedTo += "-1, " * (max_amount_of_preceding_events - tiedTolength)
+        eventsTiedTo += tiedTo[:-2] + "}, "
+
+    eventsTiedTo = eventsTiedTo[:-2] + "};"
+    
+    declaration.add_variable(f"const int amountOfUniqueEvents = {counter};")
 
     declaration.add_variable("""typedef struct {
     int eventID;
     int emitterID;
     int orderCount;
     int basedOnOrderCount;
+    int tiedTo;
     bool ignored;
 } logEntryType;""")
     
 
     declaration.add_variable("int maxUpdatesSincePropagation = 1;")
+
+    # TODO: next to things have to be determined based on Shape of each projection.
+    declaration.add_variable(f"const int maxAmountOfTied = {max_amount_of_preceding_events};")
+    declaration.add_variable(eventsTiedTo)
+
     declaration.add_variable("const int logSize = 10;") #TODO this size has to depend on the size of model
     declaration.add_variable("int eventOrderCounter = 1;")
     declaration.add_variable("logEntryType tempLogEntry;")
     declaration.add_variable("logEntryType propagationLog[logSize];")
+    declaration.add_variable("logEntryType globalLog[logSize];")
 
     # Channels
     declaration.add_channel(Channel(urgent=True,broadcast=True, name="propagate_log"))
@@ -109,12 +160,16 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
             declaration.add_channel(Channel(urgent=True, broadcast=True, type=currentAmount, name=advance_channel))
 
     # Functions
+    declaration.add_function_call(generate_function_is_in_subsciption)
     declaration.add_function_call(generate_function_is_int_in_list)
     declaration.add_function_call(generate_function_add_int_to_list)
+    declaration.add_function_call(generate_function_get_event_id_from_order_count)
     declaration.add_function_call(generate_function_set_next_log_to_propagate)
     declaration.add_function_call(generate_function_get_order_count)
     declaration.add_function_call(generate_function_set_log_entry_for_update)
+    declaration.add_function_call(generate_function_find_and_set_tiedto)
     declaration.add_function_call(generate_function_set_propagation_log)
+    declaration.add_function_call(generate_function_update_global_log)
     declaration.add_function_call(generate_function_update_log)
     declaration.add_function_call(generate_function_handle_own_event)
     declaration.add_function_call(generate_function_handle_other_event)
@@ -152,10 +207,10 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
     system_instansiator_string = system_instansiator_string[:-2]
 
     # Roles and logs
-    for jsonTransfer in jsonTransfers:
-        log = Log(jsonTransfer.name, amount_names[jsonTransfer.name] + " id", jsonTransfer)
-        role = Role(jsonTransfer.name, amount_names[jsonTransfer.name] + " id", jsonTransfer)
+    for log in logs:
         final_xml += log.to_xml()
+
+    for role in roles:
         final_xml += role.to_xml()
 
 
@@ -171,19 +226,33 @@ system {system_instansiator_string};
     
     #print(final_xml)
 
-
-if __name__ == "__main__":
-    # Should just load all json files in a given folder.
-    jsonTransfers = [] 
-    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Robot.json"))
-    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Pump.json"))
-    #jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Warehouse\\Door.json"))
-    #jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Warehouse\\Forklift.json"))
-    #jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Warehouse\\Transport.json"))
+def wareHousedemo():
+    jsonTransfers = []
+    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Warehouse\\Door.json"))
+    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Warehouse\\Forklift.json"))
+    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Warehouse\\Transport.json"))
 
     name_amount_dict = {}
     for jsonTransfer in jsonTransfers:
         name_amount_dict[jsonTransfer.name] = 1
 
     currentModel = createModel(jsonTransfers, name_amount_dict)
-    save_xml_to_file(currentModel, "example_file", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Warehouse")
+    save_xml_to_file(currentModel, "warehouse_example_v2", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Warehouse")
+
+def plantRobotDemo():
+    jsonTransfers = [] 
+    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Robot.json"))
+    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\Pump.json"))
+
+    name_amount_dict = {}
+    for jsonTransfer in jsonTransfers:
+        name_amount_dict[jsonTransfer.name] = 2
+
+    currentModel = createModel(jsonTransfers, name_amount_dict)
+    save_xml_to_file(currentModel, "example_file", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis")
+
+
+if __name__ == "__main__":
+    # Should just load all json files in a given folder.
+    plantRobotDemo()
+    #wareHousedemo()

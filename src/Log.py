@@ -21,6 +21,15 @@ class Log(Template):
         declaration.add_variable("int discardedEvents[logSize];")
         declaration.add_variable("bool olderEntryIgnored = false;")
 
+        subscription_str = "int subscriptions[amountOfUniqueEvents] = {"
+        subscription_counter = 0
+        for subscription in jsonTransfer.subscriptions:
+            subscription_counter += 1
+            subscription_str += Utils.get_eventtype_UID(subscription) +", "
+
+        subscription_str += "-1, " * (jsonTransfer.total_amount_of_events - subscription_counter)
+        declaration.add_variable(subscription_str[:-2] + "};")
+
         # Get names of own events and names of other events for function
         own_event_names = []
         other_event_names = []
@@ -71,7 +80,7 @@ setPropagationLog(currentLog)""",
             source=l3,
             target=l4,
             synchronisation=f"{jsonTransfer.do_update_channel_name}[id]?",
-            assignment=f"""updateLog{jsonTransfer.name}(currentLog,emittedOrderCounts),
+            assignment=f"""updateLog{jsonTransfer.name}(currentLog,emittedOrderCounts,log_id_start),
 updatesSincePropagation++,
 newUpdates := true""",
             nails = [(0, -51)]
