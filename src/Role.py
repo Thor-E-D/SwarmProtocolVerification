@@ -25,7 +25,10 @@ class Role(Template):
             graph.node(str(loc.id), label=str(loc.id))
         
         for transition in transitions:
-            graph.edge(str(transition.source.id), str(transition.target.id), label=str(transition.id))
+            if transition.source.id != transition.target.id:
+                graph.node(str(transition.id), label=str(transition.id))
+                graph.edge(str(transition.source.id), str(transition.id), label=str(transition.id) + "_to")
+                graph.edge(str(transition.id), str(transition.target.id), label=str(transition.id) + "_from")
         
         layout_info = graph.pipe(format='plain').decode('utf-8')
 
@@ -34,18 +37,13 @@ class Role(Template):
             if line.startswith('node'):
                 node_id = parts[1]
                 x, y = float(parts[2]), float(parts[3])
-                current_l = next((loc for loc in locations if loc.id == int(node_id)), None)
-                current_l.x = math.floor(x * 100)
-                current_l.y = math.floor(y * 100)
-
-            elif line.startswith('edge'):
-                trans_id = parts[-5:-4][0]
-                source_id = parts[1]
-                target_id = parts[2]
-                nail_coords = (math.floor(float(parts[4]) * 100 ), math.floor(float(parts[5]) * 100 ))
-                current_t = next((tran for tran in transitions if tran.id == int(trans_id)), None)
-                if (source_id != target_id):
-                    current_t.nails = [nail_coords]
+                if any(location.id == int(node_id) for location in locations):
+                    current_l = next((loc for loc in locations if loc.id == int(node_id)), None)
+                    current_l.x = math.floor(x * 100)
+                    current_l.y = math.floor(y * 100)
+                else:
+                    current_t = next((tran for tran in transitions if tran.id == int(node_id)), None)
+                    current_t.nails = [(math.floor(float(x) * 100 ), math.floor(float(y) * 100 ))]
 
     def findLocation(self, name: str, locations: List[Location]):
         return next((loc for loc in locations if loc.name == name), None)
