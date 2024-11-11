@@ -4,7 +4,7 @@
 	<declaration>// Place global declarations here.
 
 // We first declare the number of each role
-const int NUMBER_OF_Pump = 2;
+const int NUMBER_OF_Pump = 1;
 typedef int[0,NUMBER_OF_Pump-1] Pump_t;
 
 const int NUMBER_OF_Robot = 2;
@@ -142,12 +142,22 @@ void findAndSetTiedTo(logEntryType &amp;tempLog[logSize]) {
     int k;
     int j;
     int i;
-    for(i = 0; i &lt; logSize; i++) {
+    for(i = logSize-1; i &gt;= 0; i--) {
+        if (tempLog[i].orderCount != 0) {
+            for (j = 0; j&lt;maxAmountOfTied; j++) {
+                if (tempLog[i].eventID == eventsTiedTo[tempLogEntry.eventID][j] &amp;&amp; tempLog[i].tiedTo != -1) {
+                    tempLogEntry.tiedTo = tempLog[i].orderCount;
+                    return;
+                }
+            }
+        }
+    }  
+    for(i = logSize-1; i &gt;= 0; i--) {
         if (tempLog[i].orderCount != 0) {
             if (tempLog[i].emitterID == tempLogEntry.emitterID) {
                 for (j = 0; j&lt;maxAmountOfTied; j++) {
                     for (k = 0; k&lt;maxAmountOfTied; k++) {
-                        if (eventsTiedTo[tempLogEntry.eventID][j] == eventsTiedTo[tempLog[i].eventID][k]) {
+                        if (eventsTiedTo[tempLogEntry.eventID][j] == eventsTiedTo[tempLog[i].eventID][k] &amp;&amp; tempLog[i].tiedTo != -1) {
                             tempLogEntry.tiedTo = tempLog[i].tiedTo;
                             return;
                         }
@@ -156,7 +166,7 @@ void findAndSetTiedTo(logEntryType &amp;tempLog[logSize]) {
             }
         }
     }
-    for(i = 0; i &lt; logSize; i++) {
+    for(i = logSize-1; i &gt;= 0; i--) {
         if (tempLog[i].orderCount != 0) {
             for (j = 0; j&lt;maxAmountOfTied; j++) {
                 if (tempLog[i].eventID == eventsTiedTo[tempLogEntry.eventID][j]) {
@@ -227,10 +237,8 @@ void updateLogRobot(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCou
     tempLogEntry.emitterID = tempLogEntry.emitterID + log_id_start;
     if (tempLogEntry.basedOnOrderCount == -2) {
         int i = 0;
-        for (i = 0; i &lt; logSize; i++) {
+        for (i = logSize-1; i &gt;= 0; i--) {
             if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
-                updateLog(tempLog);
-                return;
             } else {
                 if (tempLogEntry.eventID == RobotIsDocked_ID) {
                     if (tempLog[i].eventID == DockAvailable_ID) {
@@ -259,10 +267,8 @@ void updateLogPump(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCoun
     tempLogEntry.emitterID = tempLogEntry.emitterID + log_id_start;
     if (tempLogEntry.basedOnOrderCount == -2) {
         int i = 0;
-        for (i = 0; i &lt; logSize; i++) {
+        for (i = logSize-1; i &gt;= 0; i--) {
             if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
-                updateLog(tempLog);
-                return;
             } else {
                 if (tempLogEntry.eventID == WaterSupplied_ID) {
                     if (tempLog[i].eventID == RobotIsDocked_ID) {
@@ -1023,8 +1029,46 @@ system Pump, Pump_log, Robot, Robot_log;
 	<queries>
 		<query>
 			<formula>A[] forall(i:Robot_t) forall(j:Pump_t) deadlock imply Robot(i).Done and Pump(j).Done</formula>
+			<comment>For any delay but with same amout of robots and pumps</comment>
+			<option key="--diagnostic" value="0"/>
+			<result outcome="success" type="quality" timestamp="2024-11-01 13:58:39 +0100">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A[] deadlock imply ((Robot(0).Done and Robot(1).WaitingForAvailableDock) or (Robot(1).Done and Robot(0).WaitingForAvailableDock)) and Pump(0).Done</formula>
+			<comment>For 1 pump 2 robots</comment>
+			<result outcome="success" type="quality" timestamp="2024-11-01 11:29:47 +0100">
+			</result>
+		</query>
+		<query>
+			<formula>E&lt;&gt; forall(i:Robot_t) Robot(i).WaitingForWater</formula>
+			<comment>For delay in propagation of 1</comment>
+			<result outcome="success" type="quality" timestamp="2024-11-10 14:23:36 +0100">
+			</result>
+		</query>
+		<query>
+			<formula>Robot(0).Done --&gt; not Robot(1).Done</formula>
+			<comment>For any delay in propagation with 2 robots one pump</comment>
+			<option key="--diagnostic" value="0"/>
+		</query>
+		<query>
+			<formula>A[] deadlock imply Pump(0).Done</formula>
 			<comment/>
 			<option key="--diagnostic" value="0"/>
+			<result outcome="success" type="quality" timestamp="2024-10-30 15:20:31 +0100">
+				<option key="--diagnostic" value="0"/>
+			</result>
+		</query>
+		<query>
+			<formula>A&lt;&gt; forall(j:Pump_t) Pump(j).Done</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2024-10-30 15:36:45 +0100">
+			</result>
+		</query>
+		<query>
+			<formula>A&lt;&gt; forall(i:Robot_t) (Robot(i).Done or Robot(i).WaitingForAvailableDock)</formula>
+			<comment/>
 		</query>
 	</queries>
 </nta>

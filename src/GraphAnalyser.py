@@ -116,7 +116,9 @@ def analyze_graph(eventData: List[EventData], initial_name: str):
         if event.source == initial_name and any(e not in loop_events for e in preceding_events[event]):
             preceding_events[event] = {}
 
-    return preceding_events
-    #return {
-    #    'preceding_events': preceding_events
-    #}
+    #return preceding_events
+    return {
+        'preceding_events': preceding_events,
+        'branching_events': branching_events,
+        'loop_events': loop_events
+    }

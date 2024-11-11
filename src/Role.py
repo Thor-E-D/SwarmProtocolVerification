@@ -46,8 +46,11 @@ class Role(Template):
         return next((loc for loc in locations if loc.name == name), None)
 
 
-    def __init__(self, name: str, parameter: str, jsonTransfer: JSONTransfer):
+    def __init__(self, name: str, parameter: str, jsonTransfer: JSONTransfer, loop_bound: int):
         declaration = Declaration()
+
+        if(jsonTransfer.loop_events != []):
+            declaration.add_variable("int loop_counter = 0;")
 
         all_events = jsonTransfer.own_events.copy()
         all_events.extend(jsonTransfer.other_events)
@@ -81,24 +84,27 @@ class Role(Template):
                 synchronisation=f"{jsonTransfer.advance_channel_names[event.event_name]}[id]?"))
 
             if event in jsonTransfer.own_events:
-                if (event.source == linitial.name):
-                    transitions.append(Transition(
-                    id=Utils.get_next_id(),
-                    source=lsource,
-                    target=ltarget,
-                    synchronisation=f"{jsonTransfer.do_update_channel_name}[id]!",
-                    assignment=f"""setLogEntryForUpdate(
-    {Utils.get_eventtype_UID(event.event_name)},id,
-    -1,false)"""))
+                basedOnstr = "-2" if event.source == linitial.name else "-2"
+                
+                if(jsonTransfer.loop_events != [] and event.event_name in jsonTransfer.loop_events):
+                        transitions.append(Transition(
+                        id=Utils.get_next_id(),
+                        source=lsource,
+                        target=ltarget,
+                        guard=f"loop_counter < {loop_bound}",
+                        synchronisation=f"{jsonTransfer.do_update_channel_name}[id]!",
+                        assignment=f"""setLogEntryForUpdate(
+        {Utils.get_eventtype_UID(event.event_name)},id,
+        {basedOnstr},false), loop_counter++"""))
                 else:
                     transitions.append(Transition(
-                    id=Utils.get_next_id(),
-                    source=lsource,
-                    target=ltarget,
-                    synchronisation=f"{jsonTransfer.do_update_channel_name}[id]!",
-                    assignment=f"""setLogEntryForUpdate(
-    {Utils.get_eventtype_UID(event.event_name)},id,
-    -2,false)"""))
+                        id=Utils.get_next_id(),
+                        source=lsource,
+                        target=ltarget,
+                        synchronisation=f"{jsonTransfer.do_update_channel_name}[id]!",
+                        assignment=f"""setLogEntryForUpdate(
+        {Utils.get_eventtype_UID(event.event_name)},id,
+        {basedOnstr},false)"""))
 
         self.graphVizHelper(locations, transitions)
 

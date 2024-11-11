@@ -29,6 +29,7 @@ class JSONTransfer:
     advance_channel_names: Optional[Dict[str, str]] = None
     log_id_start: Optional[int] = None
     total_amount_of_events: Optional[int] = None
+    loop_events: Optional[List[str]] = None
 
     
     def __str__(self):

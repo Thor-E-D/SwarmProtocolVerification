@@ -3,7 +3,7 @@
 <nta><declaration>
 const int NUMBER_OF_Robot = 2;
 typedef int[0,NUMBER_OF_Robot-1] Robot_t;
-const int NUMBER_OF_Pump = 2;
+const int NUMBER_OF_Pump = 1;
 typedef int[0,NUMBER_OF_Pump-1] Pump_t;
 int amountOfLogs = NUMBER_OF_Robot + NUMBER_OF_Pump;
 int currentLogToPropagate;
@@ -13,6 +13,11 @@ const int RobotIsDocked_ID = 1;
 const int WaterSupplied_ID = 2;
 const int RobotIsUndocked_ID = 3;
 const int amountOfUniqueEvents = 4;
+const int outerSizeBranchingList = 1;
+const int innerSizeBranchingList = 1;
+const int branchingList[outerSizeBranchingList][innerSizeBranchingList] = { {-1 } };
+const int isBranchingList[amountOfUniqueEvents] = {false, false, false, false};
+const int isInBranchingPartion[amountOfUniqueEvents] = {-1, -1, -1, -1};
 typedef struct {
     int eventID;
     int emitterID;
@@ -24,7 +29,7 @@ typedef struct {
 int maxUpdatesSincePropagation = 1;
 const int maxAmountOfTied = 1;
 const int eventsTiedTo[amountOfUniqueEvents][maxAmountOfTied] = {{-1}, {DockAvailable_ID}, {DockAvailable_ID}, {DockAvailable_ID}};
-const int logSize = 10;
+const int logSize = 12;
 int eventOrderCounter = 1;
 logEntryType tempLogEntry;
 logEntryType propagationLog[logSize];
@@ -121,7 +126,17 @@ void findAndSetTiedTo(logEntryType &amp;tempLog[logSize]) {
     int k;
     int j;
     int i;
-    for(i = 0; i &lt; logSize; i++) {
+    for(i = logSize-1; i &gt;= 0; i--) {
+        if (tempLog[i].orderCount != 0) {
+            for (j = 0; j&lt;maxAmountOfTied; j++) {
+                if (tempLog[i].eventID == eventsTiedTo[tempLogEntry.eventID][j] &amp;&amp; tempLog[i].tiedTo != -1) {
+                    tempLogEntry.tiedTo = tempLog[i].orderCount;
+                    return;
+                }
+            }
+        }
+    }
+    for(i = logSize-1; i &gt;= 0; i--) {
         if (tempLog[i].orderCount != 0) {
             if (tempLog[i].emitterID == tempLogEntry.emitterID) {
                 for (j = 0; j&lt;maxAmountOfTied; j++) {
@@ -135,7 +150,7 @@ void findAndSetTiedTo(logEntryType &amp;tempLog[logSize]) {
             }
         }
     }
-    for(i = 0; i &lt; logSize; i++) {
+    for(i = logSize-1; i &gt;= 0; i--) {
         if (tempLog[i].orderCount != 0) {
             for (j = 0; j&lt;maxAmountOfTied; j++) {
                 if (tempLog[i].eventID == eventsTiedTo[tempLogEntry.eventID][j]) {
@@ -196,7 +211,31 @@ void updateLog(logEntryType &amp;tempLog[logSize]) {
 }
 
 
+bool isInBranchingConflict(int partition, int eventID) {
+    int i = 0;
+    for (i = 0; i &lt; innerSizeBranchingList; i++) {
+        if (branchingList[partition][i] == eventID) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void handleBranchingEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
+    int j;
+    for (j = currentIndex; j &gt;= 0; j--) {
+        if (resLog[j].tiedTo == tmpLogEntry.tiedTo &amp;&amp; tmpLogEntry.basedOnOrderCount == resLog[j].basedOnOrderCount) {
+            if(isInBranchingConflict(isInBranchingPartion[tmpLogEntry.eventID], tmpLogEntry.eventID)) {
+                tmpLogEntry.ignored = true;
+            }
+        }
+    }
+}
+
 bool handleOwnEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int currentIndex, int id) {
+    if (isBranchingList[tmpLogEntry.eventID]) {
+        handleBranchingEvent(tmpLogEntry, resLog, currentIndex);
+    }
     if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
         tmpLogEntry.ignored = true;
     } else if (tmpLogEntry.emitterID != id) {
@@ -221,6 +260,9 @@ bool handleOwnEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSi
 
 void handleOtherEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;subsciptions[amountOfUniqueEvents], int currentIndex) {
     int i;
+    if (isBranchingList[tmpLogEntry.eventID]) {
+        handleBranchingEvent(tmpLogEntry, resLog, currentIndex);
+    }
     if ((isInSubsciptions(subsciptions, getEventIDfromOrderCount(tmpLogEntry.basedOnOrderCount)) &amp;&amp; isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) || isIntInList(discardedEvents, tmpLogEntry.tiedTo)) {
         tmpLogEntry.ignored = true;
     }
@@ -239,10 +281,8 @@ void updateLogRobot(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCou
     tempLogEntry.emitterID = tempLogEntry.emitterID + log_id_start;
     if (tempLogEntry.basedOnOrderCount == -2) {
         int i = 0;
-        for (i = 0; i &lt; logSize; i++) {
-            if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
-                updateLog(tempLog);
-                return;
+        for (i = logSize-1; i &gt;= 0; i--) {
+            if (tempLog[i].orderCount == 0) {
             } else { 
                 if (tempLogEntry.eventID == RobotIsDocked_ID) {
                     if (tempLog[i].eventID == DockAvailable_ID) {
@@ -260,6 +300,7 @@ void updateLogRobot(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCou
             }
         }
     }
+    tempLogEntry.basedOnOrderCount = -1;
     updateLog(tempLog);
     return;
 }
@@ -270,10 +311,8 @@ void updateLogPump(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCoun
     tempLogEntry.emitterID = tempLogEntry.emitterID + log_id_start;
     if (tempLogEntry.basedOnOrderCount == -2) {
         int i = 0;
-        for (i = 0; i &lt; logSize; i++) {
-            if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
-                updateLog(tempLog);
-                return;
+        for (i = logSize-1; i &gt;= 0; i--) {
+            if (tempLog[i].orderCount == 0) {
             } else { 
                 if (tempLogEntry.eventID == WaterSupplied_ID) {
                     if (tempLog[i].eventID == RobotIsDocked_ID) {
@@ -285,6 +324,7 @@ void updateLogPump(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCoun
             }
         }
     }
+    tempLogEntry.basedOnOrderCount = -1;
     updateLog(tempLog);
     return;
 }
@@ -439,6 +479,32 @@ setNextLogToPropagate()</label></transition>
 <transition id="id20"><source ref="id7" /><target ref="id5" /><label kind="guard" x="-680" y="272">currentLog[counter].eventID == WaterSupplied_ID</label><label kind="synchronisation" x="-680" y="257">advance_Robot_WaterSupplied[id]!</label><label kind="assignment" x="-680" y="242">counter++</label><nail x="-646" y="272" /><nail x="-714" y="272" /></transition>
 <transition id="id21"><source ref="id7" /><target ref="id5" /><label kind="guard" x="-714" y="306">currentLog[counter].eventID == RobotIsUndocked_ID</label><label kind="synchronisation" x="-714" y="291">advance_Robot_RobotIsUndocked[id]!</label><label kind="assignment" x="-714" y="276">counter++</label><nail x="-680" y="306" /><nail x="-748" y="306" /></transition>
 </template><template>
+	<name>Robot</name>
+	<parameter>Robot_t id</parameter>
+<declaration>
+</declaration>
+<location id="id22" x="226" y="516"><name x="228" y="518">Docking</name><urgent /></location>
+<location id="id23" x="95" y="270"><name x="97" y="272">Undocking</name><urgent /></location>
+<location id="id24" x="37" y="147"><name x="39" y="149">Done</name><urgent /></location>
+<location id="id25" x="163" y="393"><name x="165" y="395">WaitingForWater</name><urgent /></location>
+<location id="id26" x="183" y="25"><name x="185" y="27">WaitingForAvailableDock</name><urgent /></location>
+	<init ref="id26"/>
+<transition id="id27"><source ref="id22" /><target ref="id26" /><label kind="synchronisation" x="232" y="476">reset_Robot[id]?</label><nail x="232" y="491" /></transition>
+<transition id="id28"><source ref="id23" /><target ref="id26" /><label kind="synchronisation" x="103" y="230">reset_Robot[id]?</label><nail x="103" y="245" /></transition>
+<transition id="id29"><source ref="id24" /><target ref="id26" /><label kind="synchronisation" x="49" y="108">reset_Robot[id]?</label><nail x="49" y="123" /></transition>
+<transition id="id30"><source ref="id25" /><target ref="id26" /><label kind="synchronisation" x="165" y="353">reset_Robot[id]?</label><nail x="165" y="368" /></transition>
+<transition id="id31"><source ref="id26" /><target ref="id26" /><label kind="synchronisation" x="183" y="10">reset_Robot[id]?</label></transition>
+<transition id="id32"><source ref="id22" /><target ref="id25" /><label kind="synchronisation" x="195" y="486">advance_Robot_RobotIsDocked[id]?</label><nail x="195" y="501" /></transition>
+<transition id="id33"><source ref="id22" /><target ref="id25" /><label kind="synchronisation" x="214" y="477">do_log_update_Robot[id]!</label><label kind="assignment" x="214" y="462">setLogEntryForUpdate(
+        RobotIsDocked_ID,id,
+        -2,false)</label><nail x="214" y="492" /></transition>
+<transition id="id34"><source ref="id23" /><target ref="id24" /><label kind="synchronisation" x="67" y="239">advance_Robot_RobotIsUndocked[id]?</label><nail x="67" y="254" /></transition>
+<transition id="id35"><source ref="id23" /><target ref="id24" /><label kind="synchronisation" x="84" y="231">do_log_update_Robot[id]!</label><label kind="assignment" x="84" y="216">setLogEntryForUpdate(
+        RobotIsUndocked_ID,id,
+        -2,false)</label><nail x="84" y="246" /></transition>
+<transition id="id36"><source ref="id26" /><target ref="id22" /><label kind="synchronisation" x="214" y="23">advance_Robot_DockAvailable[id]?</label><nail x="214" y="38" /></transition>
+<transition id="id37"><source ref="id25" /><target ref="id23" /><label kind="synchronisation" x="151" y="354">advance_Robot_WaterSupplied[id]?</label><nail x="151" y="369" /></transition>
+</template><template>
 	<name>Pump_log</name>
 	<parameter>Pump_t id</parameter>
 <declaration>
@@ -589,57 +655,31 @@ setNextLogToPropagate()</label></transition>
 <transition id="id57"><source ref="id44" /><target ref="id42" /><label kind="guard" x="-680" y="272">currentLog[counter].eventID == WaterSupplied_ID</label><label kind="synchronisation" x="-680" y="257">advance_Pump_WaterSupplied[id]!</label><label kind="assignment" x="-680" y="242">counter++</label><nail x="-646" y="272" /><nail x="-714" y="272" /></transition>
 <transition id="id58"><source ref="id44" /><target ref="id42" /><label kind="guard" x="-714" y="306">currentLog[counter].eventID == RobotIsUndocked_ID</label><label kind="synchronisation" x="-714" y="291">advance_Pump_RobotIsUndocked[id]!</label><label kind="assignment" x="-714" y="276">counter++</label><nail x="-680" y="306" /><nail x="-748" y="306" /></transition>
 </template><template>
-	<name>Robot</name>
-	<parameter>Robot_t id</parameter>
-<declaration>
-</declaration>
-<location id="id22" x="123" y="516"><name x="125" y="518">Undocking</name><urgent /></location>
-<location id="id23" x="69" y="270"><name x="71" y="272">WaitingForAvailableDock</name><urgent /></location>
-<location id="id24" x="37" y="147"><name x="39" y="149">Docking</name><urgent /></location>
-<location id="id25" x="125" y="393"><name x="127" y="395">Done</name><urgent /></location>
-<location id="id26" x="105" y="25"><name x="107" y="27">WaitingForWater</name><urgent /></location>
-	<init ref="id23"/>
-<transition id="id27"><source ref="id22" /><target ref="id23" /><label kind="synchronisation" x="103" y="480">reset_Robot[id]?</label><nail x="103" y="495" /></transition>
-<transition id="id28"><source ref="id23" /><target ref="id23" /><label kind="synchronisation" x="69" y="255">reset_Robot[id]?</label></transition>
-<transition id="id29"><source ref="id24" /><target ref="id23" /><label kind="synchronisation" x="43" y="157">reset_Robot[id]?</label><nail x="43" y="172" /></transition>
-<transition id="id30"><source ref="id25" /><target ref="id23" /><label kind="synchronisation" x="114" y="354">reset_Robot[id]?</label><nail x="114" y="369" /></transition>
-<transition id="id31"><source ref="id26" /><target ref="id23" /><label kind="synchronisation" x="104" y="35">reset_Robot[id]?</label><nail x="104" y="50" /></transition>
-<transition id="id32"><source ref="id24" /><target ref="id26" /><label kind="synchronisation" x="31" y="107">advance_Robot_RobotIsDocked[id]?</label><nail x="31" y="122" /></transition>
-<transition id="id33"><source ref="id24" /><target ref="id26" /><label kind="synchronisation" x="50" y="108">do_log_update_Robot[id]!</label><label kind="assignment" x="50" y="93">setLogEntryForUpdate(
-    RobotIsDocked_ID,id,
-    -2,false)</label><nail x="50" y="123" /></transition>
-<transition id="id34"><source ref="id22" /><target ref="id25" /><label kind="synchronisation" x="109" y="477">advance_Robot_RobotIsUndocked[id]?</label><nail x="109" y="492" /></transition>
-<transition id="id35"><source ref="id22" /><target ref="id25" /><label kind="synchronisation" x="123" y="476">do_log_update_Robot[id]!</label><label kind="assignment" x="123" y="461">setLogEntryForUpdate(
-    RobotIsUndocked_ID,id,
-    -2,false)</label><nail x="123" y="491" /></transition>
-<transition id="id36"><source ref="id23" /><target ref="id24" /><label kind="synchronisation" x="46" y="235">advance_Robot_DockAvailable[id]?</label><nail x="46" y="250" /></transition>
-<transition id="id37"><source ref="id26" /><target ref="id22" /><label kind="synchronisation" x="131" y="28">advance_Robot_WaterSupplied[id]?</label><nail x="131" y="43" /></transition>
-</template><template>
 	<name>Pump</name>
 	<parameter>Pump_t id</parameter>
 <declaration>
 </declaration>
-<location id="id59" x="49" y="516"><name x="51" y="518">PumpingWater</name><urgent /></location>
-<location id="id60" x="43" y="147"><name x="45" y="149">ClearingDock</name><urgent /></location>
-<location id="id61" x="94" y="25"><name x="96" y="27">WaitingForRobotToDock</name><urgent /></location>
-<location id="id62" x="54" y="393"><name x="56" y="395">WaitingForRobotToUndock</name><urgent /></location>
-<location id="id63" x="101" y="270"><name x="103" y="272">Done</name><urgent /></location>
-	<init ref="id60"/>
-<transition id="id64"><source ref="id59" /><target ref="id60" /><label kind="synchronisation" x="34" y="478">reset_Pump[id]?</label><nail x="34" y="493" /></transition>
-<transition id="id65"><source ref="id60" /><target ref="id60" /><label kind="synchronisation" x="43" y="132">reset_Pump[id]?</label></transition>
-<transition id="id66"><source ref="id61" /><target ref="id60" /><label kind="synchronisation" x="97" y="35">reset_Pump[id]?</label><nail x="97" y="50" /></transition>
-<transition id="id67"><source ref="id62" /><target ref="id60" /><label kind="synchronisation" x="47" y="353">reset_Pump[id]?</label><nail x="47" y="368" /></transition>
-<transition id="id68"><source ref="id63" /><target ref="id60" /><label kind="synchronisation" x="90" y="231">reset_Pump[id]?</label><nail x="90" y="246" /></transition>
-<transition id="id69"><source ref="id60" /><target ref="id61" /><label kind="synchronisation" x="27" y="110">advance_Pump_DockAvailable[id]?</label><nail x="27" y="125" /></transition>
-<transition id="id70"><source ref="id60" /><target ref="id61" /><label kind="synchronisation" x="49" y="107">do_log_update_Pump[id]!</label><label kind="assignment" x="49" y="92">setLogEntryForUpdate(
-    DockAvailable_ID,id,
-    -1,false)</label><nail x="49" y="122" /></transition>
-<transition id="id71"><source ref="id59" /><target ref="id62" /><label kind="synchronisation" x="36" y="477">advance_Pump_WaterSupplied[id]?</label><nail x="36" y="492" /></transition>
-<transition id="id72"><source ref="id59" /><target ref="id62" /><label kind="synchronisation" x="50" y="476">do_log_update_Pump[id]!</label><label kind="assignment" x="50" y="461">setLogEntryForUpdate(
-    WaterSupplied_ID,id,
-    -2,false)</label><nail x="50" y="491" /></transition>
-<transition id="id73"><source ref="id61" /><target ref="id59" /><label kind="synchronisation" x="120" y="28">advance_Pump_RobotIsDocked[id]?</label><nail x="120" y="43" /></transition>
-<transition id="id74"><source ref="id62" /><target ref="id63" /><label kind="synchronisation" x="63" y="354">advance_Pump_RobotIsUndocked[id]?</label><nail x="63" y="369" /></transition>
+<location id="id59" x="124" y="516"><name x="126" y="518">ClearingDock</name><urgent /></location>
+<location id="id60" x="120" y="270"><name x="122" y="272">PumpingWater</name><urgent /></location>
+<location id="id61" x="228" y="25"><name x="230" y="27">Done</name><urgent /></location>
+<location id="id62" x="56" y="393"><name x="58" y="395">WaitingForRobotToDock</name><urgent /></location>
+<location id="id63" x="177" y="147"><name x="179" y="149">WaitingForRobotToUndock</name><urgent /></location>
+	<init ref="id59"/>
+<transition id="id64"><source ref="id59" /><target ref="id59" /><label kind="synchronisation" x="124" y="501">reset_Pump[id]?</label></transition>
+<transition id="id65"><source ref="id60" /><target ref="id59" /><label kind="synchronisation" x="120" y="281">reset_Pump[id]?</label><nail x="120" y="296" /></transition>
+<transition id="id66"><source ref="id61" /><target ref="id59" /><label kind="synchronisation" x="240" y="34">reset_Pump[id]?</label><nail x="240" y="49" /></transition>
+<transition id="id67"><source ref="id62" /><target ref="id59" /><label kind="synchronisation" x="69" y="402">reset_Pump[id]?</label><nail x="69" y="417" /></transition>
+<transition id="id68"><source ref="id63" /><target ref="id59" /><label kind="synchronisation" x="178" y="158">reset_Pump[id]?</label><nail x="178" y="173" /></transition>
+<transition id="id69"><source ref="id59" /><target ref="id62" /><label kind="synchronisation" x="87" y="496">advance_Pump_DockAvailable[id]?</label><nail x="87" y="511" /></transition>
+<transition id="id70"><source ref="id59" /><target ref="id62" /><label kind="synchronisation" x="95" y="485">do_log_update_Pump[id]!</label><label kind="assignment" x="95" y="470">setLogEntryForUpdate(
+        DockAvailable_ID,id,
+        -2,false)</label><nail x="95" y="500" /></transition>
+<transition id="id71"><source ref="id60" /><target ref="id63" /><label kind="synchronisation" x="131" y="231">advance_Pump_WaterSupplied[id]?</label><nail x="131" y="246" /></transition>
+<transition id="id72"><source ref="id60" /><target ref="id63" /><label kind="synchronisation" x="115" y="230">do_log_update_Pump[id]!</label><label kind="assignment" x="115" y="215">setLogEntryForUpdate(
+        WaterSupplied_ID,id,
+        -2,false)</label><nail x="115" y="245" /></transition>
+<transition id="id73"><source ref="id62" /><target ref="id60" /><label kind="synchronisation" x="68" y="354">advance_Pump_RobotIsDocked[id]?</label><nail x="68" y="369" /></transition>
+<transition id="id74"><source ref="id63" /><target ref="id61" /><label kind="synchronisation" x="187" y="108">advance_Pump_RobotIsUndocked[id]?</label><nail x="187" y="123" /></transition>
 </template><system>// Place template instantiations here.
 // List one or more processes to be composed into a system.
 system Robot, Robot_log, Pump, Pump_log;

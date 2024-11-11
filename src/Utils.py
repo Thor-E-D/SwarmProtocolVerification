@@ -23,3 +23,8 @@ class Utils:
         midpoint_y = (y1 + y2) // 2
         
         return (midpoint_x, midpoint_y)
+    
+    @staticmethod
+    def python_list_to_uppaal_list(l1) -> str:
+        return str(l1).replace("[", "{").replace("]","}")
+

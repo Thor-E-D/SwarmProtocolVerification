@@ -95,7 +95,17 @@ void findAndSetTiedTo(logEntryType &amp;tempLog[logSize]) {
     int k;
     int j;
     int i;
-    for(i = 0; i &lt; logSize; i++) {
+    for(i = logSize-1; i &gt;= 0; i--) {
+        if (tempLog[i].orderCount != 0) {
+            for (j = 0; j&lt;maxAmountOfTied; j++) {
+                if (tempLog[i].eventID == eventsTiedTo[tempLogEntry.eventID][j] &amp;&amp; tempLog[i].tiedTo != -1) {
+                    tempLogEntry.tiedTo = tempLog[i].orderCount;
+                    return;
+                }
+            }
+        }
+    }
+    for(i = logSize-1; i &gt;= 0; i--) {
         if (tempLog[i].orderCount != 0) {
             if (tempLog[i].emitterID == tempLogEntry.emitterID) {
                 for (j = 0; j&lt;maxAmountOfTied; j++) {
@@ -109,7 +119,7 @@ void findAndSetTiedTo(logEntryType &amp;tempLog[logSize]) {
             }
         }
     }
-    for(i = 0; i &lt; logSize; i++) {
+    for(i = logSize-1; i &gt;= 0; i--) {
         if (tempLog[i].orderCount != 0) {
             for (j = 0; j&lt;maxAmountOfTied; j++) {
                 if (tempLog[i].eventID == eventsTiedTo[tempLogEntry.eventID][j]) {
@@ -175,10 +185,38 @@ void updateLog(logEntryType &amp;tempLog[logSize]) {
     // If we reach here log is full and we are in trouble
 }
 """
+def generate_function_is_In_branching_conflict() -> str:
+    return """
+bool isInBranchingConflict(int partition, int eventID) {
+    int i = 0;
+    for (i = 0; i &lt; innerSizeBranchingList; i++) {
+        if (branchingList[partition][i] == eventID) {
+            return true;
+        }
+    }
+    return false;
+}"""
+
+def generate_function_handle_branching_event() -> str:
+    return """
+void handleBranchingEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
+    int j;
+    for (j = currentIndex; j &gt;= 0; j--) {
+        if (resLog[j].tiedTo == tmpLogEntry.tiedTo &amp;&amp; tmpLogEntry.basedOnOrderCount == resLog[j].basedOnOrderCount) {
+            if(isInBranchingConflict(isInBranchingPartion[tmpLogEntry.eventID], tmpLogEntry.eventID)) {
+                tmpLogEntry.ignored = true;
+            }
+        }
+    }
+}"""
+
 
 def generate_function_handle_own_event() -> str:
     return """
 bool handleOwnEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int currentIndex, int id) {
+    if (isBranchingList[tmpLogEntry.eventID]) {
+        handleBranchingEvent(tmpLogEntry, resLog, currentIndex);
+    }
     if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
         tmpLogEntry.ignored = true;
     } else if (tmpLogEntry.emitterID != id) {
@@ -205,6 +243,9 @@ def generate_function_handle_other_event() -> str:
     return """
 void handleOtherEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;subsciptions[amountOfUniqueEvents], int currentIndex) {
     int i;
+    if (isBranchingList[tmpLogEntry.eventID]) {
+        handleBranchingEvent(tmpLogEntry, resLog, currentIndex);
+    }
     if ((isInSubsciptions(subsciptions, getEventIDfromOrderCount(tmpLogEntry.basedOnOrderCount)) &amp;&amp; isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) || isIntInList(discardedEvents, tmpLogEntry.tiedTo)) {
         tmpLogEntry.ignored = true;
     }
@@ -226,10 +267,8 @@ void updateLog{name}(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCo
     tempLogEntry.emitterID = tempLogEntry.emitterID + log_id_start;
     if (tempLogEntry.basedOnOrderCount == -2) {{
         int i = 0;
-        for (i = 0; i &lt; logSize; i++) {{
-            if (tempLog[i].orderCount == 0) {{ // Log entry is unused since orderCount can never be 0
-                updateLog(tempLog);
-                return;
+        for (i = logSize-1; i &gt;= 0; i--) {{
+            if (tempLog[i].orderCount == 0) {{
             }} else {{ 
                 """
     
@@ -258,6 +297,7 @@ void updateLog{name}(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCo
             }
         }
     }
+    tempLogEntry.basedOnOrderCount = -1;
     updateLog(tempLog);
     return;
 }"""
