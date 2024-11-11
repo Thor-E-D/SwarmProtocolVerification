@@ -9,7 +9,12 @@ from typing import List
 from graphviz import Digraph
 import math
 
+
+
 class Role(Template):
+
+    def get_evetname_loopcounter(self):
+        return self.evetname_loopcounter
 
     # TODO: Make this used only if debugging of some sort is enabled
     def graphVizHelper(self, locations, transitions):
@@ -47,10 +52,9 @@ class Role(Template):
 
 
     def __init__(self, name: str, parameter: str, jsonTransfer: JSONTransfer, loop_bound: int):
-        declaration = Declaration()
+        self.evetname_loopcounter = {}
 
-        if(jsonTransfer.loop_events != []):
-            declaration.add_variable("int loop_counter = 0;")
+        declaration = Declaration()
 
         all_events = jsonTransfer.own_events.copy()
         all_events.extend(jsonTransfer.other_events)
@@ -72,7 +76,6 @@ class Role(Template):
                 target=linitial,
                 synchronisation=f"{jsonTransfer.reset_channel_name}[id]?"))
 
-
         for event in all_events:
             lsource = self.findLocation(event.source, locations)
             ltarget = self.findLocation(event.target, locations)
@@ -87,15 +90,18 @@ class Role(Template):
                 basedOnstr = "-2" if event.source == linitial.name else "-2"
                 
                 if(jsonTransfer.loop_events != [] and event.event_name in jsonTransfer.loop_events):
+                        loop_counter_name = Utils.get_next_loopcount()
+                        self.evetname_loopcounter[Utils.get_eventtype_UID(event.event_name)] = loop_counter_name
+
                         transitions.append(Transition(
                         id=Utils.get_next_id(),
                         source=lsource,
                         target=ltarget,
-                        guard=f"loop_counter < {loop_bound}",
+                        guard=f"{loop_counter_name} < {loop_bound}",
                         synchronisation=f"{jsonTransfer.do_update_channel_name}[id]!",
                         assignment=f"""setLogEntryForUpdate(
         {Utils.get_eventtype_UID(event.event_name)},id,
-        {basedOnstr},false), loop_counter++"""))
+        {basedOnstr},false), {loop_counter_name}++"""))
                 else:
                     transitions.append(Transition(
                         id=Utils.get_next_id(),

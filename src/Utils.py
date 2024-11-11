@@ -2,11 +2,17 @@ from DataObjects.Location import Location
 
 class Utils:
     _count = 0
+    _loopcount = 0
 
     @staticmethod
     def get_next_id():
         Utils._count += 1
         return Utils._count
+    
+    @staticmethod
+    def get_next_loopcount():
+        Utils._loopcount += 1
+        return f"loop_counter{Utils._loopcount}"
     
     @staticmethod
     def get_eventtype_UID(name: str):

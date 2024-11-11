@@ -304,7 +304,6 @@ void updateLog{name}(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCo
     return function_str
 
 def generate_function_handle_log_entry(own_events: list[str], other_events: list[str]) -> str:
-    
     function_str = """
 logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
     // We first find the event Type
@@ -338,8 +337,8 @@ logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[lo
     
     return function_str
 
-def generate_function_merge_propagation_log() -> str:
-    return """
+def generate_function_merge_propagation_log(evetname_loopcounter) -> str:
+    function_str = """
 void mergePropagationLog() {
     int currentLogCounter = 0;
     int propagatedLogCounter = 0;
@@ -397,7 +396,16 @@ void mergePropagationLog() {
         } else {
             tmpLogEntry = handleLogEntry(tmpLogEntry,resLog,i-1);
             if (tmpLogEntry.ignored) {
-                // Value should be discarded
+                // Value should be discarded """
+
+    for event_name in evetname_loopcounter:
+        function_str += f"""                
+                if (tmpLogEntry.eventID == {event_name} &amp;&amp; tmpLogEntry.emitterID == id + log_id_start) {{
+                    {evetname_loopcounter[event_name]} = {evetname_loopcounter[event_name]} - 1;
+                }}"""
+
+
+    function_str += """
                 i--;
                 addIntToList(discardedEvents, tmpLogEntry.orderCount);
             } else {
@@ -427,3 +435,4 @@ void mergePropagationLog() {
     }
 }
 """
+    return function_str

@@ -5,9 +5,10 @@ from DataObjects.Location import Location
 from DataObjects.JSONTransfer import JSONTransfer
 from Utils import Utils
 from Functions import generate_function_merge_propagation_log, generate_function_handle_log_entry
+from typing import Dict
 
 class Log(Template):
-    def __init__(self, name: str, parameter: str, jsonTransfer: JSONTransfer):
+    def __init__(self, name: str, parameter: str, jsonTransfer: JSONTransfer, evetname_loopcounter: Dict[str,str]):
         declaration = Declaration()
 
         declaration.add_variable("logEntryType currentLog[logSize];")
@@ -42,7 +43,7 @@ class Log(Template):
 
         # Adding function calls
         declaration.add_function_call(generate_function_handle_log_entry, own_event_names, other_event_names)
-        declaration.add_function_call(generate_function_merge_propagation_log) 
+        declaration.add_function_call(generate_function_merge_propagation_log,evetname_loopcounter) 
         
         l1 = Location (id = Utils.get_next_id(), x=-204, y=-238, committed=True)
         l2 = Location (id = Utils.get_next_id(), x=-748, y=-136, committed=True)

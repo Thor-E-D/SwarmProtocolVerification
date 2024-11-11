@@ -264,21 +264,35 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
         declaration.add_function_call(generate_function_update_log_name, name,name_basedOnEvents[name])
     
 
+    roles = []
+    logs = []
+
+    for jsonTransfer in jsonTransfers:
+        role = Role(jsonTransfer.name, amount_names[jsonTransfer.name] + " id", jsonTransfer, loop_bound)
+        roles.append(role)
+
+        # Adding loopcounter to global decleration
+        current_evetname_loopcounter = role.get_evetname_loopcounter()
+        for eventname in current_evetname_loopcounter:
+            declaration.add_variable(f"int {current_evetname_loopcounter[eventname]} = 0;")
+
+        log = Log(jsonTransfer.name, amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter)
+        logs.append(log)
+
     final_xml += declaration.to_xml()
+
+    for role in roles:
+        final_xml += role.to_xml()
+
+    for log in logs:
+        final_xml += log.to_xml()
+        
+    
 
     system_instansiator_string = ""
     for name in name_amount_dict:
         system_instansiator_string += f"{name}, {name}_log, "
     system_instansiator_string = system_instansiator_string[:-2]
-
-
-    for jsonTransfer in jsonTransfers:
-        log = Log(jsonTransfer.name, amount_names[jsonTransfer.name] + " id", jsonTransfer)
-        final_xml += log.to_xml()
-        role = Role(jsonTransfer.name, amount_names[jsonTransfer.name] + " id", jsonTransfer, loop_bound)
-        final_xml += role.to_xml()
-        
-
 
     # For each role put in name and log name
     final_xml += f"""<system>// Place template instantiations here.
@@ -301,9 +315,9 @@ def parseJsonFiles(paths_to_jsons: List[str]):
 
 def wareHousedemo():
     jsonTransfers = []
-    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\Warehouse\\Door.json"))
-    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\Warehouse\\Forklift.json"))
-    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\Warehouse\\Transport.json"))
+    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse\\Door.json"))
+    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse\\Forklift.json"))
+    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse\\Transport.json"))
 
     name_amount_dict = {}
     for jsonTransfer in jsonTransfers:
@@ -314,7 +328,7 @@ def wareHousedemo():
 
     loop_bound = 2
     currentModel = createModel(jsonTransfers, name_amount_dict, loop_bound)
-    save_xml_to_file(currentModel, "warehouse_example2", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\Warehouse")
+    save_xml_to_file(currentModel, "warehouse_example2", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse")
 
 def plantRobotDemo():
     jsonTransfers = [] 
@@ -351,5 +365,5 @@ def verifyta_example():
 
 if __name__ == "__main__":
     # Should just load all json files in a given folder.
-    verifyta_example()
-    #wareHousedemo()
+    #verifyta_example()
+    wareHousedemo()

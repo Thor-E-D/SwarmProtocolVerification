@@ -483,27 +483,27 @@ setNextLogToPropagate()</label></transition>
 	<parameter>Robot_t id</parameter>
 <declaration>
 </declaration>
-<location id="id22" x="226" y="516"><name x="228" y="518">Docking</name><urgent /></location>
-<location id="id23" x="95" y="270"><name x="97" y="272">Undocking</name><urgent /></location>
-<location id="id24" x="37" y="147"><name x="39" y="149">Done</name><urgent /></location>
-<location id="id25" x="163" y="393"><name x="165" y="395">WaitingForWater</name><urgent /></location>
-<location id="id26" x="183" y="25"><name x="185" y="27">WaitingForAvailableDock</name><urgent /></location>
-	<init ref="id26"/>
-<transition id="id27"><source ref="id22" /><target ref="id26" /><label kind="synchronisation" x="232" y="476">reset_Robot[id]?</label><nail x="232" y="491" /></transition>
-<transition id="id28"><source ref="id23" /><target ref="id26" /><label kind="synchronisation" x="103" y="230">reset_Robot[id]?</label><nail x="103" y="245" /></transition>
-<transition id="id29"><source ref="id24" /><target ref="id26" /><label kind="synchronisation" x="49" y="108">reset_Robot[id]?</label><nail x="49" y="123" /></transition>
-<transition id="id30"><source ref="id25" /><target ref="id26" /><label kind="synchronisation" x="165" y="353">reset_Robot[id]?</label><nail x="165" y="368" /></transition>
-<transition id="id31"><source ref="id26" /><target ref="id26" /><label kind="synchronisation" x="183" y="10">reset_Robot[id]?</label></transition>
-<transition id="id32"><source ref="id22" /><target ref="id25" /><label kind="synchronisation" x="195" y="486">advance_Robot_RobotIsDocked[id]?</label><nail x="195" y="501" /></transition>
-<transition id="id33"><source ref="id22" /><target ref="id25" /><label kind="synchronisation" x="214" y="477">do_log_update_Robot[id]!</label><label kind="assignment" x="214" y="462">setLogEntryForUpdate(
+<location id="id22" x="91" y="516"><name x="93" y="518">Undocking</name><urgent /></location>
+<location id="id23" x="79" y="25"><name x="81" y="27">WaitingForWater</name><urgent /></location>
+<location id="id24" x="37" y="270"><name x="39" y="272">WaitingForAvailableDock</name><urgent /></location>
+<location id="id25" x="93" y="393"><name x="95" y="395">Done</name><urgent /></location>
+<location id="id26" x="87" y="147"><name x="89" y="149">Docking</name><urgent /></location>
+	<init ref="id24"/>
+<transition id="id27"><source ref="id22" /><target ref="id24" /><label kind="synchronisation" x="71" y="480">reset_Robot[id]?</label><nail x="71" y="495" /></transition>
+<transition id="id28"><source ref="id23" /><target ref="id24" /><label kind="synchronisation" x="61" y="32">reset_Robot[id]?</label><nail x="61" y="47" /></transition>
+<transition id="id29"><source ref="id24" /><target ref="id24" /><label kind="synchronisation" x="37" y="255">reset_Robot[id]?</label></transition>
+<transition id="id30"><source ref="id25" /><target ref="id24" /><label kind="synchronisation" x="82" y="354">reset_Robot[id]?</label><nail x="82" y="369" /></transition>
+<transition id="id31"><source ref="id26" /><target ref="id24" /><label kind="synchronisation" x="81" y="157">reset_Robot[id]?</label><nail x="81" y="172" /></transition>
+<transition id="id32"><source ref="id26" /><target ref="id23" /><label kind="synchronisation" x="69" y="110">advance_Robot_RobotIsDocked[id]?</label><nail x="69" y="125" /></transition>
+<transition id="id33"><source ref="id26" /><target ref="id23" /><label kind="synchronisation" x="85" y="107">do_log_update_Robot[id]!</label><label kind="assignment" x="85" y="92">setLogEntryForUpdate(
         RobotIsDocked_ID,id,
-        -2,false)</label><nail x="214" y="492" /></transition>
-<transition id="id34"><source ref="id23" /><target ref="id24" /><label kind="synchronisation" x="67" y="239">advance_Robot_RobotIsUndocked[id]?</label><nail x="67" y="254" /></transition>
-<transition id="id35"><source ref="id23" /><target ref="id24" /><label kind="synchronisation" x="84" y="231">do_log_update_Robot[id]!</label><label kind="assignment" x="84" y="216">setLogEntryForUpdate(
+        -2,false)</label><nail x="85" y="122" /></transition>
+<transition id="id34"><source ref="id22" /><target ref="id25" /><label kind="synchronisation" x="77" y="477">advance_Robot_RobotIsUndocked[id]?</label><nail x="77" y="492" /></transition>
+<transition id="id35"><source ref="id22" /><target ref="id25" /><label kind="synchronisation" x="91" y="476">do_log_update_Robot[id]!</label><label kind="assignment" x="91" y="461">setLogEntryForUpdate(
         RobotIsUndocked_ID,id,
-        -2,false)</label><nail x="84" y="246" /></transition>
-<transition id="id36"><source ref="id26" /><target ref="id22" /><label kind="synchronisation" x="214" y="23">advance_Robot_DockAvailable[id]?</label><nail x="214" y="38" /></transition>
-<transition id="id37"><source ref="id25" /><target ref="id23" /><label kind="synchronisation" x="151" y="354">advance_Robot_WaterSupplied[id]?</label><nail x="151" y="369" /></transition>
+        -2,false)</label><nail x="91" y="491" /></transition>
+<transition id="id36"><source ref="id24" /><target ref="id26" /><label kind="synchronisation" x="34" y="230">advance_Robot_DockAvailable[id]?</label><nail x="34" y="245" /></transition>
+<transition id="id37"><source ref="id23" /><target ref="id22" /><label kind="synchronisation" x="104" y="29">advance_Robot_WaterSupplied[id]?</label><nail x="104" y="44" /></transition>
 </template><template>
 	<name>Pump_log</name>
 	<parameter>Pump_t id</parameter>
@@ -659,27 +659,27 @@ setNextLogToPropagate()</label></transition>
 	<parameter>Pump_t id</parameter>
 <declaration>
 </declaration>
-<location id="id59" x="124" y="516"><name x="126" y="518">ClearingDock</name><urgent /></location>
-<location id="id60" x="120" y="270"><name x="122" y="272">PumpingWater</name><urgent /></location>
-<location id="id61" x="228" y="25"><name x="230" y="27">Done</name><urgent /></location>
-<location id="id62" x="56" y="393"><name x="58" y="395">WaitingForRobotToDock</name><urgent /></location>
-<location id="id63" x="177" y="147"><name x="179" y="149">WaitingForRobotToUndock</name><urgent /></location>
-	<init ref="id59"/>
-<transition id="id64"><source ref="id59" /><target ref="id59" /><label kind="synchronisation" x="124" y="501">reset_Pump[id]?</label></transition>
-<transition id="id65"><source ref="id60" /><target ref="id59" /><label kind="synchronisation" x="120" y="281">reset_Pump[id]?</label><nail x="120" y="296" /></transition>
-<transition id="id66"><source ref="id61" /><target ref="id59" /><label kind="synchronisation" x="240" y="34">reset_Pump[id]?</label><nail x="240" y="49" /></transition>
-<transition id="id67"><source ref="id62" /><target ref="id59" /><label kind="synchronisation" x="69" y="402">reset_Pump[id]?</label><nail x="69" y="417" /></transition>
-<transition id="id68"><source ref="id63" /><target ref="id59" /><label kind="synchronisation" x="178" y="158">reset_Pump[id]?</label><nail x="178" y="173" /></transition>
-<transition id="id69"><source ref="id59" /><target ref="id62" /><label kind="synchronisation" x="87" y="496">advance_Pump_DockAvailable[id]?</label><nail x="87" y="511" /></transition>
-<transition id="id70"><source ref="id59" /><target ref="id62" /><label kind="synchronisation" x="95" y="485">do_log_update_Pump[id]!</label><label kind="assignment" x="95" y="470">setLogEntryForUpdate(
+<location id="id59" x="181" y="516"><name x="183" y="518">WaitingForRobotToUndock</name><urgent /></location>
+<location id="id60" x="60" y="270"><name x="62" y="272">ClearingDock</name><urgent /></location>
+<location id="id61" x="172" y="25"><name x="174" y="27">PumpingWater</name><urgent /></location>
+<location id="id62" x="125" y="393"><name x="127" y="395">Done</name><urgent /></location>
+<location id="id63" x="54" y="147"><name x="56" y="149">WaitingForRobotToDock</name><urgent /></location>
+	<init ref="id60"/>
+<transition id="id64"><source ref="id59" /><target ref="id60" /><label kind="synchronisation" x="150" y="486">reset_Pump[id]?</label><nail x="150" y="501" /></transition>
+<transition id="id65"><source ref="id60" /><target ref="id60" /><label kind="synchronisation" x="60" y="255">reset_Pump[id]?</label></transition>
+<transition id="id66"><source ref="id61" /><target ref="id60" /><label kind="synchronisation" x="166" y="35">reset_Pump[id]?</label><nail x="166" y="50" /></transition>
+<transition id="id67"><source ref="id62" /><target ref="id60" /><label kind="synchronisation" x="113" y="354">reset_Pump[id]?</label><nail x="113" y="369" /></transition>
+<transition id="id68"><source ref="id63" /><target ref="id60" /><label kind="synchronisation" x="65" y="157">reset_Pump[id]?</label><nail x="65" y="172" /></transition>
+<transition id="id69"><source ref="id60" /><target ref="id63" /><label kind="synchronisation" x="32" y="238">advance_Pump_DockAvailable[id]?</label><nail x="32" y="253" /></transition>
+<transition id="id70"><source ref="id60" /><target ref="id63" /><label kind="synchronisation" x="53" y="230">do_log_update_Pump[id]!</label><label kind="assignment" x="53" y="215">setLogEntryForUpdate(
         DockAvailable_ID,id,
-        -2,false)</label><nail x="95" y="500" /></transition>
-<transition id="id71"><source ref="id60" /><target ref="id63" /><label kind="synchronisation" x="131" y="231">advance_Pump_WaterSupplied[id]?</label><nail x="131" y="246" /></transition>
-<transition id="id72"><source ref="id60" /><target ref="id63" /><label kind="synchronisation" x="115" y="230">do_log_update_Pump[id]!</label><label kind="assignment" x="115" y="215">setLogEntryForUpdate(
+        -2,false)</label><nail x="53" y="245" /></transition>
+<transition id="id71"><source ref="id61" /><target ref="id59" /><label kind="synchronisation" x="181" y="34">advance_Pump_WaterSupplied[id]?</label><nail x="181" y="49" /></transition>
+<transition id="id72"><source ref="id61" /><target ref="id59" /><label kind="synchronisation" x="199" y="28">do_log_update_Pump[id]!</label><label kind="assignment" x="199" y="13">setLogEntryForUpdate(
         WaterSupplied_ID,id,
-        -2,false)</label><nail x="115" y="245" /></transition>
-<transition id="id73"><source ref="id62" /><target ref="id60" /><label kind="synchronisation" x="68" y="354">advance_Pump_RobotIsDocked[id]?</label><nail x="68" y="369" /></transition>
-<transition id="id74"><source ref="id63" /><target ref="id61" /><label kind="synchronisation" x="187" y="108">advance_Pump_RobotIsUndocked[id]?</label><nail x="187" y="123" /></transition>
+        -2,false)</label><nail x="199" y="43" /></transition>
+<transition id="id73"><source ref="id63" /><target ref="id61" /><label kind="synchronisation" x="67" y="109">advance_Pump_RobotIsDocked[id]?</label><nail x="67" y="124" /></transition>
+<transition id="id74"><source ref="id59" /><target ref="id62" /><label kind="synchronisation" x="170" y="477">advance_Pump_RobotIsUndocked[id]?</label><nail x="170" y="492" /></transition>
 </template><system>// Place template instantiations here.
 // List one or more processes to be composed into a system.
 system Robot, Robot_log, Pump, Pump_log;
