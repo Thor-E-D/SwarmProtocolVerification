@@ -208,7 +208,7 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
     declaration.add_variable(f"const int maxAmountOfTied = {max_amount_of_preceding_events};")
     declaration.add_variable(eventsTiedTo)
 
-    declaration.add_variable("const int logSize = 12;") #TODO this size has to depend on the size of model
+    declaration.add_variable("const int logSize = 20;") #TODO this size has to depend on the size of model
     declaration.add_variable("int eventOrderCounter = 1;")
     declaration.add_variable("logEntryType tempLogEntry;")
     declaration.add_variable("logEntryType propagationLog[logSize];")
@@ -239,8 +239,9 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
     declaration.add_function_call(generate_function_update_log)
     declaration.add_function_call(generate_function_is_In_branching_conflict)
     declaration.add_function_call(generate_function_handle_branching_event)
+    declaration.add_function_call(generate_function_hadnle_standard_event)
     declaration.add_function_call(generate_function_handle_own_event)
-    declaration.add_function_call(generate_function_handle_other_event)
+    #declaration.add_function_call(generate_function_handle_other_event)
 
     name_basedOnEvents = {}
     for jsonTransfer in jsonTransfers:
@@ -328,7 +329,7 @@ def wareHousedemo():
 
     loop_bound = 2
     currentModel = createModel(jsonTransfers, name_amount_dict, loop_bound)
-    save_xml_to_file(currentModel, "warehouse_example2", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse")
+    save_xml_to_file(currentModel, "warehouse_example4", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse")
 
 def plantRobotDemo():
     jsonTransfers = [] 

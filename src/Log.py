@@ -20,7 +20,9 @@ class Log(Template):
 
         declaration.add_variable("int emittedOrderCounts[logSize];")
         declaration.add_variable("int discardedEvents[logSize];")
+        declaration.add_variable("int discardedDueToCompetionEvents[logSize];")
         declaration.add_variable("bool olderEntryIgnored = false;")
+        declaration.add_variable("bool inCompetetion = false;")
 
         subscription_str = "int subscriptions[amountOfUniqueEvents] = {"
         subscription_counter = 0
@@ -164,6 +166,17 @@ setNextLogToPropagate()"""
                 assignment="counter++",
                 nails=nails
             ))
+
+        nails = [(start_x + 68, start_y), (start_x, start_y)]
+
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l7,
+            target=l5,
+            guard=f"!isInSubsciptions(subscriptions, currentLog[counter].eventID)",
+            assignment="counter++",
+            nails=nails
+        ))
         
         # Initialize the superclass with the data
         super().__init__(name + "_log", parameter, declaration, locations, l3, transitions)
