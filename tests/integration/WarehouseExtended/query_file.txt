@@ -1,0 +1,2 @@
+A[] forall(i:Door_t) forall(j:Forklift_t) forall(t:Transport_t) deadlock imply Door(i).l4 and Forklift(j).l4 and Transport(t).l4
+E[] not Transport(0).l2

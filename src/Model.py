@@ -82,7 +82,7 @@ def add_branching_functionality(declaration: Declaration, branching_events, even
     declaration.add_variable(f"const int isInBranchingPartion[amountOfUniqueEvents] = {Utils.python_list_to_uppaal_list(is_in_branching_partion)};")
 
 
-def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, int], loop_bound: int = 2):
+def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, int], loop_bound: int = 2, standard_setting: bool = False):
     # We first create the nessesary variable names to be used in UPPAAL.
     eventnames_dict = {}
     amount_names = {}
@@ -150,6 +150,8 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
                 max_amount_of_preceding_events = len(set_of_preceding_events[name_of_event])
 
     declaration = Declaration()
+
+    declaration.add_variable(f"const bool standardSetting = {str(standard_setting).lower()};")
 
     number_of_names = []
     for name in name_amount_dict:
@@ -239,6 +241,7 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
     declaration.add_function_call(generate_function_update_log)
     declaration.add_function_call(generate_function_is_In_branching_conflict)
     declaration.add_function_call(generate_function_handle_branching_event)
+    declaration.add_function_call(generate_function_handle_standard_setting)
     declaration.add_function_call(generate_function_hadnle_standard_event)
     declaration.add_function_call(generate_function_handle_own_event)
     #declaration.add_function_call(generate_function_handle_other_event)
@@ -329,7 +332,7 @@ def wareHousedemo():
 
     loop_bound = 2
     currentModel = createModel(jsonTransfers, name_amount_dict, loop_bound)
-    save_xml_to_file(currentModel, "warehouse_example4", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse")
+    save_xml_to_file(currentModel, "warehouse_example6", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse")
 
 def plantRobotDemo():
     jsonTransfers = [] 
@@ -343,7 +346,7 @@ def plantRobotDemo():
         else:
             name_amount_dict[jsonTransfer.name] = 1
 
-    currentModel = createModel(jsonTransfers, name_amount_dict)
+    currentModel = createModel(jsonTransfers, name_amount_dict, standard_setting=True)
     save_xml_to_file(currentModel, "example_file", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\RobotPump")
 
 def verifyta_example():
@@ -367,4 +370,5 @@ def verifyta_example():
 if __name__ == "__main__":
     # Should just load all json files in a given folder.
     #verifyta_example()
-    wareHousedemo()
+    plantRobotDemo()
+    #wareHousedemo()

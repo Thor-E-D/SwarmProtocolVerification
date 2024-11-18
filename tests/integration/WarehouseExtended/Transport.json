@@ -1,0 +1,74 @@
+{
+  "initial": "l0",
+  "subscriptions": [
+    "Request",
+    "Close",
+    "Get",
+    "Deliver",
+    "Open"
+  ],
+  "transitions": [
+    {
+      "source": "l1",
+      "target": "l1",
+      "label": {
+        "tag": "Execute",
+        "cmd": "request",
+        "logType": [
+          "Request"
+        ]
+      }
+    },
+    {
+      "source": "l3",
+      "target": "l3",
+      "label": {
+        "tag": "Execute",
+        "cmd": "deliver",
+        "logType": [
+          "Deliver"
+        ]
+      }
+    },
+    {
+      "source": "l1",
+      "target": "l2",
+      "label": {
+        "tag": "Input",
+        "eventType": "Request"
+      }
+    },
+    {
+      "source": "l2",
+      "target": "l3",
+      "label": {
+        "tag": "Input",
+        "eventType": "Get"
+      }
+    },
+    {
+      "source": "l3",
+      "target": "l1",
+      "label": {
+        "tag": "Input",
+        "eventType": "Deliver"
+      }
+    },
+    {
+      "source": "l0",
+      "target": "l1",
+      "label": {
+        "tag": "Input",
+        "eventType": "Open"
+      }
+    },
+    {
+      "source": "l1",
+      "target": "l4",
+      "label": {
+        "tag": "Input",
+        "eventType": "Close"
+      }
+    }
+  ]
+}

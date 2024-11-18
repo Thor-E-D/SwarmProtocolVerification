@@ -225,12 +225,35 @@ bool handleBranchingEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog
     return false;
 }"""
 
+def generate_function_handle_standard_setting() -> str:
+    return """
+bool handle_standard_setting(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int currentIndex) {
+    int i;
+    if (isBranchingList[tmpLogEntry.eventID]) {
+        return handleBranchingEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
+    }
+    if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
+        tmpLogEntry.ignored = true;
+        return false;
+    }
+    for (i = currentIndex; i &gt;=0; i--) {
+        if (resLog[i].eventID == tmpLogEntry.eventID &amp;&amp; resLog[i].tiedTo == tmpLogEntry.tiedTo) {
+            tmpLogEntry.ignored = true;
+            return false;
+        }
+    }
+    return false;
+}"""
+
 
 def generate_function_handle_own_event() -> str:
     return """
 bool handleOwnEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int currentIndex, int id, bool &amp;olderEntryIgnored) {
     int j;
     bool inCompetetion = false;
+    if (standardSetting) {
+        return handle_standard_setting(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
+    }
     if (tmpLogEntry.emitterID == id &amp;&amp; isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
         tmpLogEntry.ignored = true; //competetion
         return true;
@@ -246,11 +269,11 @@ bool handleOwnEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSi
                 }
         }
         for (j = currentIndex; j &gt;= 0; j--) {
-            if (resLog[j].tiedTo == tmpLogEntry.tiedTo || tmpLogEntry.tiedTo == resLog[j].orderCount) {
+            if (resLog[j].tiedTo != -1 &amp;&amp; resLog[j].tiedTo == tmpLogEntry.tiedTo || tmpLogEntry.tiedTo == resLog[j].orderCount) {
                 resLog[j].ignored = true;
+                olderEntryIgnored = true;
             }
         }
-        olderEntryIgnored = true;
     }
     return inCompetetion;
 }
@@ -279,6 +302,9 @@ def generate_function_hadnle_standard_event() -> str:
     return """
 bool handleStandardEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int currentIndex) {
     int i;
+    if (standardSetting) {
+        return handle_standard_setting(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
+    }
     if (isBranchingList[tmpLogEntry.eventID]) {
         return handleBranchingEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
     }
@@ -472,8 +498,10 @@ void mergePropagationLog() {
                     inCompetetion = false;
                 } else if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
                     addIntToList(discardedEvents, tmpLogEntry.orderCount);
-                } else {
+                } else if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
                     addIntToList(discardedDueToCompetionEvents, tmpLogEntry.orderCount);
+                } else {
+                    addIntToList(discardedEvents, tmpLogEntry.orderCount);
                 }
             } else {
                 resLog[i] = tmpLogEntry;
