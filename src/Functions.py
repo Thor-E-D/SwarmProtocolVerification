@@ -116,6 +116,20 @@ void setLogEntryForUpdate(int eventID, int emitterID, int basedOnOrderCount, boo
 }
 """
 
+def generate_function_find_difference_in_logs() -> str:
+    return """
+void findDifferenceInLogs(logEntryType &amp;oldLog[logSize], logEntryType &amp;newLog[logSize], bool &amp;didLogChange) {
+    int i;
+    for (i = 0; i &lt; logSize; i++) {
+        if (oldLog[i].orderCount != newLog[i].orderCount) {
+            didLogChange = true;
+            return;
+        } else if (oldLog[i].orderCount == 0) {
+            return;
+        }
+    }
+}"""
+
 def generate_function_find_and_set_tiedto() -> str:
     return """
 void findAndSetTiedTo(logEntryType &amp;tempLog[logSize]) {
@@ -552,7 +566,13 @@ void mergePropagationLog() {
 
         // If both are done we are done.
         if (currentLogDone &amp;&amp; propagatedLogDone) {
-            currentLog = resLog; 
+            if (currentSizeOfLog != i) {
+                currentSizeOfLog = i;
+                didLogChange = true;
+            } else {
+                findDifferenceInLogs(currentLog, resLog, didLogChange);
+            }
+            currentLog = resLog;
             return;
         }
         

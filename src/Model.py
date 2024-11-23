@@ -241,6 +241,7 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
     declaration.add_function_call(generate_function_set_next_log_to_propagate)
     declaration.add_function_call(generate_function_get_order_count)
     declaration.add_function_call(generate_function_set_log_entry_for_update)
+    declaration.add_function_call(generate_function_find_difference_in_logs)
     declaration.add_function_call(generate_function_find_and_set_tiedto)
     declaration.add_function_call(generate_function_set_propagation_log)
     declaration.add_function_call(generate_function_is_In_branching_conflict)

@@ -23,6 +23,9 @@ class Log(Template):
         declaration.add_variable("int discardedDueToCompetionEvents[logSize];")
         declaration.add_variable("bool olderEntryIgnored = false;")
         declaration.add_variable("bool inCompetetion = false;")
+        declaration.add_variable("bool backTracking = false;")
+        declaration.add_variable("bool didLogChange = false;")
+        declaration.add_variable("int currentSizeOfLog = 0;")
 
         subscription_str = "int subscriptions[amountOfUniqueEvents] = {"
         subscription_counter = 0
@@ -85,7 +88,8 @@ setPropagationLog(currentLog)""",
             synchronisation=f"{jsonTransfer.do_update_channel_name}[id]?",
             assignment=f"""updateLog{jsonTransfer.name}(currentLog,emittedOrderCounts,log_id_start),
 updatesSincePropagation++,
-newUpdates := true""",
+newUpdates := true,
+currentSizeOfLog++""",
             nails = [(0, -51)]
         ))
 
@@ -129,7 +133,19 @@ newUpdates := false"""
             target=l5,
             synchronisation=f"{jsonTransfer.reset_channel_name}[id]!",
             assignment="""counter := 0,
-setNextLogToPropagate()"""
+setNextLogToPropagate(),
+backTracking := true""",
+            guard="didLogChange",
+            nails=[(-748, 34)]
+        ))
+
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l2,
+            target=l5,
+            assignment="""counter := logSize -1,
+setNextLogToPropagate()""",
+            guard="!didLogChange"
         ))
 
         transitions.append(Transition(
@@ -137,7 +153,9 @@ setNextLogToPropagate()"""
             source=l5,
             target=l3,
             guard="currentLog[counter].orderCount == 0",
-            synchronisation="propagate_log!"
+            synchronisation="propagate_log!",
+            assignment="""didLogChange := false,
+backTracking := false"""
         ))
 
         transitions.append(Transition(
