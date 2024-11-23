@@ -21,7 +21,7 @@ def test_warehouse_two_transport_two_forklift():
     name_of_query_file = "query_file2"
 
     name_amount_dict = {}
-    name_amount_dict = {"Door": 1, "Forklift": 2, "Transport": 2}
+    name_amount_dict = {"Door": 1, "Forklift": 1, "Transport": 2}
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 

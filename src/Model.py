@@ -215,6 +215,10 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
     declaration.add_variable("logEntryType tempLogEntry;")
     declaration.add_variable("logEntryType propagationLog[logSize];")
     declaration.add_variable("logEntryType globalLog[logSize];")
+    declaration.add_variable("logEntryType trueGlobalLog[logSize];")
+    declaration.add_variable("int trueDiscardedEvents[logSize];")
+    declaration.add_variable("int trueDiscardedDueToCompetionEvents[logSize];")
+    declaration.add_variable("int trueCurrentIndex = -1;")
 
     # Channels
     declaration.add_channel(Channel(urgent=True,broadcast=True, name="propagate_log"))
@@ -230,6 +234,8 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
     # Functions
     declaration.add_function_call(generate_function_is_in_subsciption)
     declaration.add_function_call(generate_function_is_int_in_list)
+    declaration.add_function_call(generate_function_is_order_count_in_log)
+    declaration.add_function_call(generate_function_get_entry_from_order_count)
     declaration.add_function_call(generate_function_add_int_to_list)
     declaration.add_function_call(generate_function_get_event_id_from_order_count)
     declaration.add_function_call(generate_function_set_next_log_to_propagate)
@@ -237,13 +243,17 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
     declaration.add_function_call(generate_function_set_log_entry_for_update)
     declaration.add_function_call(generate_function_find_and_set_tiedto)
     declaration.add_function_call(generate_function_set_propagation_log)
-    declaration.add_function_call(generate_function_update_global_log)
-    declaration.add_function_call(generate_function_update_log)
     declaration.add_function_call(generate_function_is_In_branching_conflict)
+    declaration.add_function_call(generate_function_consolidate_logs)
+    declaration.add_function_call(generate_function_check_and_fix_branch_competetion)
+    declaration.add_function_call(generate_function_handle_branching_event_standard_setting)
     declaration.add_function_call(generate_function_handle_branching_event)
     declaration.add_function_call(generate_function_handle_standard_setting)
     declaration.add_function_call(generate_function_hadnle_standard_event)
     declaration.add_function_call(generate_function_handle_own_event)
+    declaration.add_function_call(generate_function_update_true_global_log)
+    declaration.add_function_call(generate_function_update_global_log)
+    declaration.add_function_call(generate_function_update_log)
     #declaration.add_function_call(generate_function_handle_other_event)
 
     name_basedOnEvents = {}
