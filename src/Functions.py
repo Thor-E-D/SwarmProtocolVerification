@@ -89,7 +89,7 @@ void setNextLogToPropagate() {
         amountOfPropagation++;
     } else {
         // reset
-        amountOfPropagation = -1;
+        amountOfPropagation = 0;
     }
 }
 """
@@ -126,6 +126,39 @@ void findDifferenceInLogs(logEntryType &amp;oldLog[logSize], logEntryType &amp;n
             return;
         } else if (oldLog[i].orderCount == 0) {
             return;
+        }
+    }
+}"""
+
+def generate_function_find_and_set_difference_in_logs() -> str:
+    return """
+void findAndSetDifferenceInLogs(logEntryType &amp;oldLog[logSize], logEntryType &amp;newLog[logSize], int &amp;logDifferenceEventIDs[logSize], int &amp;resetCount, int &amp;eventsToRead) {
+    int i;
+    int resetList[logSize] = logDifferenceEventIDs; // To reset logDifferenceEventIDs
+    bool foundDifference = false;
+
+    for (i = 0; i &lt; logSize; i++) {
+        if (oldLog[i].orderCount != newLog[i].orderCount) {
+            if (oldLog[i].orderCount == 0) {
+                eventsToRead++;
+                foundDifference = true;
+            } else if (newLog[i].orderCount == 0) {
+                logDifferenceEventIDs[resetCount] = oldLog[i].eventID;
+                resetCount++;
+                foundDifference = true;
+            } else if (oldLog[i].eventID != newLog[i].eventID) {
+                logDifferenceEventIDs[resetCount] = oldLog[i].eventID;
+                eventsToRead++;
+                resetCount++;
+                foundDifference = true;
+            }
+        } else if (oldLog[i].orderCount == 0 &amp;&amp; newLog[i].orderCount == 0) {
+            return;
+        } else if (foundDifference) { //We found a difference previously but have now found the same event in both logs again so we do not need to backtrack
+            foundDifference = false;
+            logDifferenceEventIDs = resetList;
+            eventsToRead = 0;
+            resetCount = 0;
         }
     }
 }"""
@@ -272,7 +305,19 @@ void consolidateLogs(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logS
                     }
                 }
             }
-        } else {
+        } 
+        if (discardedEvents[i] != 0) {
+            logEntryType currentEvent = getEntryFromOrderCount(discardedEvents[i]);
+            if (isBranchingList[currentEvent.eventID]) {
+                if (isInBranchingConflict(isInBranchingPartion[currentEvent.eventID], correctBranchEvent.eventID) &amp;&amp; correctBranchEvent.basedOnOrderCount == currentEvent.basedOnOrderCount &amp;&amp; correctBranchEvent.tiedTo == currentEvent.tiedTo) {
+                    if (isIntInList(trueDiscardedDueToCompetionEvents, currentEvent.orderCount)) {
+                        addIntToList(discardedDueToCompetionEvents, currentEvent.orderCount);
+                        discardedEvents[i] = 0;
+                    }
+                }
+            }
+        } 
+        if (discardedDueToCompetionEvents[i] != 0 &amp;&amp; discardedDueToCompetionEvents[i] != 0) {
             i = logSize;
         }
     }
@@ -370,6 +415,23 @@ bool handle_standard_setting(logEntryType &amp;tmpLogEntry,logEntryType &amp;res
     if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
         tmpLogEntry.ignored = true;
         return false;
+    }
+    // Need to check if a we have to move from discardedEvents to discardedDueToCompetionEvents
+    if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.tiedTo) &amp;&amp; isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
+        int lookingForOrderCount = tmpLogEntry.basedOnOrderCount;
+        for (i = 0; i &lt; logSize; i++) {
+            if (discardedEvents[i] != 0) {
+                logEntryType currentEvent = getEntryFromOrderCount(lookingForOrderCount);
+                if (isIntInList(discardedDueToCompetionEvents, currentEvent.basedOnOrderCount)) { // we have to move it
+                    addIntToList(discardedDueToCompetionEvents, currentEvent.orderCount);
+                    discardedEvents[i] = 0;
+                }
+            }
+        }
+        if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
+            tmpLogEntry.ignored = true;
+            return false;
+        }
     }
     for (i = currentIndex - 1; i &gt;=0; i--) {
         if (resLog[i].eventID == tmpLogEntry.eventID &amp;&amp; (resLog[i].tiedTo == tmpLogEntry.tiedTo || resLog[i].basedOnOrderCount == tmpLogEntry.basedOnOrderCount)) {
@@ -572,6 +634,11 @@ void mergePropagationLog() {
             } else {
                 findDifferenceInLogs(currentLog, resLog, didLogChange);
             }
+
+            if (didLogChange) {
+                findAndSetDifferenceInLogs(currentLog, resLog, discardedEventIDs, resetCount, eventsToRead);
+            }
+
             currentLog = resLog;
             return;
         }

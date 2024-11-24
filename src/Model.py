@@ -210,7 +210,10 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
     declaration.add_variable(f"const int maxAmountOfTied = {max_amount_of_preceding_events};")
     declaration.add_variable(eventsTiedTo)
 
-    declaration.add_variable("const int logSize = 20;") #TODO this size has to depend on the size of model
+    log_size = 20
+    declaration.add_variable(f"const int logSize = {log_size};") #TODO this size has to depend on the size of model
+
+
     declaration.add_variable("int eventOrderCounter = 1;")
     declaration.add_variable("logEntryType tempLogEntry;")
     declaration.add_variable("logEntryType propagationLog[logSize];")
@@ -219,6 +222,7 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
     declaration.add_variable("int trueDiscardedEvents[logSize];")
     declaration.add_variable("int trueDiscardedDueToCompetionEvents[logSize];")
     declaration.add_variable("int trueCurrentIndex = -1;")
+    declaration.add_variable("int currentEventResetID = -1;")
 
     # Channels
     declaration.add_channel(Channel(urgent=True,broadcast=True, name="propagate_log"))
@@ -242,6 +246,7 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
     declaration.add_function_call(generate_function_get_order_count)
     declaration.add_function_call(generate_function_set_log_entry_for_update)
     declaration.add_function_call(generate_function_find_difference_in_logs)
+    declaration.add_function_call(generate_function_find_and_set_difference_in_logs)
     declaration.add_function_call(generate_function_find_and_set_tiedto)
     declaration.add_function_call(generate_function_set_propagation_log)
     declaration.add_function_call(generate_function_is_In_branching_conflict)
@@ -291,7 +296,7 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
         for eventname in current_evetname_loopcounter:
             declaration.add_variable(f"int {current_evetname_loopcounter[eventname]} = 0;")
 
-        log = Log(jsonTransfer.name, amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter)
+        log = Log(jsonTransfer.name, amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, log_size)
         logs.append(log)
 
     final_xml += declaration.to_xml()

@@ -8,7 +8,7 @@ from Functions import generate_function_merge_propagation_log, generate_function
 from typing import Dict
 
 class Log(Template):
-    def __init__(self, name: str, parameter: str, jsonTransfer: JSONTransfer, evetname_loopcounter: Dict[str,str]):
+    def __init__(self, name: str, parameter: str, jsonTransfer: JSONTransfer, evetname_loopcounter: Dict[str,str], log_size: int):
         declaration = Declaration()
 
         declaration.add_variable("logEntryType currentLog[logSize];")
@@ -26,6 +26,14 @@ class Log(Template):
         declaration.add_variable("bool backTracking = false;")
         declaration.add_variable("bool didLogChange = false;")
         declaration.add_variable("int currentSizeOfLog = 0;")
+
+        empty_array_str = ""
+        for _ in range (0,log_size):
+            empty_array_str += "-1, "
+
+        declaration.add_variable(f"int discardedEventIDs[logSize] = {{ {empty_array_str[0:-2]} }};")
+        declaration.add_variable("int resetCount = 0;")
+        declaration.add_variable("int eventsToRead = 0;")
 
         subscription_str = "int subscriptions[amountOfUniqueEvents] = {"
         subscription_counter = 0
@@ -57,8 +65,11 @@ class Log(Template):
         l5 = Location (id = Utils.get_next_id(), x=-612, y=34, committed=True)
         l6 = Location (id = Utils.get_next_id(), x=25, y=76, committed=True)
         l7 = Location (id = Utils.get_next_id(), x=-561, y=153, committed=True)
+        l8 = Location (id = Utils.get_next_id(), x=-977, y=34, committed=True)
+        l9 = Location (id = Utils.get_next_id(), x=-1079, y=136, committed=True)
 
-        locations = [l1, l2, l3, l4, l5, l6, l7]
+
+        locations = [l1, l2, l3, l4, l5, l6, l7, l8, l9]
         transitions = []
 
         transitions.append(Transition(
@@ -71,6 +82,51 @@ updatesSincePropagation := 0,
 newUpdates := false,
 setPropagationLog(currentLog)""",
             nails = [(-136, -187)]
+        ))
+
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l2,
+            target=l8,
+            guard="didLogChange",
+            assignment="""counter := currentSizeOfLog - eventsToRead,
+setNextLogToPropagate(),
+backTracking := true"""
+        ))
+
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l8,
+            target=l9,
+            guard="resetCount != 0",
+            assignment="""currentEventResetID = discardedEventIDs[resetCount - 1]""",
+            nails = [(-1079, 34)]
+        ))
+
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l9,
+            target=l8,
+            assignment="""discardedEventIDs[resetCount - 1] = -1,
+resetCount--""",
+            synchronisation=f"{jsonTransfer.reset_channel_name}[id]!",
+            nails = [(-978, 136)]
+        ))
+
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l9,
+            target=l8,
+            guard="!isInSubsciptions(subscriptions, currentEventResetID)",
+            assignment="""discardedEventIDs[resetCount - 1] = -1,
+resetCount--""",
+        ))
+
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l8,
+            target=l5,
+            guard="resetCount == 0"
         ))
 
         transitions.append(Transition(
@@ -131,18 +187,6 @@ newUpdates := false"""
             id=Utils.get_next_id(),
             source=l2,
             target=l5,
-            synchronisation=f"{jsonTransfer.reset_channel_name}[id]!",
-            assignment="""counter := 0,
-setNextLogToPropagate(),
-backTracking := true""",
-            guard="didLogChange",
-            nails=[(-748, 34)]
-        ))
-
-        transitions.append(Transition(
-            id=Utils.get_next_id(),
-            source=l2,
-            target=l5,
             assignment="""counter := logSize -1,
 setNextLogToPropagate()""",
             guard="!didLogChange"
@@ -155,7 +199,8 @@ setNextLogToPropagate()""",
             guard="currentLog[counter].orderCount == 0",
             synchronisation="propagate_log!",
             assignment="""didLogChange := false,
-backTracking := false"""
+backTracking := false,
+eventsToRead := 0"""
         ))
 
         transitions.append(Transition(
