@@ -88,7 +88,7 @@ setPropagationLog(currentLog)""",
             id=Utils.get_next_id(),
             source=l2,
             target=l8,
-            guard="didLogChange",
+            guard="didLogChange && resetCount != 0",
             assignment="""counter := currentSizeOfLog - eventsToRead,
 setNextLogToPropagate(),
 backTracking := true"""
@@ -187,9 +187,9 @@ newUpdates := false"""
             id=Utils.get_next_id(),
             source=l2,
             target=l5,
-            assignment="""counter := logSize -1,
+            assignment="""counter := currentSizeOfLog - eventsToRead,
 setNextLogToPropagate()""",
-            guard="!didLogChange"
+            guard="!didLogChange || resetCount == 0"
         ))
 
         transitions.append(Transition(
