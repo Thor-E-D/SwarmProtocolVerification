@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from typing import Optional
+from UppaalPart import UppaalPart
 
 @dataclass
-class Channel:
+class Channel(UppaalPart):
     name: str
     urgent: bool = False
     broadcast: bool = False

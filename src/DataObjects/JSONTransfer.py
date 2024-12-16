@@ -11,6 +11,8 @@ class EventData:
         return hash((self.event_name, self.source, self.target))
     
     def __eq__(self, other):
+        if isinstance(other, str):
+            return self.event_name == other
         if not isinstance(other, EventData):
             return False
         return (self.event_name == other.event_name and 

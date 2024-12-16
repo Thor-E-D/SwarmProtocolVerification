@@ -2,5 +2,3 @@ A[] deadlock imply ((Robot(0).Done and Robot(1).WaitingForAvailableDock) or (Rob
 E<> forall(i:Robot_t) Robot(i).WaitingForWater
 Robot(0).Done --> not Robot(1).Done
 A[] deadlock imply Pump(0).Done
-A<> forall(j:Pump_t) Pump(j).Done
-A<> forall(i:Robot_t) (Robot(i).Done or Robot(i).WaitingForAvailableDock)

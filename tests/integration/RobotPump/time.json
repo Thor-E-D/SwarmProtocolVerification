@@ -1,0 +1,30 @@
+{
+    "events": [
+      {
+        "logType": "DockAvailable",
+        "min_time": 10
+      },
+      {
+        "logType": "RobotIsDocked",
+        "min_time": 5,
+        "max_time": 10
+      },
+      {
+        "logType": "RobotIsUndocked",
+        "max_time": 10
+      }
+    ],
+    "logs": [
+        {
+          "role_name": "Robot",
+          "min_time": 10,
+          "max_time": 20
+        },
+        {
+          "role_name": "Pump",
+          "min_time": 10,
+          "max_time": 20
+        }
+      ]
+  }
+  

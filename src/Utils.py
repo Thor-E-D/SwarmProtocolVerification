@@ -33,4 +33,8 @@ class Utils:
     @staticmethod
     def python_list_to_uppaal_list(l1) -> str:
         return str(l1).replace("[", "{").replace("]","}")
+    
+    @staticmethod
+    def remove_last_two_chars(s):
+        return s[:-2] if len(s) >= 2 else s
 

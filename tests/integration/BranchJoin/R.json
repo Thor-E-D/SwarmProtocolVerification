@@ -1,0 +1,105 @@
+{
+  "initial": "l0",
+  "subscriptions": [
+    "e01",
+    "e12",
+    "e13",
+    "e24",
+    "e34",
+    "e45"
+  ],
+  "transitions": [
+    {
+      "source": "l1",
+      "target": "l1",
+      "label": {
+        "tag": "Execute",
+        "cmd": "e12",
+        "logType": [
+          "e12"
+        ]
+      }
+    },
+    {
+      "source": "l1",
+      "target": "l1",
+      "label": {
+        "tag": "Execute",
+        "cmd": "e13",
+        "logType": [
+          "e13"
+        ]
+      }
+    },
+    {
+      "source": "l2",
+      "target": "l2",
+      "label": {
+        "tag": "Execute",
+        "cmd": "e24",
+        "logType": [
+          "e24"
+        ]
+      }
+    },
+    {
+      "source": "l3",
+      "target": "l3",
+      "label": {
+        "tag": "Execute",
+        "cmd": "e34",
+        "logType": [
+          "e34"
+        ]
+      }
+    },
+    {
+      "source": "l0",
+      "target": "l1",
+      "label": {
+        "tag": "Input",
+        "eventType": "e01"
+      }
+    },
+    {
+      "source": "l1",
+      "target": "l2",
+      "label": {
+        "tag": "Input",
+        "eventType": "e12"
+      }
+    },
+    {
+      "source": "l1",
+      "target": "l3",
+      "label": {
+        "tag": "Input",
+        "eventType": "e13"
+      }
+    },
+    {
+      "source": "l2",
+      "target": "l4",
+      "label": {
+        "tag": "Input",
+        "eventType": "e24"
+      }
+    },
+    {
+      "source": "l3",
+      "target": "l4",
+      "label": {
+        "tag": "Input",
+        "eventType": "e34"
+      }
+    },
+    {
+      "source": "l4",
+      "target": "l5",
+      "label": {
+        "tag": "Input",
+        "eventType": "e45"
+      }
+    }
+  ]
+}

@@ -1,14 +1,16 @@
 from Template import Template
 from DataObjects.Declaration import Declaration
 from DataObjects.Transition import Transition
-from DataObjects.Location import Location
+from DataObjects.Location import Location, LocationType
 from DataObjects.JSONTransfer import JSONTransfer
+from JSONParser import LogTimeData
 from Utils import Utils
 from Functions import generate_function_merge_propagation_log, generate_function_handle_log_entry
-from typing import Dict
+from typing import Dict, List
 
 class Log(Template):
-    def __init__(self, name: str, parameter: str, jsonTransfer: JSONTransfer, evetname_loopcounter: Dict[str,str], log_size: int):
+    def __init__(self, parameter: str, jsonTransfer: JSONTransfer, evetname_loopcounter: Dict[str,str], log_size: int, log_time_data: LogTimeData = None):
+        name = jsonTransfer.name
         declaration = Declaration()
 
         declaration.add_variable("logEntryType currentLog[logSize];")
@@ -58,26 +60,95 @@ class Log(Template):
         declaration.add_function_call(generate_function_handle_log_entry, own_event_names, other_event_names)
         declaration.add_function_call(generate_function_merge_propagation_log,evetname_loopcounter) 
         
-        l1 = Location (id = Utils.get_next_id(), x=-204, y=-238, committed=True)
-        l2 = Location (id = Utils.get_next_id(), x=-748, y=-136, committed=True)
+        l1 = Location (id = Utils.get_next_id(), x=-204, y=-238, locationType = LocationType.COMMITTED)
+        l2 = Location (id = Utils.get_next_id(), x=-748, y=-136, locationType = LocationType.COMMITTED)
         l3 = Location (id = Utils.get_next_id(), x=-204, y=-136)
-        l4 = Location (id = Utils.get_next_id(), x=229, y=-127, committed=True)
-        l5 = Location (id = Utils.get_next_id(), x=-612, y=34, committed=True)
-        l6 = Location (id = Utils.get_next_id(), x=25, y=76, committed=True)
-        l7 = Location (id = Utils.get_next_id(), x=-561, y=153, committed=True)
-        l8 = Location (id = Utils.get_next_id(), x=-977, y=34, committed=True)
-        l9 = Location (id = Utils.get_next_id(), x=-1079, y=136, committed=True)
+        l4 = Location (id = Utils.get_next_id(), x=229, y=-127, locationType = LocationType.COMMITTED)
+        l5 = Location (id = Utils.get_next_id(), x=-612, y=34, locationType = LocationType.COMMITTED)
+        l6 = Location (id = Utils.get_next_id(), x=25, y=76, locationType = LocationType.COMMITTED)
+        l7 = Location (id = Utils.get_next_id(), x=-561, y=153, locationType = LocationType.COMMITTED)
+        l8 = Location (id = Utils.get_next_id(), x=-977, y=34, locationType = LocationType.COMMITTED)
+        l9 = Location (id = Utils.get_next_id(), x=-1079, y=136, locationType = LocationType.COMMITTED)
 
 
         locations = [l1, l2, l3, l4, l5, l6, l7, l8, l9]
         transitions = []
 
+        intitial_location = l3
+        waiting_location = l3
+
+        assigmentAddition = ""
+        guard_addition = ""
+        guard_extension_addition = ""
+
+        if log_time_data != None:
+            declaration.add_variable("clock x;")
+
+            assigmentAddition = "x := 0, "
+            guard_extension_addition = "&& updatesSincePropagation != 1"
+
+            intitial_location = Location (id = Utils.get_next_id(), x=-204, y=-166, locationType = LocationType.COMMITTED)
+            waiting_location = Location (id = Utils.get_next_id(), x=-204, y=-196, locationType = LocationType.NEITHER)
+            locations.append(intitial_location)
+            locations.append(waiting_location)
+
+            if log_time_data.max_time != None:
+                waiting_location.invariant = f"x <= {log_time_data.max_time}"
+
+            if log_time_data.min_time != None:
+                guard_addition = f"x >= {log_time_data.min_time} &&"
+
+            transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=intitial_location,
+            target=l3,
+            guard="!newUpdates"
+            ))
+
+            transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=intitial_location,
+            target=waiting_location,
+            guard="newUpdates"
+            ))
+            
+            transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l4,
+            target=intitial_location,
+            guard="!(updatesSincePropagation > maxUpdatesSincePropagation) && updatesSincePropagation == 1",
+            assignment=Utils.remove_last_two_chars(assigmentAddition),
+            nails = [(0, 20)]
+            ))
+
+            transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=waiting_location,
+            target=l2,
+            guard="currentLogToPropagate == log_id_start + id",
+            synchronisation="propagate_log?",
+            assignment="mergePropagationLog()"
+            ))
+
+            transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=waiting_location,
+            target=l4,
+            synchronisation=f"{jsonTransfer.do_update_channel_name}[id]?",
+            assignment=f"""updateLog{jsonTransfer.name}(currentLog,emittedOrderCounts,log_id_start),
+                    updatesSincePropagation++,
+                    newUpdates := true,
+                    currentSizeOfLog++""",
+            nails = [(0, -51)]
+            ))
+
+
         transitions.append(Transition(
             id=Utils.get_next_id(),
-            source=l3,
+            source=waiting_location,
             target=l1,
-            guard="newUpdates",
-            assignment="""currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+            guard=guard_addition + "newUpdates",
+            assignment=assigmentAddition + """currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
 updatesSincePropagation := 0,
 newUpdates := false,
 setPropagationLog(currentLog)""",
@@ -152,8 +223,8 @@ currentSizeOfLog++""",
         transitions.append(Transition(
             id=Utils.get_next_id(),
             source=l4,
-            target=l3,
-            guard="!(updatesSincePropagation > maxUpdatesSincePropagation)"
+            target=intitial_location,
+            guard="!(updatesSincePropagation > maxUpdatesSincePropagation)" + guard_extension_addition
         ))
 
         transitions.append(Transition(
@@ -169,9 +240,9 @@ newUpdates := false"""
         transitions.append(Transition(
             id=Utils.get_next_id(),
             source=l6,
-            target=l3,
+            target=intitial_location,
             synchronisation="propagate_log!",
-            assignment="setPropagationLog(currentLog)"
+            assignment=assigmentAddition + "setPropagationLog(currentLog)"
         ))
 
         transitions.append(Transition(
@@ -195,7 +266,7 @@ setNextLogToPropagate()""",
         transitions.append(Transition(
             id=Utils.get_next_id(),
             source=l5,
-            target=l3,
+            target=intitial_location,
             guard="currentLog[counter].orderCount == 0",
             synchronisation="propagate_log!",
             assignment="""didLogChange := false,

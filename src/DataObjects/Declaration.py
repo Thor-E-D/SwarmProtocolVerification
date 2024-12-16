@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
 from typing import Callable, List, Tuple
 from .Channel import Channel  # Import the Channel class from channel.py
+from UppaalPart import UppaalPart
 
 # Define the Declaration class with function call handling
 @dataclass
-class Declaration:
+class Declaration(UppaalPart):
     global_variables: List[str] = field(default_factory=list)
     channels: List[Channel] = field(default_factory=list)
     functions: List[Tuple[Callable, List]] = field(default_factory=list)

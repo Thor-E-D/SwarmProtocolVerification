@@ -1,0 +1,35 @@
+{
+    "events": [
+      {
+        "logType": "e01",
+        "min_time": 10,
+        "max_time": 15
+      },
+      {
+        "logType": "e12",
+        "min_time": 5,
+        "max_time": 10
+      },
+      {
+        "logType": "e13",
+        "min_time": 20,
+        "max_time": 30
+      },
+      {
+        "logType": "e24",
+        "min_time": 5,
+        "max_time": 10
+      },
+      {
+        "logType": "e34",
+        "min_time": 15,
+        "max_time": 20
+      },
+      {
+        "logType": "e45",
+        "min_time": 5,
+        "max_time": 10
+      }
+    ]
+  }
+  

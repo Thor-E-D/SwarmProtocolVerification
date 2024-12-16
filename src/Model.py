@@ -1,4 +1,4 @@
-from JSONParser import parse_JSON_file
+from JSONParser import parse_JSON_file, TimeJSONTransfer, LogTimeData, EventTimeData
 from DataObjects.Declaration import Declaration
 from DataObjects.JSONTransfer import JSONTransfer
 from DataObjects.Channel import Channel
@@ -82,7 +82,7 @@ def add_branching_functionality(declaration: Declaration, branching_events, even
     declaration.add_variable(f"const int isInBranchingPartion[amountOfUniqueEvents] = {Utils.python_list_to_uppaal_list(is_in_branching_partion)};")
 
 
-def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, int], loop_bound: int = 2, standard_setting: bool = False):
+def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, int], loop_bound: int = 2, standard_setting: bool = False, time_json_transfer: TimeJSONTransfer = None):
     # We first create the nessesary variable names to be used in UPPAAL.
     eventnames_dict = {}
     amount_names = {}
@@ -150,6 +150,9 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
                 max_amount_of_preceding_events = len(set_of_preceding_events[name_of_event])
 
     declaration = Declaration()
+
+    if time_json_transfer != None:
+        declaration.add_variable(f"clock globalTime;")
 
     declaration.add_variable(f"const bool standardSetting = {str(standard_setting).lower()};")
 
@@ -229,11 +232,11 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
 
     for name in name_amount_dict:
         currentAmount = amount_names[name]
-        declaration.add_channel(Channel(urgent=True, type=currentAmount, name=update_channels[name]))
-        declaration.add_channel(Channel(urgent=True, type=currentAmount, name=reset_channels[name]))
+        declaration.add_channel(Channel(urgent=False, type=currentAmount, name=update_channels[name]))
+        declaration.add_channel(Channel(urgent=False, type=currentAmount, name=reset_channels[name]))
         list_of_advance_channels = advance_channels[name]
         for advance_channel in list_of_advance_channels:
-            declaration.add_channel(Channel(urgent=True, broadcast=True, type=currentAmount, name=advance_channel))
+            declaration.add_channel(Channel(urgent=False, broadcast=True, type=currentAmount, name=advance_channel))
 
     # Functions
     declaration.add_function_call(generate_function_is_in_subsciption)
@@ -287,8 +290,14 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
     roles = []
     logs = []
 
+    print(f"time_json_transfer: {time_json_transfer}")
+
     for jsonTransfer in jsonTransfers:
-        role = Role(jsonTransfer.name, amount_names[jsonTransfer.name] + " id", jsonTransfer, loop_bound)
+        role = None
+        if time_json_transfer == None:
+            role = Role(amount_names[jsonTransfer.name] + " id", jsonTransfer, loop_bound, [])
+        else:
+            role = Role(amount_names[jsonTransfer.name] + " id", jsonTransfer, loop_bound, time_json_transfer.event_time_data)
         roles.append(role)
 
         # Adding loopcounter to global decleration
@@ -296,7 +305,12 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
         for eventname in current_evetname_loopcounter:
             declaration.add_variable(f"int {current_evetname_loopcounter[eventname]} = 0;")
 
-        log = Log(jsonTransfer.name, amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, log_size)
+        log = None
+        if time_json_transfer == None:
+            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, log_size)
+        else:
+            log_time_data_role = next((log_time_data for log_time_data in time_json_transfer.log_time_data if log_time_data.role_name == jsonTransfer.name), None)
+            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, log_size, log_time_data_role)
         logs.append(log)
 
     final_xml += declaration.to_xml()

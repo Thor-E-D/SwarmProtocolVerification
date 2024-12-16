@@ -359,7 +359,7 @@ bool handleBranchingEventStandardSetting(logEntryType &amp;tmpLogEntry,logEntryT
     }
     
     for (j = currentIndex - 1; j &gt;= 0; j--) {
-        if (resLog[j].tiedTo == tmpLogEntry.tiedTo &amp;&amp; tmpLogEntry.basedOnOrderCount == resLog[j].basedOnOrderCount) {
+        if (tmpLogEntry.basedOnOrderCount == resLog[j].basedOnOrderCount) {
             if(isInBranchingConflict(isInBranchingPartion[tmpLogEntry.eventID], resLog[j].eventID)) {
                 if (!isIntInList(discardedEvents, resLog[j].orderCount)) {
                     if (tmpLogEntry.eventID == resLog[j].eventID) { //Same one so does not need to ignore branch

@@ -3,9 +3,10 @@ from typing import Optional, List
 from .Location import Location
 from Utils import Utils
 import xml.etree.ElementTree as ET
+from UppaalPart import UppaalPart
 
 @dataclass
-class Transition:
+class Transition(UppaalPart):
     id: int
     source: Location
     target: Location
