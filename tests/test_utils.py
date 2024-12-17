@@ -6,7 +6,8 @@ from Model import parseJsonFiles, createModel, save_xml_to_file
 from JSONParser import parse_time_JSON
 from typing import List, Dict
 
-verifyta_path = "C:\\Program Files\\uppaal-5.0.0-win64\\bin\\verifyta"
+#verifyta_path = "C:\\Program Files\\uppaal-5.0.0-win64\\bin\\verifyta" # 5.0.0
+verifyta_path = "C:\\Program Files\\UPPAAL-5.1.0-beta5\\app\\bin\\verifyta" # 5.1.0 beta-5
 
 def count_lines_in_file(file_path: str):
     try:

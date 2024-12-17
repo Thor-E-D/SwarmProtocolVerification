@@ -1,0 +1,4 @@
+A[] forall(i:Robot_t) forall(j:Pump_t) deadlock imply Robot(i).Done and Pump(j).Done
+E<> forall(i:Robot_t) Robot(i).WaitingForWater
+Robot(0).Done --> Robot(1).Done
+E<> (deadlock and globalLog[logSize - 1].orderCount == 0 and globalTime <= 15)
