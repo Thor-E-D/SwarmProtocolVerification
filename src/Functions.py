@@ -218,7 +218,7 @@ void updateTrueGlobalLog() {
     logEntryType tmpLogEntry = tempLogEntry;
     bool inCompetetion = false;
     if (standardSetting) {
-        inCompetetion = handle_standard_setting(tmpLogEntry, trueGlobalLog, trueDiscardedEvents, trueDiscardedDueToCompetionEvents, trueCurrentIndex);
+        inCompetetion = handle_standard_setting(tmpLogEntry, trueGlobalLog, trueDiscardedEvents, trueDiscardedDueToCompetionEvents, trueCurrentIndex, globalCurrentLocation, globalEventLocationMap);
     }
     if (tmpLogEntry.ignored == true) {
         if(inCompetetion) {
@@ -407,37 +407,46 @@ bool handleBranchingEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog
 
 def generate_function_handle_standard_setting() -> str:
     return """
-bool handle_standard_setting(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int &amp;currentIndex) {
+bool handle_standard_setting(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int &amp;currentIndex, int &amp;currentLocation, int eventLocationMap[amountOfUniqueEvents][2]) {
     int i;
-    if (isBranchingList[tmpLogEntry.eventID]) {
-        return handleBranchingEventStandardSetting(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
-    }
-    if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
-        tmpLogEntry.ignored = true;
-        return false;
-    }
-    // Need to check if a we have to move from discardedEvents to discardedDueToCompetionEvents
-    if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.tiedTo) &amp;&amp; isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
-        int lookingForOrderCount = tmpLogEntry.basedOnOrderCount;
-        for (i = 0; i &lt; logSize; i++) {
-            if (discardedEvents[i] != 0) {
-                logEntryType currentEvent = getEntryFromOrderCount(lookingForOrderCount);
-                if (isIntInList(discardedDueToCompetionEvents, currentEvent.basedOnOrderCount)) { // we have to move it
-                    addIntToList(discardedDueToCompetionEvents, currentEvent.orderCount);
-                    discardedEvents[i] = 0;
-                }
-            }
+
+    if (eventLocationMap[tmpLogEntry.eventID][0] != currentLocation) {
+        if (eventLocationMap[tmpLogEntry.eventID][0] != -1) { //In subsciptions
+            tmpLogEntry.ignored = true;
+        }
+        if (isBranchingList[tmpLogEntry.eventID]) {
+            return handleBranchingEventStandardSetting(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
         }
         if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
             tmpLogEntry.ignored = true;
             return false;
         }
-    }
-    for (i = currentIndex - 1; i &gt;=0; i--) {
-        if (resLog[i].eventID == tmpLogEntry.eventID &amp;&amp; (resLog[i].tiedTo == tmpLogEntry.tiedTo || resLog[i].basedOnOrderCount == tmpLogEntry.basedOnOrderCount)) {
+
+        // Need to check if a we have to move from discardedEvents to discardedDueToCompetionEvents
+       if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.tiedTo) &amp;&amp; isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
+            int lookingForOrderCount = tmpLogEntry.basedOnOrderCount;
+            for (i = 0; i &lt; logSize; i++) {
+                if (discardedEvents[i] != 0) {
+                    logEntryType currentEvent = getEntryFromOrderCount(lookingForOrderCount);
+                    if (isIntInList(discardedDueToCompetionEvents, currentEvent.basedOnOrderCount)) { // we have to move it
+                        addIntToList(discardedDueToCompetionEvents, currentEvent.orderCount);
+                        discardedEvents[i] = 0;
+                    }
+                }
+            }
+            if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
+                tmpLogEntry.ignored = true;
+                return false;
+            }
+        }
+        return false;
+    } else {
+        if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
             tmpLogEntry.ignored = true;
             return false;
         }
+
+        currentLocation = eventLocationMap[tmpLogEntry.eventID][1];
     }
     return false;
 }"""
@@ -445,17 +454,17 @@ bool handle_standard_setting(logEntryType &amp;tmpLogEntry,logEntryType &amp;res
 
 def generate_function_handle_own_event() -> str:
     return """
-bool handleOwnEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int &amp;currentIndex, int id, bool &amp;olderEntryIgnored) {
+bool handleOwnEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int &amp;currentIndex, int id, bool &amp;olderEntryIgnored, int &amp;currentLocation, int eventLocationMap[amountOfUniqueEvents][2]) {
     int j;
     bool inCompetetion = false;
     if (standardSetting) {
-        return handle_standard_setting(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
+        return handle_standard_setting(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
     }
     if (tmpLogEntry.emitterID == id &amp;&amp; isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
         tmpLogEntry.ignored = true; //competetion
         return true;
     }
-    inCompetetion = handleStandardEvent(tmpLogEntry,resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
+    inCompetetion = handleStandardEvent(tmpLogEntry,resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
     if (tmpLogEntry.emitterID != id) {
         tmpLogEntry.ignored = true;
         // Check if we have already tied into this so an event we emitted that is tied to the same thing
@@ -475,32 +484,13 @@ bool handleOwnEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSi
     return inCompetetion;
 }
 """
-# Not currently in use
-'''def generate_function_handle_other_event() -> str:
-    return """
-void handleOtherEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;subsciptions[amountOfUniqueEvents], int currentIndex) {
-    int i;
-    if (isBranchingList[tmpLogEntry.eventID]) {
-        handleBranchingEvent(tmpLogEntry, resLog, currentIndex);
-    }
-    if ((isInSubsciptions(subsciptions, getEventIDfromOrderCount(tmpLogEntry.basedOnOrderCount)) &amp;&amp; isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) || isIntInList(discardedEvents, tmpLogEntry.tiedTo)) {
-        tmpLogEntry.ignored = true;
-    }
-    
-    for (i = currentIndex; i &gt;= 0; i--) {
-        if (tmpLogEntry.tiedTo != -1 &amp;&amp; resLog[i].eventID == tmpLogEntry.eventID &amp;&amp; resLog[i].tiedTo == tmpLogEntry.tiedTo) {
-            tmpLogEntry.ignored = true;
-        }
-    }
-}
-"""'''
 
-def generate_function_hadnle_standard_event() -> str:
+def generate_function_handle_standard_event() -> str:
     return """
-bool handleStandardEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int  &amp;currentIndex) {
+bool handleStandardEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int  &amp;currentIndex, int &amp;currentLocation, int eventLocationMap[amountOfUniqueEvents][2]) {
     int i;
     if (standardSetting) {
-        return handle_standard_setting(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
+        return handle_standard_setting(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
     }
     if (isBranchingList[tmpLogEntry.eventID]) {
         return handleBranchingEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
@@ -578,17 +568,17 @@ logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[lo
             first = False
         else:
             function_str += f" else if (currentEventType == {event}) {{\n"
-        function_str += "        inCompetetion = handleStandardEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);\n"
+        function_str += "        inCompetetion = handleStandardEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);\n"
         function_str += "    }"
     
     # Generate the "own" events handling with `handleOwnEvent`
     for event in own_events:
         function_str += f" else if (currentEventType == {event}) {{\n"
-        function_str += "        inCompetetion = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, id + log_id_start, olderEntryIgnored);\n"
+        function_str += "        inCompetetion = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, id + log_id_start, olderEntryIgnored, currentLocation, eventLocationMap);\n"
         function_str += "    }"
     
     function_str += f" else {{\n"
-    function_str += "        inCompetetion = handleStandardEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);\n"
+    function_str += "        inCompetetion = handleStandardEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);\n"
     function_str += "    }"
 
 
@@ -614,6 +604,7 @@ void mergePropagationLog() {
     bool propagatedLogDone = false;
 
     int i;
+    currentLocation = initialLocation;
     for (i = 0; i &lt; (logSize * 2); i++) {
         currentLogEntry = currentLog[currentLogCounter];
         propagatedLogEntry = propagationLog[propagatedLogCounter];

@@ -1,14 +1,13 @@
 from Template import Template
 from DataObjects.Declaration import Declaration
-from JSONParser import EventTimeData
 from DataObjects.Transition import Transition
 from DataObjects.Location import Location, LocationType
 from DataObjects.JSONTransfer import JSONTransfer, EventData
+from DataObjects.TimeJSONTransfer import EventTimeData
 from Utils import Utils
 from typing import List
 from graphviz import Digraph
 import math
-
 
 
 class Role(Template):
@@ -92,8 +91,6 @@ class Role(Template):
                 locations.append(Location(id = Utils.get_next_id(), name=location_name, x=0, y=0, invariant=f"x <= {time_data_event.max_time}", locationType=LocationType.NEITHER))
 
         linitial = self.findLocation(jsonTransfer.initial, locations)
-
-        print(time_data_list)
 
         time_assignment_addition = ""
         if time_data_list != []:

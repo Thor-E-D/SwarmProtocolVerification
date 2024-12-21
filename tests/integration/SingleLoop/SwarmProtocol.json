@@ -1,0 +1,41 @@
+{
+    "initial": "l0",
+    "transitions": [
+        {
+            "label": {
+                "cmd": "e01",
+                "logType": ["e01"],
+                "role": "O"
+            },
+            "source": "l0",
+            "target": "l1"
+        },
+        {
+            "label": {
+                "cmd": "e11",
+                "logType": ["e11"],
+                "role": "R"
+            },
+            "source": "l1",
+            "target": "l1"
+        },
+        {
+            "label": {
+                "cmd": "e12",
+                "logType": ["e12"],
+                "role": "O"
+            },
+            "source": "l1",
+            "target": "l2"
+        },
+        {
+            "label": {
+                "cmd": "e22",
+                "logType": ["e22"],
+                "role": "O"
+            },
+            "source": "l2",
+            "target": "l2"
+        }
+    ]
+}

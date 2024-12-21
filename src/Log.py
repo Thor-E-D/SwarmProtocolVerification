@@ -3,13 +3,18 @@ from DataObjects.Declaration import Declaration
 from DataObjects.Transition import Transition
 from DataObjects.Location import Location, LocationType
 from DataObjects.JSONTransfer import JSONTransfer
-from JSONParser import LogTimeData
+from DataObjects.TimeJSONTransfer import LogTimeData
+from DataObjects.ModelSettings import DelayType
 from Utils import Utils
 from Functions import generate_function_merge_propagation_log, generate_function_handle_log_entry
-from typing import Dict, List
+from typing import Dict
 
 class Log(Template):
-    def __init__(self, parameter: str, jsonTransfer: JSONTransfer, evetname_loopcounter: Dict[str,str], log_size: int, log_time_data: LogTimeData = None):
+    def __init__(self, parameter: str, jsonTransfer: JSONTransfer, evetname_loopcounter: Dict[str,str], log_size: int, log_delay_type: DelayType, log_time_data: LogTimeData = None):
+        
+        # We set a flag if our delay is nothing
+        delay_nothing = (log_delay_type == DelayType.NOTHING)
+        
         name = jsonTransfer.name
         declaration = Declaration()
 
@@ -46,6 +51,11 @@ class Log(Template):
         subscription_str += "-1, " * (jsonTransfer.total_amount_of_events - subscription_counter)
         declaration.add_variable(subscription_str[:-2] + "};")
 
+        # Flow list and pointer
+        declaration.add_variable(f"int initialLocation = {jsonTransfer.initial_pointer};")
+        declaration.add_variable(f"int currentLocation = {jsonTransfer.initial_pointer};")
+        declaration.add_variable(f"const int eventLocationMap[amountOfUniqueEvents][2] = {Utils.python_list_to_uppaal_list(jsonTransfer.flow_list)};")
+
         # Get names of own events and names of other events for function
         own_event_names = []
         other_event_names = []
@@ -65,13 +75,18 @@ class Log(Template):
         l3 = Location (id = Utils.get_next_id(), x=-204, y=-136)
         l4 = Location (id = Utils.get_next_id(), x=229, y=-127, locationType = LocationType.COMMITTED)
         l5 = Location (id = Utils.get_next_id(), x=-612, y=34, locationType = LocationType.COMMITTED)
-        l6 = Location (id = Utils.get_next_id(), x=25, y=76, locationType = LocationType.COMMITTED)
+        if (not delay_nothing):
+            l6 = Location (id = Utils.get_next_id(), x=25, y=76, locationType = LocationType.COMMITTED)
         l7 = Location (id = Utils.get_next_id(), x=-561, y=153, locationType = LocationType.COMMITTED)
         l8 = Location (id = Utils.get_next_id(), x=-977, y=34, locationType = LocationType.COMMITTED)
         l9 = Location (id = Utils.get_next_id(), x=-1079, y=136, locationType = LocationType.COMMITTED)
 
+        locations = []
+        if (delay_nothing):
+            locations = [l1, l2, l3, l4, l5, l7, l8, l9]
+        else:
+            locations = [l1, l2, l3, l4, l5, l6, l7, l8, l9]
 
-        locations = [l1, l2, l3, l4, l5, l6, l7, l8, l9]
         transitions = []
 
         intitial_location = l3
@@ -112,14 +127,31 @@ class Log(Template):
             guard="newUpdates"
             ))
             
-            transitions.append(Transition(
-            id=Utils.get_next_id(),
-            source=l4,
-            target=intitial_location,
-            guard="!(updatesSincePropagation > maxUpdatesSincePropagation) && updatesSincePropagation == 1",
-            assignment=Utils.remove_last_two_chars(assigmentAddition),
-            nails = [(0, 20)]
-            ))
+            if (delay_nothing):
+                transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l4,
+                target=intitial_location,
+                guard=f"updatesSincePropagation == 1", #We know it is the first since propagation and need to reset the clock.
+                assignment=Utils.remove_last_two_chars(assigmentAddition),
+                ))
+
+                transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l4,
+                target=intitial_location,
+                guard=f"updatesSincePropagation != 1",
+                nails = [(0, 20)]
+                ))
+            else:
+                transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l4,
+                target=intitial_location,
+                guard=f"!(updatesSincePropagation > maxUpdatesSincePropagation_{jsonTransfer.name}) && updatesSincePropagation == 1",
+                assignment=Utils.remove_last_two_chars(assigmentAddition),
+                nails = [(0, 20)]
+                ))
 
             transitions.append(Transition(
             id=Utils.get_next_id(),
@@ -139,7 +171,7 @@ class Log(Template):
                     updatesSincePropagation++,
                     newUpdates := true,
                     currentSizeOfLog++""",
-            nails = [(0, -51)]
+            nails = [(0, -61)]
             ))
 
 
@@ -220,30 +252,31 @@ currentSizeOfLog++""",
             nails = [(0, -51)]
         ))
 
-        transitions.append(Transition(
-            id=Utils.get_next_id(),
-            source=l4,
-            target=intitial_location,
-            guard="!(updatesSincePropagation > maxUpdatesSincePropagation)" + guard_extension_addition
-        ))
+        if (not delay_nothing):
+            transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l4,
+                target=intitial_location,
+                guard=f"!(updatesSincePropagation > maxUpdatesSincePropagation_{jsonTransfer.name})" + guard_extension_addition
+            ))
 
-        transitions.append(Transition(
-            id=Utils.get_next_id(),
-            source=l4,
-            target=l6,
-            guard="updatesSincePropagation > maxUpdatesSincePropagation",
-            assignment="""currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
-updatesSincePropagation := 0,
-newUpdates := false"""
-        ))
+            transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l4,
+                target=l6,
+                guard=f"updatesSincePropagation > maxUpdatesSincePropagation_{jsonTransfer.name}",
+                assignment="""currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+    updatesSincePropagation := 0,
+    newUpdates := false"""
+            ))
 
-        transitions.append(Transition(
-            id=Utils.get_next_id(),
-            source=l6,
-            target=intitial_location,
-            synchronisation="propagate_log!",
-            assignment=assigmentAddition + "setPropagationLog(currentLog)"
-        ))
+            transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l6,
+                target=intitial_location,
+                synchronisation="propagate_log!",
+                assignment=assigmentAddition + "setPropagationLog(currentLog)"
+            ))
 
         transitions.append(Transition(
             id=Utils.get_next_id(),

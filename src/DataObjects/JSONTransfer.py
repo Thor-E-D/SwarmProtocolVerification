@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict
 
+# Holds all information nessesary for constructing templates.
+
 @dataclass
 class EventData:
     event_name: str
@@ -31,6 +33,8 @@ class JSONTransfer:
     advance_channel_names: Optional[Dict[str, str]] = None
     log_id_start: Optional[int] = None
     total_amount_of_events: Optional[int] = None
+    initial_pointer: Optional[int] = 0
+    flow_list: Optional[List[List[int]]] = None
     loop_events: Optional[List[str]] = None
 
     

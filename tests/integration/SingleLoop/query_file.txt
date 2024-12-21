@@ -1,0 +1,2 @@
+A[] forall(i:O_t) forall(j:R_t) (deadlock and globalLog[logSize - 1].orderCount == 0) imply O(i).l2 and R(j).l2
+A[] globalLog[8].orderCount == 0

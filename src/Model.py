@@ -1,7 +1,9 @@
-from JSONParser import parse_JSON_file, TimeJSONTransfer, LogTimeData, EventTimeData
+from JSONParser import parse_projection_JSON_file
+from DataObjects.TimeJSONTransfer import TimeJSONTransfer
 from DataObjects.Declaration import Declaration
 from DataObjects.JSONTransfer import JSONTransfer
 from DataObjects.Channel import Channel
+from DataObjects.ModelSettings import ModelSettings, DelayType
 from typing import List, Dict
 from collections import defaultdict
 from Utils import Utils
@@ -27,7 +29,7 @@ def save_xml_to_file(xml_data: str, file_name: str, file_path: str):
             file.write(xml_data)
         print(f"XML file saved successfully at {full_file_path}")
     except Exception as e:
-        print(f"An error occurred while saving the file: {e}") #TODO handle error!!
+        print(f"An error occurred while saving the file: {e}")
 
 def add_branching_functionality(declaration: Declaration, branching_events, eventname_to_UID_dict):
     # Handling branching events
@@ -81,14 +83,12 @@ def add_branching_functionality(declaration: Declaration, branching_events, even
     declaration.add_variable(f"const int isBranchingList[amountOfUniqueEvents] = {Utils.python_list_to_uppaal_list(is_branching_list).lower()};")
     declaration.add_variable(f"const int isInBranchingPartion[amountOfUniqueEvents] = {Utils.python_list_to_uppaal_list(is_in_branching_partion)};")
 
-
-def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, int], loop_bound: int = 2, standard_setting: bool = False, time_json_transfer: TimeJSONTransfer = None):
-    # We first create the nessesary variable names to be used in UPPAAL.
-    eventnames_dict = {}
-    amount_names = {}
-    advance_channels = {}
-    update_channels = {}
-    reset_channels = {}
+def calculateRelevantMappings(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, int]):
+    eventnames_dict = {} # Maps eventname/logtypes to Unique names 
+    amount_names = {} # Maps role name to typedef name. 
+    advance_channels = {} # Maps role name to advance channel.
+    update_channels = {} # Maps role name to update channel.
+    reset_channels = {} # Maps role name to reset channel
 
     log_id_start = 0
 
@@ -113,17 +113,90 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
 
         amount_names[jsonTransfer.name] = f"{jsonTransfer.name}_t"
 
-    for jsonTransfer in jsonTransfers:
-        jsonTransfer.total_amount_of_events = len(eventnames_dict)
+    return eventnames_dict, amount_names, advance_channels, update_channels, reset_channels
+
+def addFunctions(declaration: Declaration):
+    # Ordering is important as some functions depend on others.
+    declaration.add_function_call(generate_function_is_in_subsciption)
+    declaration.add_function_call(generate_function_is_int_in_list)
+    declaration.add_function_call(generate_function_is_order_count_in_log)
+    declaration.add_function_call(generate_function_get_entry_from_order_count)
+    declaration.add_function_call(generate_function_add_int_to_list)
+    declaration.add_function_call(generate_function_get_event_id_from_order_count)
+    declaration.add_function_call(generate_function_set_next_log_to_propagate)
+    declaration.add_function_call(generate_function_get_order_count)
+    declaration.add_function_call(generate_function_set_log_entry_for_update)
+    declaration.add_function_call(generate_function_find_difference_in_logs)
+    declaration.add_function_call(generate_function_find_and_set_difference_in_logs)
+    declaration.add_function_call(generate_function_find_and_set_tiedto)
+    declaration.add_function_call(generate_function_set_propagation_log)
+    declaration.add_function_call(generate_function_is_In_branching_conflict)
+    declaration.add_function_call(generate_function_consolidate_logs)
+    declaration.add_function_call(generate_function_check_and_fix_branch_competetion)
+    declaration.add_function_call(generate_function_handle_branching_event_standard_setting)
+    declaration.add_function_call(generate_function_handle_branching_event)
+    declaration.add_function_call(generate_function_handle_standard_setting)
+    declaration.add_function_call(generate_function_handle_standard_event)
+    declaration.add_function_call(generate_function_handle_own_event)
+    declaration.add_function_call(generate_function_update_true_global_log)
+    declaration.add_function_call(generate_function_update_global_log)
+    declaration.add_function_call(generate_function_update_log)
+    #declaration.add_function_call(generate_function_handle_other_event)
+
+
+def createFlowList(jsonTransfer: JSONTransfer, eventname_to_UID_dict) -> tuple[int, List[List[int]]]:
+    # We first need to map all locations to a unigue int ID
+    location_map = {}
+    counter = 0
+
+    all_events = jsonTransfer.own_events.copy()
+    all_events.extend(jsonTransfer.other_events)
+
+    for event in all_events:
+        if event.source not in location_map.keys():
+            location_map[event.source] = counter
+            counter += 1
+        if event.target not in location_map.keys():
+            location_map[event.target] = counter
+            counter += 1
+
+    flow_list = [[-1, -1] for _ in range(len(eventname_to_UID_dict))]
+    for event_name in eventname_to_UID_dict:
+        current_event_name = event_name[:-3]
+        current_index = eventname_to_UID_dict[event_name]
+
+        current_event = next(
+            (event for event in all_events if event.event_name == current_event_name),
+            None  # Default value if no match is found
+        )
+
+        if current_event is None:
+            continue
+
+        flow_list[current_index][0] = location_map[current_event.source]
+        flow_list[current_index][1] = location_map[current_event.target]
+
+    return location_map[jsonTransfer.initial], flow_list
+
+
+
+def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTransfer, name_amount_dict: Dict[str, int], model_settings: ModelSettings):
+    # We first create the nessesary variable names to be used in UPPAAL.
+    eventnames_dict, amount_names, advance_channels, update_channels, reset_channels = calculateRelevantMappings(jsonTransfers, name_amount_dict)
 
     final_xml = """<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.6//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_6.dtd'>
 <nta>"""
 
+    # Set total amount of events
+    for jsonTransfer in jsonTransfers:
+        jsonTransfer.total_amount_of_events = len(eventnames_dict)
+
+
     set_of_preceding_events = defaultdict(set)
     max_amount_of_preceding_events = 1
     branching_events = None
-    loop_events = None
+    all_loop_events = set()
 
     for jsonTransfer in jsonTransfers:
 
@@ -134,12 +207,16 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
         preceding_events = analysis_results["preceding_events"]
         branching_events = analysis_results["branching_events"]
         loop_events = analysis_results["loop_events"]
-        
+
         # For bound loop events
         jsonTransfer.loop_events = []
         for loop_event in loop_events:
             if loop_event in jsonTransfer.own_events:
                 jsonTransfer.loop_events.append(loop_event.event_name)
+
+            # add to all loop events
+            all_loop_events = all_loop_events.union(loop_events[loop_event])
+            all_loop_events.add(loop_event)
 
         for key_event in preceding_events:
             name_of_event = Utils.get_eventtype_UID(key_event.event_name)
@@ -149,12 +226,37 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
             if len(set_of_preceding_events[name_of_event]) > max_amount_of_preceding_events:
                 max_amount_of_preceding_events = len(set_of_preceding_events[name_of_event])
 
+    all_loop_event_names = set()
+    for loop_event in all_loop_events:
+        all_loop_event_names.add(Utils.get_eventtype_UID(loop_event.event_name))
+
+
     declaration = Declaration()
 
-    if time_json_transfer != None:
-        declaration.add_variable(f"clock globalTime;")
+    declaration.add_variable(f"const bool standardSetting = {str(model_settings.standard_setting).lower()};")
+    declaration.add_variable(f"const int logSize = {model_settings.log_size};")
+    declaration.add_variable("typedef int [0, logSize - 1] logSize_t;")
 
-    declaration.add_variable(f"const bool standardSetting = {str(standard_setting).lower()};")
+    declaration.add_variable("""typedef struct {
+    int eventID;
+    int emitterID;
+    int orderCount;
+    int basedOnOrderCount;
+    int tiedTo;
+    bool ignored;
+} logEntryType;""")
+    declaration.add_variable("int eventOrderCounter = 1;")
+    declaration.add_variable("logEntryType tempLogEntry;")
+    declaration.add_variable("logEntryType propagationLog[logSize];")
+    declaration.add_variable("logEntryType globalLog[logSize];")
+    declaration.add_variable("logEntryType trueGlobalLog[logSize];")
+    declaration.add_variable("int trueDiscardedEvents[logSize];")
+    declaration.add_variable("int trueDiscardedDueToCompetionEvents[logSize];")
+    declaration.add_variable("int trueCurrentIndex = -1;")
+    declaration.add_variable("int currentEventResetID = -1;")
+
+    if model_settings.time_json_transfer != None:
+        declaration.add_variable(f"clock globalTime;")
 
     number_of_names = []
     for name in name_amount_dict:
@@ -171,8 +273,10 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
     declaration.add_variable(amount_of_logs_string)
 
     declaration.add_variable("int currentLogToPropagate;")
-    declaration.add_variable("int amountOfPropagation = 0;")
+    declaration.add_variable("int amountOfPropagation = 0;")    
 
+
+    # For branch tracking we create a list which ties each event to the branches before it
     eventsTiedTo = "const int eventsTiedTo[amountOfUniqueEvents][maxAmountOfTied] = {"
     counter = 0
     eventname_to_UID_dict = {}
@@ -198,34 +302,25 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
 
     add_branching_functionality(declaration, branching_events, eventname_to_UID_dict)
 
-    declaration.add_variable("""typedef struct {
-    int eventID;
-    int emitterID;
-    int orderCount;
-    int basedOnOrderCount;
-    int tiedTo;
-    bool ignored;
-} logEntryType;""")
-    
+    # Creating a list to use for letting the log know where we are
+    global_pointer, global_flow_list = createFlowList(globalJsonTransfer, eventname_to_UID_dict)
+    declaration.add_variable(f"int globalCurrentLocation = {global_pointer};")
+    declaration.add_variable(f"const int globalEventLocationMap[amountOfUniqueEvents][2] = {Utils.python_list_to_uppaal_list(global_flow_list)};")
 
-    declaration.add_variable("int maxUpdatesSincePropagation = 1;")
+    for jsonTransfer in jsonTransfers:
+        initial_pointer, flow_list = createFlowList(jsonTransfer, eventname_to_UID_dict)
+        jsonTransfer.initial_pointer = initial_pointer
+        jsonTransfer.flow_list = flow_list
+
+    # looping list
+    is_in_loop_list = [False] * len(eventname_to_UID_dict)
+    for event_key in eventname_to_UID_dict:
+        if event_key in all_loop_event_names:
+            is_in_loop_list[eventname_to_UID_dict[event_key]] = True
+    declaration.add_variable(f"const int isInLoop[amountOfUniqueEvents] = {Utils.python_list_to_uppaal_list(is_in_loop_list).lower()};")
 
     declaration.add_variable(f"const int maxAmountOfTied = {max_amount_of_preceding_events};")
     declaration.add_variable(eventsTiedTo)
-
-    log_size = 20
-    declaration.add_variable(f"const int logSize = {log_size};") #TODO this size has to depend on the size of model
-
-
-    declaration.add_variable("int eventOrderCounter = 1;")
-    declaration.add_variable("logEntryType tempLogEntry;")
-    declaration.add_variable("logEntryType propagationLog[logSize];")
-    declaration.add_variable("logEntryType globalLog[logSize];")
-    declaration.add_variable("logEntryType trueGlobalLog[logSize];")
-    declaration.add_variable("int trueDiscardedEvents[logSize];")
-    declaration.add_variable("int trueDiscardedDueToCompetionEvents[logSize];")
-    declaration.add_variable("int trueCurrentIndex = -1;")
-    declaration.add_variable("int currentEventResetID = -1;")
 
     # Channels
     declaration.add_channel(Channel(urgent=True,broadcast=True, name="propagate_log"))
@@ -239,32 +334,61 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
             declaration.add_channel(Channel(urgent=False, broadcast=True, type=currentAmount, name=advance_channel))
 
     # Functions
-    declaration.add_function_call(generate_function_is_in_subsciption)
-    declaration.add_function_call(generate_function_is_int_in_list)
-    declaration.add_function_call(generate_function_is_order_count_in_log)
-    declaration.add_function_call(generate_function_get_entry_from_order_count)
-    declaration.add_function_call(generate_function_add_int_to_list)
-    declaration.add_function_call(generate_function_get_event_id_from_order_count)
-    declaration.add_function_call(generate_function_set_next_log_to_propagate)
-    declaration.add_function_call(generate_function_get_order_count)
-    declaration.add_function_call(generate_function_set_log_entry_for_update)
-    declaration.add_function_call(generate_function_find_difference_in_logs)
-    declaration.add_function_call(generate_function_find_and_set_difference_in_logs)
-    declaration.add_function_call(generate_function_find_and_set_tiedto)
-    declaration.add_function_call(generate_function_set_propagation_log)
-    declaration.add_function_call(generate_function_is_In_branching_conflict)
-    declaration.add_function_call(generate_function_consolidate_logs)
-    declaration.add_function_call(generate_function_check_and_fix_branch_competetion)
-    declaration.add_function_call(generate_function_handle_branching_event_standard_setting)
-    declaration.add_function_call(generate_function_handle_branching_event)
-    declaration.add_function_call(generate_function_handle_standard_setting)
-    declaration.add_function_call(generate_function_hadnle_standard_event)
-    declaration.add_function_call(generate_function_handle_own_event)
-    declaration.add_function_call(generate_function_update_true_global_log)
-    declaration.add_function_call(generate_function_update_global_log)
-    declaration.add_function_call(generate_function_update_log)
-    #declaration.add_function_call(generate_function_handle_other_event)
+    addFunctions(declaration)
+    createBasedOnFunctions(jsonTransfers, name_amount_dict, eventnames_dict, declaration)
 
+    # Adding templates comprised of roles and logs for each jsonTransfer we create one of each.
+    roles = []
+    logs = []
+
+    for jsonTransfer in jsonTransfers:
+        if model_settings.delay_type[jsonTransfer.name] != DelayType.NOTHING:
+                declaration.add_variable(f"int maxUpdatesSincePropagation_{jsonTransfer.name} = {model_settings.delay_amount[jsonTransfer.name]};")
+
+        role = None
+        if model_settings.time_json_transfer == None:
+            role = Role(amount_names[jsonTransfer.name] + " id", jsonTransfer, model_settings.loop_bound, [])
+        else:
+            role = Role(amount_names[jsonTransfer.name] + " id", jsonTransfer, model_settings.loop_bound, model_settings.time_json_transfer.event_time_data)
+        roles.append(role)
+
+        # Adding loopcounter to global decleration
+        current_evetname_loopcounter = role.get_evetname_loopcounter()
+        for eventname in current_evetname_loopcounter:
+            declaration.add_variable(f"int {current_evetname_loopcounter[eventname]} = 0;")
+
+        log = None
+        if model_settings.time_json_transfer == None:
+            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, model_settings.log_size, model_settings.delay_type[jsonTransfer.name])
+        else:
+            log_time_data_role = next((log_time_data for log_time_data in model_settings.time_json_transfer.log_time_data if log_time_data.role_name == jsonTransfer.name), None)
+            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, model_settings.log_size,model_settings.delay_type[jsonTransfer.name], log_time_data_role)
+        logs.append(log)
+
+    # Creating xml string
+    final_xml += declaration.to_xml()
+
+    for role in roles:
+        final_xml += role.to_xml()
+
+    for log in logs:
+        final_xml += log.to_xml()
+
+    system_instansiator_string = ""
+    for name in name_amount_dict:
+        system_instansiator_string += f"{name}, {name}_log, "
+    system_instansiator_string = system_instansiator_string[:-2]
+
+    # For each role put in name and log name
+    final_xml += f"""<system>// Place template instantiations here.
+// List one or more processes to be composed into a system.
+system {system_instansiator_string};
+</system>"""
+    final_xml += "</nta>"
+
+    return final_xml
+
+def createBasedOnFunctions(jsonTransfers, name_amount_dict, eventnames_dict, declaration):
     name_basedOnEvents = {}
     for jsonTransfer in jsonTransfers:
         basedOnEvents = {}
@@ -285,73 +409,19 @@ def createModel(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, i
 
     for name in name_amount_dict:
         declaration.add_function_call(generate_function_update_log_name, name,name_basedOnEvents[name])
-    
-
-    roles = []
-    logs = []
-
-    print(f"time_json_transfer: {time_json_transfer}")
-
-    for jsonTransfer in jsonTransfers:
-        role = None
-        if time_json_transfer == None:
-            role = Role(amount_names[jsonTransfer.name] + " id", jsonTransfer, loop_bound, [])
-        else:
-            role = Role(amount_names[jsonTransfer.name] + " id", jsonTransfer, loop_bound, time_json_transfer.event_time_data)
-        roles.append(role)
-
-        # Adding loopcounter to global decleration
-        current_evetname_loopcounter = role.get_evetname_loopcounter()
-        for eventname in current_evetname_loopcounter:
-            declaration.add_variable(f"int {current_evetname_loopcounter[eventname]} = 0;")
-
-        log = None
-        if time_json_transfer == None:
-            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, log_size)
-        else:
-            log_time_data_role = next((log_time_data for log_time_data in time_json_transfer.log_time_data if log_time_data.role_name == jsonTransfer.name), None)
-            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, log_size, log_time_data_role)
-        logs.append(log)
-
-    final_xml += declaration.to_xml()
-
-    for role in roles:
-        final_xml += role.to_xml()
-
-    for log in logs:
-        final_xml += log.to_xml()
-        
-    
-
-    system_instansiator_string = ""
-    for name in name_amount_dict:
-        system_instansiator_string += f"{name}, {name}_log, "
-    system_instansiator_string = system_instansiator_string[:-2]
-
-    # For each role put in name and log name
-    final_xml += f"""<system>// Place template instantiations here.
-// List one or more processes to be composed into a system.
-system {system_instansiator_string};
-</system>"""
-    final_xml += "</nta>"
-
-    return final_xml
-
-    
-    #print(final_xml)
 
 def parseJsonFiles(paths_to_jsons: List[str]):
     jsonTransfers = []
     for path in paths_to_jsons:
-        jsonTransfers.append(parse_JSON_file(path))
+        jsonTransfers.append(parse_projection_JSON_file(path))
 
     return jsonTransfers
 
 def wareHousedemo():
     jsonTransfers = []
-    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse\\Door.json"))
-    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse\\Forklift.json"))
-    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse\\Transport.json"))
+    jsonTransfers.append(parse_projection_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse\\Door.json"))
+    jsonTransfers.append(parse_projection_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse\\Forklift.json"))
+    jsonTransfers.append(parse_projection_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse\\Transport.json"))
 
     name_amount_dict = {}
     for jsonTransfer in jsonTransfers:
@@ -366,8 +436,8 @@ def wareHousedemo():
 
 def plantRobotDemo():
     jsonTransfers = [] 
-    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\RobotPump\\Robot.json"))
-    jsonTransfers.append(parse_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\RobotPump\\Pump.json"))
+    jsonTransfers.append(parse_projection_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\RobotPump\\Robot.json"))
+    jsonTransfers.append(parse_projection_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\RobotPump\\Pump.json"))
 
     name_amount_dict = {}
     for jsonTransfer in jsonTransfers:

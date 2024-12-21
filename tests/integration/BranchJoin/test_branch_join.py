@@ -1,38 +1,69 @@
 import pytest
 import os
 from test_utils import do_full_test
+from DataObjects.ModelSettings import ModelSettings, DelayType
 
 @pytest.mark.integration
 def test_branch_join():
-    names_of_files = ["R", "O"]
     name_of_query_file = "query_file"
 
     name_amount_dict = {"O": 1, "R": 2}
 
+    model_settings = ModelSettings({"O": DelayType.EVENTS_SELF_EMITTED, "R": DelayType.EVENTS_SELF_EMITTED})
+    model_settings.loop_counter = 2
+    model_settings.standard_setting = True
+    model_settings.delay_amount = {"O": 1, "R": 1}
+    model_settings.log_size = 9
+
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-    do_full_test(base_path, names_of_files, name_of_query_file, name_amount_dict, loop_counter = 2, standardSetting = True)
+    do_full_test(base_path, name_of_query_file, name_amount_dict, model_settings)
     
 
 @pytest.mark.integration
 def test_branch_join_time():
-    names_of_files = ["R", "O"]
     name_of_query_file = "query_file_time"
 
     name_amount_dict = {"O": 1, "R": 2}
 
+    model_settings = ModelSettings({"O": DelayType.EVENTS_SELF_EMITTED, "R": DelayType.EVENTS_SELF_EMITTED})
+    model_settings.loop_counter = 2
+    model_settings.standard_setting = True
+    model_settings.delay_amount = {"O": 1, "R": 1}
+    model_settings.log_size = 9
+
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-    do_full_test(base_path, names_of_files, name_of_query_file, name_amount_dict, loop_counter = 2, standardSetting = True, time_file="time")
+    do_full_test(base_path, name_of_query_file, name_amount_dict, model_settings, time_file="time")
 
 
 @pytest.mark.integration
 def test_branch_join_timed_log():
-    names_of_files = ["R", "O"]
     name_of_query_file = "query_file_time2"
 
     name_amount_dict = {"O": 1, "R": 2}
 
+    model_settings = ModelSettings({"O": DelayType.EVENTS_SELF_EMITTED, "R": DelayType.EVENTS_SELF_EMITTED})
+    model_settings.loop_counter = 2
+    model_settings.standard_setting = True
+    model_settings.delay_amount = {"O": 1, "R": 1}
+    model_settings.log_size = 9
+
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-    do_full_test(base_path, names_of_files, name_of_query_file, name_amount_dict, loop_counter = 2, standardSetting = True, time_file="time2")
+    do_full_test(base_path, name_of_query_file, name_amount_dict, model_settings, time_file="time2")
+
+@pytest.mark.integration
+def test_branch_join_only_time_log_delay():
+    name_of_query_file = "query_file_time3"
+
+    name_amount_dict = {"O": 1, "R": 2}
+
+    model_settings = ModelSettings({"O": DelayType.NOTHING, "R": DelayType.NOTHING})
+    model_settings.loop_counter = 2
+    model_settings.standard_setting = True
+    model_settings.log_size = 9
+
+    base_path = os.path.dirname(os.path.abspath(__file__))
+
+    do_full_test(base_path, name_of_query_file, name_amount_dict, model_settings, time_file="time2")

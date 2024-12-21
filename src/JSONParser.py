@@ -1,42 +1,167 @@
 import json
 from pathlib import Path
 from DataObjects.JSONTransfer import JSONTransfer, EventData
-from typing import List, Optional
-from dataclasses import dataclass, field
+from DataObjects.TimeJSONTransfer import LogTimeData, EventTimeData, TimeJSONTransfer
+from typing import List
+import json
+from typing import Dict, List, Any, Set
+from dataclasses import dataclass
+import copy
 
 @dataclass
-class LogTimeData:
-    role_name: str
-    min_time: Optional[int] = None
-    max_time: Optional[int] = None
+class Edge:
+    name: str
+    source: str
+    target: str
+    role: str
+
+    def __hash__(self):
+        return hash(self.name)
 
     def __eq__(self, other):
-        if isinstance(other, LogTimeData):
-            return self.role_name == other.role_name
-        elif isinstance(other, str):
-            return self.role_name == other
-        return False
+        if isinstance(other, str):
+            return self.name == other
+        if not isinstance(other, Edge):
+            return False
+        return (self.name == other.name and 
+                self.source == other.source and 
+                self.target == other.target and
+                self.role == other.role)
+    
+    def __repr__(self):
+        return (f"Edge(name={self.name!r}, source={self.source!r}, "
+                f"target={self.target!r}, role={self.role!r})")
 
-@dataclass
-class EventTimeData:
-    event_name: str
-    min_time: Optional[int] = None
-    max_time: Optional[int] = None
+class Graph:
+    def __init__(self):
+        self.nodes = set()
+        self.initial = ""
 
-    def __eq__(self, other):
-        if isinstance(other, EventTimeData):
-            return self.event_name == other.event_name
-        elif isinstance(other, str):  # Allow comparison directly with a string (event_name)
-            return self.event_name == other
-        return False
+    def set_nodes(self, nodes: Set[Edge]):
+        self.nodes = nodes
 
-@dataclass
-class TimeJSONTransfer:
-    log_time_data: Optional[List[LogTimeData]] = None
-    event_time_data: Optional[List[EventTimeData]] = None
+    def add_edge(self, edge: Edge):
+        self.nodes.add(edge)
+
+    def remove_edge(self, edge_name: str):
+        if edge_name in self.nodes:
+            edge_for_removal = next(edge for edge in self.nodes if edge.name == edge_name)
+            for edge_new in self.nodes:
+                if edge_new.target == edge_for_removal.source:
+                    edge_new.target = edge_for_removal.target
+            self.nodes.remove(edge_for_removal)
+
+    def get_role_names(self):
+        names = set()
+        for edge in self.nodes:
+            names.add(edge.role)
+        return names
 
 
-def parse_JSON_file(json_file: str) -> JSONTransfer:
+def build_graph(transitions: List[Dict[str, Any]]) -> Graph:
+    graph = Graph()
+    for t in transitions:
+        edge = Edge(t["label"]["logType"][0], t["source"], t["target"], t["label"]["role"])
+        graph.add_edge(edge)
+    return graph
+
+def build_graph(transitions: List[Dict[str, Any]]) -> Graph:
+    graph = Graph()
+    for t in transitions:
+        edge = Edge(t["label"]["logType"][0], t["source"], t["target"], t["label"]["role"])
+        graph.add_edge(edge)
+    return graph
+
+def generate_projection(graph: Graph, role: str) -> Graph:
+    copyGraph = Graph()
+    copyGraph.set_nodes(copy.deepcopy(graph.nodes))
+    copyGraph.initial = graph.initial
+
+    # First we find own events
+    own_edges = set()
+    own_edges_sources = set()
+    for edge in graph.nodes:
+        if edge.role == role:
+            own_edges.add(edge)
+            own_edges_sources.add(edge.source)
+
+    # Find those that come before
+    preceding_edges = set()
+    for edge in graph.nodes:
+        if edge.target in own_edges_sources:
+            preceding_edges.add(edge)
+
+    # Find those that are branching:
+    branching_edges = set()
+    all_sources = set()
+    branching_sources = set()
+    for edge in graph.nodes:
+        if edge.source in all_sources:
+            branching_sources.add(edge.source)
+        all_sources.add(edge.source)
+
+    for edge in graph.nodes:
+        if edge.source in branching_sources:
+            branching_edges.add(edge)
+
+    project_edges = own_edges | preceding_edges | branching_edges
+
+    for edge in graph.nodes:
+        if edge not in project_edges:
+            if edge.source == copyGraph.initial:
+                copyGraph.initial = edge.target
+            copyGraph.remove_edge(edge)
+    
+    return copyGraph
+
+def createJsonTransfer(graph: Graph, role: str) -> JSONTransfer:
+    own_events = []
+    other_events = []
+    subscriptions = []
+
+    for edge in graph.nodes:
+        if edge.role == role:
+            own_events.append(EventData(event_name=edge.name, source=edge.source, target=edge.target))
+        else:
+            other_events.append(EventData(event_name=edge.name, source=edge.source, target=edge.target))
+        subscriptions.append(edge.name)
+
+    return JSONTransfer(
+        name=role,
+        initial=graph.initial,
+        subscriptions=subscriptions,
+        own_events=own_events,
+        other_events=other_events
+    )
+
+def parse_protocol_JSON_file(json_file: str):
+    with open(json_file, 'r') as f:
+        data = json.load(f)
+    
+    graph = build_graph(data["transitions"])
+    graph.initial = data["initial"]
+
+    jsonTransfers = []
+    globalJsonTransfer = (createJsonTransfer(graph,"GlobalProtocol"))
+
+    for role in graph.get_role_names():
+        newGraph = generate_projection(graph,role)
+
+        jsonTransfers.append(createJsonTransfer(newGraph,role))
+
+    return globalJsonTransfer, jsonTransfers
+
+def parse_protocol_seperatly(json_file: str):
+    with open(json_file, 'r') as f:
+        data = json.load(f)
+
+    graph = build_graph(data["transitions"])
+    graph.initial = data["initial"]
+
+    return createJsonTransfer(graph,"GlobalProtocol")
+
+
+def parse_projection_JSON_file(json_file: str) -> JSONTransfer:
     with open(json_file, 'r') as f:
         data = json.load(f)
     

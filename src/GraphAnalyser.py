@@ -25,22 +25,25 @@ class GraphAnalyzer:
         self.locations = sorted(set(locations))
 
     
-    def find_immediate_preceding_events(self, event: EventData,branching_events: Set[EventData] , joining_events: Set[EventData]) -> Set[EventData]:
+    def find_preceding_branch_events(self, event: EventData,branching_events: Set[EventData] , joining_events: Set[EventData]) -> Set[EventData]:
         incoming_to_source = self.incoming[event.source]
         for incoming in incoming_to_source:
-            if incoming in joining_events:
-                return {e for e in joining_events if e.target == event.target}
             if incoming in branching_events:
-                return(incoming)
+                return({incoming})
 
         if incoming_to_source == []:
-            return event
-            
-        return self.find_immediate_preceding_events(incoming_to_source[0], branching_events, joining_events)
+            return {event}
+
+        res_list = set()
+        for incoming in incoming_to_source:
+            set_of_events = self.find_preceding_branch_events(incoming, branching_events, joining_events)
+            for part in set_of_events:
+                res_list.add(part)
+        return res_list
 
     def find_loops(self) -> Set[EventData]:
         """Find events that start loops using DFS."""
-        loop_starters = set()
+        loop_starters = dict()
         visited = set()
         path_stack = []
         event_stack = []  # List of events in current path
@@ -48,18 +51,15 @@ class GraphAnalyzer:
         def dfs(location: str, current_event: EventData = None):
             if location in path_stack:
                 # We found a loop! Find the event that first leads to a location in our current path
-                target_index = path_stack.index(location)  # Where the loop ends
-                
-                #print(event_stack)
-                #print(location)
-
+                loop_events = set()
                 # Look through events in our path to find the first one that creates the loop
                 for i in range(len(event_stack) - 1, -1, -1):  # Go backwards through events
                     event = event_stack[i]
                     # Go backwards through events untill we find the one which started this loop so source == target
                     if event.source == location:
-                        loop_starters.add(event)
+                        loop_starters[event] = loop_events
                         break
+                    loop_events.add(event)
                 return
 
             path_stack.append(location)
@@ -108,9 +108,9 @@ def analyze_graph(eventData: List[EventData], initial_name: str):
 
     preceding_events = {}
     for event in eventData:
-        preceding = analyzer.find_immediate_preceding_events(event,branching_events,joining_events)
+        preceding = analyzer.find_preceding_branch_events(event,branching_events,joining_events)
         if preceding:  # Only include if there are preceding events
-            preceding_events[event] = [preceding]
+            preceding_events[event] = preceding
 
     for event in preceding_events:
         if event.source == initial_name and any(e not in loop_events for e in preceding_events[event]):

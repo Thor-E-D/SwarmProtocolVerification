@@ -1,0 +1,25 @@
+{
+    "initial": "ClearingDock",
+    "transitions": [
+      {
+        "source": "ClearingDock",
+        "target": "Docking",
+        "label": { "cmd": "dockAvailable", "role": "Pump", "logType": ["DockAvailable"] }
+      },
+      {
+        "source": "Docking",
+        "target": "DrawingWater",
+        "label": { "cmd": "docked", "role": "Robot", "logType": ["RobotIsDocked"] }
+      },
+      {
+        "source": "DrawingWater",
+        "target": "Undocking",
+        "label": { "cmd": "waterSupplied", "role": "Pump", "logType": ["WaterSupplied"] }
+      },
+      {
+        "source": "Undocking",
+        "target": "Done",
+        "label": { "cmd": "Done", "role": "Robot", "logType": ["RobotIsUndocked"] }
+      }
+    ]
+  }

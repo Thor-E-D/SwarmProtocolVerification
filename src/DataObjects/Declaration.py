@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Callable, List, Tuple
-from .Channel import Channel  # Import the Channel class from channel.py
+from .Channel import Channel
 from UppaalPart import UppaalPart
 
 # Define the Declaration class with function call handling
@@ -11,19 +11,15 @@ class Declaration(UppaalPart):
     functions: List[Tuple[Callable, List]] = field(default_factory=list)
 
     def add_variable(self, var: str):
-        """Add a global variable declaration."""
         self.global_variables.append(var)
 
     def add_channel(self, chan: Channel):
-        """Add a channel declaration."""
         self.channels.append(chan)
 
     def add_function_call(self, func: Callable, *args):
-        """Add a function and its arguments to be called later."""
         self.functions.append((func, list(args)))
 
     def to_xml(self) -> str:
-        """Generate the full code for the declaration including variables, channels, and functions."""
         # Start the code block with <declaration> tags
         code = "<declaration>\n"
 
