@@ -17,7 +17,7 @@ def test_branch_join():
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-    do_full_test(base_path, name_of_query_file, name_amount_dict, model_settings)
+    do_full_test(base_path, name_amount_dict, model_settings, name_of_query_file)
     
 
 @pytest.mark.integration
@@ -34,7 +34,7 @@ def test_branch_join_time():
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-    do_full_test(base_path, name_of_query_file, name_amount_dict, model_settings, time_file="time")
+    do_full_test(base_path, name_amount_dict, model_settings, name_of_query_file, time_file="time")
 
 
 @pytest.mark.integration
@@ -51,7 +51,7 @@ def test_branch_join_timed_log():
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-    do_full_test(base_path, name_of_query_file, name_amount_dict, model_settings, time_file="time2")
+    do_full_test(base_path, name_amount_dict, model_settings, name_of_query_file, time_file="time2")
 
 @pytest.mark.integration
 def test_branch_join_only_time_log_delay():
@@ -66,4 +66,4 @@ def test_branch_join_only_time_log_delay():
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-    do_full_test(base_path, name_of_query_file, name_amount_dict, model_settings, time_file="time2")
+    do_full_test(base_path, name_amount_dict, model_settings, name_of_query_file, time_file="time2")

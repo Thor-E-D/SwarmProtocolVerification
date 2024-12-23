@@ -4,6 +4,7 @@ from DataObjects.Declaration import Declaration
 from DataObjects.JSONTransfer import JSONTransfer
 from DataObjects.Channel import Channel
 from DataObjects.ModelSettings import ModelSettings, DelayType
+from DataObjects.Model import Model
 from typing import List, Dict
 from collections import defaultdict
 from Utils import Utils
@@ -184,10 +185,6 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     # We first create the nessesary variable names to be used in UPPAAL.
     eventnames_dict, amount_names, advance_channels, update_channels, reset_channels = calculateRelevantMappings(jsonTransfers, name_amount_dict)
 
-    final_xml = """<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.6//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_6.dtd'>
-<nta>"""
-
     # Set total amount of events
     for jsonTransfer in jsonTransfers:
         jsonTransfer.total_amount_of_events = len(eventnames_dict)
@@ -364,29 +361,8 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
             log_time_data_role = next((log_time_data for log_time_data in model_settings.time_json_transfer.log_time_data if log_time_data.role_name == jsonTransfer.name), None)
             log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, model_settings.log_size,model_settings.delay_type[jsonTransfer.name], log_time_data_role)
         logs.append(log)
-
-    # Creating xml string
-    final_xml += declaration.to_xml()
-
-    for role in roles:
-        final_xml += role.to_xml()
-
-    for log in logs:
-        final_xml += log.to_xml()
-
-    system_instansiator_string = ""
-    for name in name_amount_dict:
-        system_instansiator_string += f"{name}, {name}_log, "
-    system_instansiator_string = system_instansiator_string[:-2]
-
-    # For each role put in name and log name
-    final_xml += f"""<system>// Place template instantiations here.
-// List one or more processes to be composed into a system.
-system {system_instansiator_string};
-</system>"""
-    final_xml += "</nta>"
-
-    return final_xml
+        
+    return Model(declaration, roles, logs)
 
 def createBasedOnFunctions(jsonTransfers, name_amount_dict, eventnames_dict, declaration):
     name_basedOnEvents = {}

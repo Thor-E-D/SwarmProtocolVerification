@@ -3,8 +3,8 @@
     "transitions": [
         {
             "label": {
-                "cmd": "Close",
-                "logType": ["Close"],
+                "cmd": "Open",
+                "logType": ["Open"],
                 "role": "Door"
             },
             "source": "l0",

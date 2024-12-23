@@ -32,7 +32,7 @@
             "label": {
                 "cmd": "e22",
                 "logType": ["e22"],
-                "role": "O"
+                "role": "R"
             },
             "source": "l2",
             "target": "l2"

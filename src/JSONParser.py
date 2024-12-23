@@ -108,9 +108,11 @@ def generate_projection(graph: Graph, role: str) -> Graph:
 
     for edge in graph.nodes:
         if edge not in project_edges:
-            if edge.source == copyGraph.initial:
-                copyGraph.initial = edge.target
-            copyGraph.remove_edge(edge)
+            # We need to get the one from copyGraph as it might have changed the target
+            copy_edge_for_removal = next(copy_edge for copy_edge in copyGraph.nodes if edge.name == copy_edge)
+            if copy_edge_for_removal.source == copyGraph.initial:
+                copyGraph.initial = copy_edge_for_removal.target
+            copyGraph.remove_edge(copy_edge_for_removal)
     
     return copyGraph
 

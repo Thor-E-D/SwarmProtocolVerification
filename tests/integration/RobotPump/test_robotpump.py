@@ -17,7 +17,7 @@ def test_pump_robot():
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-    do_full_test(base_path, name_of_query_file, name_amount_dict, model_settings)
+    do_full_test(base_path, name_amount_dict, model_settings, name_of_query_file)
 
     
 @pytest.mark.integration
@@ -34,7 +34,7 @@ def test_pump_robot_standard_setting():
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-    do_full_test(base_path, name_of_query_file, name_amount_dict, model_settings)
+    do_full_test(base_path, name_amount_dict, model_settings, name_of_query_file)
 
 
 @pytest.mark.integration
@@ -51,7 +51,7 @@ def test_pump_robot_time():
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-    do_full_test(base_path, name_of_query_file, name_amount_dict, model_settings, time_file="time1")
+    do_full_test(base_path, name_amount_dict, model_settings, name_of_query_file, time_file="time1")
 
 
 @pytest.mark.integration
@@ -68,4 +68,4 @@ def test_pump_robot_timed_log():
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-    do_full_test(base_path, name_of_query_file, name_amount_dict, model_settings, time_file="time2")
+    do_full_test(base_path, name_amount_dict, model_settings, name_of_query_file, time_file="time2")

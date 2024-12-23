@@ -282,7 +282,7 @@ bool isInBranchingConflict(int partition, int eventID) {
 
 def generate_function_consolidate_logs() -> str:
     return """
-void consolidateLogs(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], logEntryType correctBranchEvent, int &amp;currentIndex) {
+void consolidateLogs(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], logEntryType correctBranchEvent, int &amp;currentIndex, int &amp;currentLocation, int eventLocationMap[amountOfUniqueEvents][2]) {
     // move from discardedDueToCompetionEvents to discardedEvents and all basedOnEvents must be added to resLog.
     int i;
     int basedOnList[logSize];
@@ -296,6 +296,9 @@ void consolidateLogs(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logS
                 addIntToList(basedOnList, currentEvent.orderCount);
                 discardedDueToCompetionEvents[i] = 0;
                 currentIndex++;
+                if (eventLocationMap[currentEvent.eventID][0] == currentLocation) {
+                    currentLocation = eventLocationMap[currentEvent.eventID][1];
+                }
             } else if (isBranchingList[currentEvent.eventID]) {
                 if (isInBranchingConflict(isInBranchingPartion[currentEvent.eventID], correctBranchEvent.eventID) &amp;&amp; correctBranchEvent.basedOnOrderCount == currentEvent.basedOnOrderCount &amp;&amp; correctBranchEvent.tiedTo == currentEvent.tiedTo) {
                     if (isIntInList(trueDiscardedEvents, currentEvent.orderCount)) {
@@ -325,7 +328,7 @@ void consolidateLogs(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logS
 
 def generate_function_check_and_fix_branch_competetion() -> str:
     return """
-void checkAndFixBranchCompetetion(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int &amp;currentIndex) {
+void checkAndFixBranchCompetetion(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int &amp;currentIndex, int &amp;currentLocation, int eventLocationMap[amountOfUniqueEvents][2]) {
     int i;
     // we know we are going to return true to in competetion
     // Check if we have witnessed the correct event
@@ -334,7 +337,7 @@ void checkAndFixBranchCompetetion(logEntryType &amp;tmpLogEntry,logEntryType &am
             if (isInBranchingConflict(isInBranchingPartion[tmpLogEntry.eventID], trueGlobalLog[i].eventID) &amp;&amp; trueGlobalLog[i].basedOnOrderCount == tmpLogEntry.basedOnOrderCount &amp;&amp; trueGlobalLog[i].tiedTo == tmpLogEntry.tiedTo) {
                 if (isOrderCountInLog(resLog, trueGlobalLog[i].eventID)) {
                     // Consolidate
-                    consolidateLogs(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, trueGlobalLog[i], currentIndex);
+                    consolidateLogs(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, trueGlobalLog[i], currentIndex, currentLocation, eventLocationMap);
                 }
             }
         }
@@ -345,12 +348,12 @@ void checkAndFixBranchCompetetion(logEntryType &amp;tmpLogEntry,logEntryType &am
 
 def generate_function_handle_branching_event_standard_setting() -> str:
     return"""
-bool handleBranchingEventStandardSetting(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int &amp;currentIndex) {
+bool handleBranchingEventStandardSetting(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int &amp;currentIndex, int &amp;currentLocation, int eventLocationMap[amountOfUniqueEvents][2]) {
     int j;
     if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
         tmpLogEntry.ignored = true;
     }
-    //Need to check if looping cause the we would accept it if is basedOn is in discardedEvents
+    //Need to check if looping cause then we would accept it if is basedOn is in discardedEvents
     if (isIntInList(discardedEvents, tmpLogEntry.tiedTo)) {
         int tiedToEventID = getEventIDfromOrderCount(tmpLogEntry.tiedTo);
         if (isInBranchingPartion[tmpLogEntry.eventID] != isInBranchingPartion[tiedToEventID]) {
@@ -359,7 +362,8 @@ bool handleBranchingEventStandardSetting(logEntryType &amp;tmpLogEntry,logEntryT
     }
     
     for (j = currentIndex - 1; j &gt;= 0; j--) {
-        if (tmpLogEntry.basedOnOrderCount == resLog[j].basedOnOrderCount) {
+        // tmpLogEntry.basedOnOrderCount == resLog[j].basedOnOrderCount
+        if (true) {
             if(isInBranchingConflict(isInBranchingPartion[tmpLogEntry.eventID], resLog[j].eventID)) {
                 if (!isIntInList(discardedEvents, resLog[j].orderCount)) {
                     if (tmpLogEntry.eventID == resLog[j].eventID) { //Same one so does not need to ignore branch
@@ -367,7 +371,7 @@ bool handleBranchingEventStandardSetting(logEntryType &amp;tmpLogEntry,logEntryT
                         return false;
                     }
                     // if in competetion we have to check if correct
-                    checkAndFixBranchCompetetion(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
+                    checkAndFixBranchCompetetion(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
                     tmpLogEntry.ignored = true;
                     return true;
                 }
@@ -413,9 +417,17 @@ bool handle_standard_setting(logEntryType &amp;tmpLogEntry,logEntryType &amp;res
     if (eventLocationMap[tmpLogEntry.eventID][0] != currentLocation) {
         if (eventLocationMap[tmpLogEntry.eventID][0] != -1) { //In subsciptions
             tmpLogEntry.ignored = true;
+        } else {
+            // If it is in competetion then we still remove the faulty one
+            for (i = currentIndex - 1; i &gt;= 0; i--) {
+                if (resLog[i].eventID == tmpLogEntry.eventID &amp;&amp; (resLog[i].tiedTo == tmpLogEntry.tiedTo || resLog[i].basedOnOrderCount == tmpLogEntry.basedOnOrderCount)) {
+                    tmpLogEntry.ignored = true;
+                    return false;
+                }
+            }
         }
         if (isBranchingList[tmpLogEntry.eventID]) {
-            return handleBranchingEventStandardSetting(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
+            return handleBranchingEventStandardSetting(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
         }
         if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
             tmpLogEntry.ignored = true;
@@ -445,7 +457,16 @@ bool handle_standard_setting(logEntryType &amp;tmpLogEntry,logEntryType &amp;res
             tmpLogEntry.ignored = true;
             return false;
         }
-
+        // Even if correct it might still be in competetion
+        // Have to check for single loop edge case.
+        if (!isBranchingList[tmpLogEntry.eventID] &amp;&amp; eventLocationMap[tmpLogEntry.eventID][0] != eventLocationMap[tmpLogEntry.eventID][1]) {
+            for (i = currentIndex - 1; i &gt;= 0; i--) {
+                if (resLog[i].eventID == tmpLogEntry.eventID &amp;&amp; (resLog[i].tiedTo == tmpLogEntry.tiedTo || resLog[i].basedOnOrderCount == tmpLogEntry.basedOnOrderCount)) {
+                    tmpLogEntry.ignored = true;
+                    return false;
+                }
+            }
+        }
         currentLocation = eventLocationMap[tmpLogEntry.eventID][1];
     }
     return false;

@@ -18,7 +18,7 @@ def test_warehouse():
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-    do_full_test(base_path, name_of_query_file, name_amount_dict, model_settings)
+    do_full_test(base_path, name_amount_dict, model_settings, name_of_query_file)
 
 
 @pytest.mark.integration
@@ -35,4 +35,4 @@ def test_warehouse_two_forklifts():
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-    do_full_test(base_path, name_of_query_file, name_amount_dict, model_settings)
+    do_full_test(base_path, name_amount_dict, model_settings, name_of_query_file)
