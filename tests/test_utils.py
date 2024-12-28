@@ -112,9 +112,10 @@ def auto_generate_queries(protocol_json_file: str, log_size: int, base_path: str
     return "example_queries"
 
 
-def do_full_test(base_path: str, name_amount_dict: Dict[str,int], model_settings: ModelSettings, name_of_query_file: str = "", time_file: str = None):
+def do_full_test(base_path: str, model_settings: ModelSettings, name_of_query_file: str = "", time_file: str = None):
 
     projection_json_files, protocol_json_file, time_json_file = identify_json_files(base_path, time_file)
+    name_amount_dict = model_settings.role_amount
 
     time_file = None
     if (time_json_file != None):
@@ -131,7 +132,7 @@ def do_full_test(base_path: str, name_amount_dict: Dict[str,int], model_settings
         for projection_json_file in projection_json_files:
             jsonTransfers.append(parse_projection_JSON_file(projection_json_file))
 
-    currentModel = createModel(jsonTransfers, globalJsonTransfer, name_amount_dict, model_settings)
+    currentModel = createModel(jsonTransfers, globalJsonTransfer, model_settings)
     save_xml_to_file(currentModel.to_xml(), "example_file", base_path)
 
     model_path = base_path + "\\example_file.xml"

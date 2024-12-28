@@ -70,13 +70,13 @@ class Log(Template):
         declaration.add_function_call(generate_function_handle_log_entry, own_event_names, other_event_names)
         declaration.add_function_call(generate_function_merge_propagation_log,evetname_loopcounter) 
         
-        l1 = Location (id = Utils.get_next_id(), x=-204, y=-238, locationType = LocationType.COMMITTED)
+        l1 = Location (id = Utils.get_next_id(), x=-204, y=-238, name="l_prop1", locationType = LocationType.COMMITTED)
         l2 = Location (id = Utils.get_next_id(), x=-748, y=-136, locationType = LocationType.COMMITTED)
         l3 = Location (id = Utils.get_next_id(), x=-204, y=-136)
         l4 = Location (id = Utils.get_next_id(), x=229, y=-127, locationType = LocationType.COMMITTED)
         l5 = Location (id = Utils.get_next_id(), x=-612, y=34, locationType = LocationType.COMMITTED)
         if (not delay_nothing):
-            l6 = Location (id = Utils.get_next_id(), x=25, y=76, locationType = LocationType.COMMITTED)
+            l6 = Location (id = Utils.get_next_id(), x=25, y=76, name="l_prop2", locationType = LocationType.COMMITTED)
         l7 = Location (id = Utils.get_next_id(), x=-561, y=153, locationType = LocationType.COMMITTED)
         l8 = Location (id = Utils.get_next_id(), x=-977, y=34, locationType = LocationType.COMMITTED)
         l9 = Location (id = Utils.get_next_id(), x=-1079, y=136, locationType = LocationType.COMMITTED)

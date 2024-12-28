@@ -181,9 +181,10 @@ def createFlowList(jsonTransfer: JSONTransfer, eventname_to_UID_dict) -> tuple[i
 
 
 
-def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTransfer, name_amount_dict: Dict[str, int], model_settings: ModelSettings):
+def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTransfer, model_settings: ModelSettings):
     # We first create the nessesary variable names to be used in UPPAAL.
-    eventnames_dict, amount_names, advance_channels, update_channels, reset_channels = calculateRelevantMappings(jsonTransfers, name_amount_dict)
+    eventnames_dict, amount_names, advance_channels, update_channels, reset_channels = calculateRelevantMappings(jsonTransfers, model_settings.role_amount)
+    name_amount_dict = model_settings.role_amount
 
     # Set total amount of events
     for jsonTransfer in jsonTransfers:
@@ -361,7 +362,7 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
             log_time_data_role = next((log_time_data for log_time_data in model_settings.time_json_transfer.log_time_data if log_time_data.role_name == jsonTransfer.name), None)
             log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, model_settings.log_size,model_settings.delay_type[jsonTransfer.name], log_time_data_role)
         logs.append(log)
-        
+
     return Model(declaration, roles, logs)
 
 def createBasedOnFunctions(jsonTransfers, name_amount_dict, eventnames_dict, declaration):

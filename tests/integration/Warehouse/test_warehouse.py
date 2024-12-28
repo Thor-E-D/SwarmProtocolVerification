@@ -10,7 +10,7 @@ def test_warehouse():
 
     name_amount_dict = {"Door": 1, "Forklift": 1, "Transport": 1}
 
-    model_settings = ModelSettings({"Door": DelayType.EVENTS_SELF_EMITTED, "Forklift": DelayType.EVENTS_SELF_EMITTED, "Transport": DelayType.EVENTS_SELF_EMITTED})
+    model_settings = ModelSettings(name_amount_dict, {"Door": DelayType.EVENTS_SELF_EMITTED, "Forklift": DelayType.EVENTS_SELF_EMITTED, "Transport": DelayType.EVENTS_SELF_EMITTED})
     model_settings.loop_counter = 2
     model_settings.standard_setting = False
     model_settings.delay_amount = {"Door": 1, "Forklift": 1, "Transport": 1}
@@ -18,7 +18,7 @@ def test_warehouse():
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-    do_full_test(base_path, name_amount_dict, model_settings, name_of_query_file)
+    do_full_test(base_path, model_settings, name_of_query_file)
 
 
 @pytest.mark.integration
@@ -27,7 +27,7 @@ def test_warehouse_two_forklifts():
 
     name_amount_dict = {"Door": 1, "Forklift": 2, "Transport": 1}
 
-    model_settings = ModelSettings({"Door": DelayType.EVENTS_SELF_EMITTED, "Forklift": DelayType.EVENTS_SELF_EMITTED, "Transport": DelayType.EVENTS_SELF_EMITTED})
+    model_settings = ModelSettings(name_amount_dict, {"Door": DelayType.EVENTS_SELF_EMITTED, "Forklift": DelayType.EVENTS_SELF_EMITTED, "Transport": DelayType.EVENTS_SELF_EMITTED})
     model_settings.loop_counter = 2
     model_settings.standard_setting = False
     model_settings.delay_amount = {"Door": 1, "Forklift": 1, "Transport": 1}
@@ -35,4 +35,4 @@ def test_warehouse_two_forklifts():
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-    do_full_test(base_path, name_amount_dict, model_settings, name_of_query_file)
+    do_full_test(base_path, model_settings, name_of_query_file)

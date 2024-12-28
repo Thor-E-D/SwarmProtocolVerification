@@ -151,6 +151,11 @@ void findAndSetDifferenceInLogs(logEntryType &amp;oldLog[logSize], logEntryType 
                 eventsToRead++;
                 resetCount++;
                 foundDifference = true;
+            } else if (foundDifference) {
+                foundDifference = false;
+                logDifferenceEventIDs = resetList;
+                eventsToRead = 0;
+                resetCount = 0;
             }
         } else if (oldLog[i].orderCount == 0 &amp;&amp; newLog[i].orderCount == 0) {
             return;
