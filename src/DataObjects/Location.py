@@ -1,10 +1,19 @@
+"""\
+The representation of a location.
+Can express the same as a location in UPPAAL.
+Position of names and invariantes is in relation to locations position
+
+"""
+
 from dataclasses import dataclass
 from typing import Optional
-import xml.etree.ElementTree as ET
-from UppaalPart import UppaalPart
 from enum import Enum
 
-# Define an Enum
+import xml.etree.ElementTree as ET
+
+from UppaalPart import UppaalPart
+
+# Types of UPPAAL locations
 class LocationType(Enum):
     URGENT = 1
     COMMITTED = 2

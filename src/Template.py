@@ -1,7 +1,13 @@
+"""\
+Template is a UPPAAL construct here reflected in python
+
+"""
+
+from typing import List
+
 from DataObjects.Declaration import Declaration
 from DataObjects.Transition import Transition
 from DataObjects.Location import Location
-from typing import List
 from UppaalPart import UppaalPart
 
 class Template(UppaalPart):

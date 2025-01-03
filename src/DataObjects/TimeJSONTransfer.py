@@ -1,5 +1,11 @@
-from typing import List, Optional
+"""\
+Python dataclass for the information stored in a json file with time information for
+the UPPAAL model. To allow easy transfer.
+
+"""
+
 from dataclasses import dataclass
+from typing import List, Optional
 
 @dataclass
 class LogTimeData:
@@ -10,7 +16,7 @@ class LogTimeData:
     def __eq__(self, other):
         if isinstance(other, LogTimeData):
             return self.role_name == other.role_name
-        elif isinstance(other, str):
+        elif isinstance(other, str):  # Allow comparison directly with a string (event_name)
             return self.role_name == other
         return False
 
@@ -23,7 +29,7 @@ class EventTimeData:
     def __eq__(self, other):
         if isinstance(other, EventTimeData):
             return self.event_name == other.event_name
-        elif isinstance(other, str):  # Allow comparison directly with a string (event_name)
+        elif isinstance(other, str):
             return self.event_name == other
         return False
 

@@ -1,3 +1,12 @@
+"""\
+String representation of all UPPAAL functions.
+Most are static but some change depending on the given Swarm protocol (json files).
+
+Note: length of arrays in UPPAAL most be hardcoded so some functions have the same 
+functionality, but with different length of arrays.
+
+"""
+
 def generate_function_is_in_subsciption() -> str:
     return """
 bool isInSubsciptions(int tmpList[amountOfUniqueEvents], int possibleEntry) {
@@ -535,7 +544,7 @@ bool handleStandardEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[
 }"""
 
 
-# This function expects the name of the function and a map of what each event is based on
+# This function expects the name of the function and a map of what other event each event is based on
 def generate_function_update_log_name(name: str, event_condition_map: dict[str, list[str]]) -> str:
     function_str = f"""
 void updateLog{name}(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize], int log_id_start) {{    

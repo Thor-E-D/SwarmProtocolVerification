@@ -1,10 +1,19 @@
+"""\
+The representation of a model.
+One to one correclation with what is contained within a UPPAAL xml file.
+
+"""
+
 from dataclasses import dataclass
+from typing import List
+
 import xml.etree.ElementTree as ET
+
 from UppaalPart import UppaalPart
 from Log import Log
 from Role import Role
 from .Declaration import Declaration
-from typing import List
+
 
 @dataclass
 class Model(UppaalPart):

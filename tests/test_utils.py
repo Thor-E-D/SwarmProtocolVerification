@@ -1,14 +1,32 @@
+"""\
+Test base keeping code shared for testing to avoid code duplication.
+Additionally holds logic for creating automatic queries for testing.
+Overall approach is build model and test that all queries are verifed
+
+"""
+
 import pytest
 import os
 import subprocess
-from ModelBuilder import createModel, save_xml_to_file
+import json
+from typing import List, Dict
+
+from ModelBuilder import createModel
 from DataObjects.ModelSettings import ModelSettings
 from JSONParser import Graph, parse_time_JSON, parse_projection_JSON_file, parse_protocol_seperatly, parse_protocol_JSON_file, build_graph
-from typing import List, Dict
-import json
 
 #verifyta_path = "C:\\Program Files\\uppaal-5.0.0-win64\\bin\\verifyta" # 5.0.0
 verifyta_path = "C:\\Program Files\\UPPAAL-5.1.0-beta5\\app\\bin\\verifyta" # 5.1.0 beta-5
+
+def save_xml_to_file(xml_data: str, file_name: str, file_path: str):
+    full_file_path = f"{file_path}/{file_name}.xml"
+    
+    try:
+        with open(full_file_path, 'w', encoding='utf-8') as file:
+            file.write(xml_data)
+        print(f"XML file saved successfully at {full_file_path}")
+    except Exception as e:
+        print(f"An error occurred while saving the file: {e}")
 
 def identify_json_files(folder_path, time_file_name: str = None):
     projection_json_files = set()

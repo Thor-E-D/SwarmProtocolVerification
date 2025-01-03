@@ -1,12 +1,21 @@
-import json
+"""\
+Responsible for parsing JSON files such as
+full protocol json, projection json and time json in
+to either of the two json transfer classes.
+Only works if jsons are formattet correctly.
+
+Also capable of constructing projection if nessesary.
+
+"""
+
+from dataclasses import dataclass
+from typing import Dict, List, Any, Set
 from pathlib import Path
+import json
+import copy
+
 from DataObjects.JSONTransfer import JSONTransfer, EventData
 from DataObjects.TimeJSONTransfer import LogTimeData, EventTimeData, TimeJSONTransfer
-from typing import List
-import json
-from typing import Dict, List, Any, Set
-from dataclasses import dataclass
-import copy
 
 @dataclass
 class Edge:

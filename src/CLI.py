@@ -1,15 +1,24 @@
+"""\
+Command Line Interface.
+Using argparse to keep track of commands and help messages.
+Contains all arguments, along with relevant helper methods for necessary functionality
+such as formatting the output of fault traces to only contain relevant information for user.
+
+"""
+
 import argparse
 import json
 import os
 import subprocess
-from DataObjects.Model import Model
-from DataObjects.ModelSettings import DelayType, ModelSettings
-from JSONParser import Graph, parse_time_JSON, parse_projection_JSON_file, parse_protocol_seperatly, parse_protocol_JSON_file, build_graph
-from ModelBuilder import createModel, save_xml_to_file
 from typing import Dict
 import re
 
-state_path = "PermanentState\\state.json"
+from DataObjects.Model import Model
+from DataObjects.ModelSettings import DelayType, ModelSettings
+from JSONParser import parse_time_JSON, parse_projection_JSON_file, parse_protocol_JSON_file, build_graph
+from ModelBuilder import createModel
+
+state_path = "PermanentState\\state.json" # Hardcoded relative path to local state file.
 base_path = os.path.dirname(os.path.abspath(__file__)) 
 current_model = None
 
@@ -19,6 +28,16 @@ DELAY_TYPE_MAPPING = {
     "E": DelayType.EVENTS_EMITTED,
     "S": DelayType.EVENTS_SELF_EMITTED
 }
+
+def save_xml_to_file(xml_data: str, file_name: str, file_path: str):
+    full_file_path = f"{file_path}/{file_name}.xml"
+    
+    try:
+        with open(full_file_path, 'w', encoding='utf-8') as file:
+            file.write(xml_data)
+        print(f"XML file saved successfully at {full_file_path}")
+    except Exception as e:
+        print(f"An error occurred while saving the file: {e}")
 
 def identify_json_files(folder_path):
     projection_json_files = set()
@@ -151,7 +170,6 @@ def load_state_into_model_settings(state_data):
     return model_settings
 
 def build_model(args):
-    # Load model settings:
     state_data = None
     if args.path_to_state == None:
         state_data = get_state_data("")
@@ -262,6 +280,8 @@ def filter_ouput(file_path_input: str) -> str:
     transition_pattern = re.compile(r"Transition:")
     propagation_pattern = re.compile(r"l_prop[0-9]->")
     property_satisfied_pattern = re.compile(r"-- Formula is satisfied.")
+    delay_pattern = re.compile(r"Delay: \d+")
+    global_time_pattern = re.compile(r"globalTime=\d+")
 
     result = ""
 
@@ -270,12 +290,13 @@ def filter_ouput(file_path_input: str) -> str:
         next_is_state = False
         next_is_transition = False
         current_state = None
+        current_global_time = None
 
         content = infile.read()
         if (property_satisfied_pattern.search(content) != None):
-            return "Query was satisfied \n"
+            result += "Query was satisfied \n"
         else:
-            result += "Query not satified. Printing Trace: \n"
+            result += "Query not satified \n"
         
         for line in content.splitlines():
             state_match = state_pattern.search(line)
@@ -287,7 +308,7 @@ def filter_ouput(file_path_input: str) -> str:
             if next_is_state:
                 lines_to_save = [role for role in line.split() if "log" not in role and role != "(" and role != ")"]
                 if lines_to_save != current_state:
-                    result += (f"State: {lines_to_save}\n")
+                    result += (f"State: {lines_to_save}" + "\n")
                     current_state = lines_to_save
                 next_is_state = False
             
@@ -300,11 +321,20 @@ def filter_ouput(file_path_input: str) -> str:
                 propagation_match = propagation_pattern.search(line)
                 transition = line.partition("{")[0]
                 if propagation_match != None:
-                    role = line.partition("_log")[0]
-                    result += (f"Role {role} propagted to all other roles\n")
+                    role = line.partition("_log")
+                    result += (f"Role {role[0]}({role[2][1]}) propagted to all other roles\n")
                 if "_log" not in transition:
                     result += (f"Transition: {transition}\n")
                 next_is_transition = False
+
+            delay_match = delay_pattern.search(line)
+            if delay_match != None:
+                result += (delay_match.group() + "  ")
+
+            global_time_match = global_time_pattern.search(line)
+            if global_time_match != None and current_global_time != global_time_match.group():
+                current_global_time = global_time_match.group()
+                result += current_global_time + "\n"
     
     return result
 
@@ -318,11 +348,8 @@ def verify_model(model_path, query_path, verifyta_path):
 
     for i in range(len(queries)):
         print(f"Verifying query {i}: {queries[i]}")
-        #command = [verifyta_path, model_path, query_path, "--query-index", f"{i}","--diagnostic", "0", "--save-trace", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\SingleLoop\\trace.txt"]
         command = [verifyta_path, model_path, query_path, "--query-index", f"{i}","--diagnostic", "0"]
-        #result = subprocess.run(command, capture_output=True, text=True)
-        output_file = "trace.txt"
-        file_path = os.path.join(base_path, state_path[:-11], output_file)
+        file_path = os.path.join(base_path, state_path[:-11], "trace.txt")
 
         # Run the command and write the output directly to the file
         with open(file_path, "w") as file:
@@ -332,7 +359,7 @@ def verify_model(model_path, query_path, verifyta_path):
         filtered_output = filter_ouput(file_path)
         print(filtered_output)
 
-
+# Checks correct format of given information.
 def parse_json_dict(key, json_input):
     try:
         updates = json.loads(json_input)
@@ -354,13 +381,13 @@ def parse_json_dict(key, json_input):
                     print("Provided delay amount dictionary must be of the shape {str, Delay Type}")
                     return
                 new_delay_type = {}
-                for key in updates:
-                    new_delay_type[key] = DELAY_TYPE_MAPPING[updates[key]]
+                for key_type in updates:
+                    new_delay_type[key_type] = DELAY_TYPE_MAPPING[updates[key_type]]
                 update_local_state(key, updates)
-            #update_state_file(key,updates)
     except json.JSONDecodeError as e:
         print(f"Error: Invalid JSON input. {e}")
 
+# For model setting arguments
 def set_arguments(args):
     if args.standard_setting != None:
         update_local_state("standard_setting", args.standard_setting)
@@ -369,7 +396,7 @@ def set_arguments(args):
         update_local_state("log_size", args.log_size)
 
     if args.loop_counter != None:
-        update_local_state("loop_bound", args.loop_bound)
+        update_local_state("loop_bound", args.loop_counter)
 
     if args.delay_type_all != None:
         args.delay_type_all = " ".join(args.delay_type_all)
@@ -390,7 +417,6 @@ def create_parser():
     parser = argparse.ArgumentParser(description="Model cheking swarm protocols CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # For setting 
     set_uppaal_path_parser = subparsers.add_parser("setVer", help="Set the path to a verifyta distribution")
     set_uppaal_path_parser.add_argument(
         "path",
@@ -411,7 +437,6 @@ def create_parser():
 
     subparsers.add_parser("showPath", help="Displays the path to the folder containing relevant json files")
 
-    # For the builder
     build_parser = subparsers.add_parser("build", help="build the model")
     build_parser.add_argument(
         "-pf", "--path-to-folder",
@@ -429,7 +454,7 @@ def create_parser():
         required=False
     )
 
-    # For setting arguments for the verifier
+    # For setting arguments for the model
     argument_parser = subparsers.add_parser("setArgs", help="set the arguments for the build")
     argument_parser.add_argument(
         "-log", "--log-size",
@@ -572,7 +597,7 @@ def main():
                 break
         except SystemExit:
             # Handle argparse exiting on errors
-            print("Invalid command. Type '-h' or '--help' for assistance.")
+            print("Invalid command. Type '-h' or '--help' for valid commands")
 
 if __name__ == "__main__":
     main()

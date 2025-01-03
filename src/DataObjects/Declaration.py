@@ -1,9 +1,17 @@
+"""\
+The representation of a Declaration.
+Split into three as variables, functions and channels.
+Functions are kept as callable functions until needed.
+Variables are simply represented as strings.
+
+"""
+
 from dataclasses import dataclass, field
 from typing import Callable, List, Tuple
+
 from .Channel import Channel
 from UppaalPart import UppaalPart
 
-# Define the Declaration class with function call handling
 @dataclass
 class Declaration(UppaalPart):
     global_variables: List[str] = field(default_factory=list)
@@ -20,22 +28,17 @@ class Declaration(UppaalPart):
         self.functions.append((func, list(args)))
 
     def to_xml(self) -> str:
-        # Start the code block with <declaration> tags
         code = "<declaration>\n"
 
-        # Add global variables
         if self.global_variables:
             code += "\n".join(self.global_variables) + "\n"
 
-        # Add channel declarations
         for chan in self.channels:
             code += chan.to_xml() + "\n"
 
-        # Add function definitions
         for func, args in self.functions:
             code += func(*args) + "\n"
 
-        # Close the <declaration> block
         code += "</declaration>"
 
         return code

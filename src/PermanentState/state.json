@@ -1,20 +1,23 @@
 {
     "verifyta_path": "C:\\Program Files\\UPPAAL-5.1.0-beta5\\app\\bin\\verifyta.exe",
-    "base_path": "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\SingleLoop",
+    "base_path": "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse",
     "delay_type": {
-        "O": "S",
-        "R": "S"
+        "Door": "S",
+        "Forklift": "S",
+        "Transport": "S"
     },
-    "loop_bound": 3,
+    "loop_bound": 2,
     "standard_setting": true,
-    "log_size": 14,
+    "log_size": 20,
     "delay_amount": {
-        "O": 1,
-        "R": 1
+        "Door": 1,
+        "Forklift": 1,
+        "Transport": 1
     },
     "subsets": "SubsetA",
     "role_amount": {
-        "O": 1,
-        "R": 2
+        "Door": 1,
+        "Forklift": 2,
+        "Transport": 1
     }
 }

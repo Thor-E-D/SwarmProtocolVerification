@@ -1,9 +1,18 @@
+"""\
+The representation of a transition.
+guards, synchronisation and assignments are all represented with strings.
+Nails are points along the edges.
+
+"""
+
 from dataclasses import dataclass, field
 from typing import Optional, List
-from .Location import Location
-from Utils import Utils
+
 import xml.etree.ElementTree as ET
+
+from Utils import Utils
 from UppaalPart import UppaalPart
+from .Location import Location
 
 @dataclass
 class Transition(UppaalPart):
@@ -38,7 +47,6 @@ class Transition(UppaalPart):
                 y += nail[1]
             x //= len(self.nails)
             y //= len(self.nails)
-            #print(str(extra_x) + " and " + str(extra_y))
 
         if self.guard:
             guard_elem = ET.SubElement(transition_elem, "label", attrib={"kind": "guard", "x": f"{x}", "y": f"{y}"})

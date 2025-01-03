@@ -1,13 +1,21 @@
-from Template import Template
+"""\
+Creates and holds all information for a log.
+Log is constructed differently depeding on given settings,
+such as if time is included and what kind of delay in propagation is used.
+
+"""
+
+from typing import Dict
+
 from DataObjects.Declaration import Declaration
 from DataObjects.Transition import Transition
 from DataObjects.Location import Location, LocationType
 from DataObjects.JSONTransfer import JSONTransfer
 from DataObjects.TimeJSONTransfer import LogTimeData
 from DataObjects.ModelSettings import DelayType
+from Template import Template
 from Utils import Utils
 from Functions import generate_function_merge_propagation_log, generate_function_handle_log_entry
-from typing import Dict
 
 class Log(Template):
     def __init__(self, parameter: str, jsonTransfer: JSONTransfer, evetname_loopcounter: Dict[str,str], log_size: int, log_delay_type: DelayType, log_time_data: LogTimeData = None):
@@ -132,7 +140,7 @@ class Log(Template):
                 id=Utils.get_next_id(),
                 source=l4,
                 target=intitial_location,
-                guard=f"updatesSincePropagation == 1", #We know it is the first since propagation and need to reset the clock.
+                guard=f"updatesSincePropagation == 1", # We know it is the first since propagation and need to reset the clock.
                 assignment=Utils.remove_last_two_chars(assigmentAddition),
                 ))
 
@@ -345,5 +353,4 @@ eventsToRead := 0"""
             nails=nails
         ))
         
-        # Initialize the superclass with the data
         super().__init__(name + "_log", parameter, declaration, locations, l3, transitions)

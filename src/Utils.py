@@ -1,3 +1,8 @@
+"""\
+Holds static utility functions used across the project
+
+"""
+
 from DataObjects.Location import Location
 
 class Utils:

@@ -1,9 +1,16 @@
+"""\
+The settings nessesary to create a full model in UPPAAL
+Every variable can be changed by the user through the CLI
+
+"""
+
 from typing import Dict, Optional
 from dataclasses import dataclass
-from .TimeJSONTransfer import TimeJSONTransfer
 from enum import Enum
 
-# Define an Enum
+from .TimeJSONTransfer import TimeJSONTransfer
+
+# The different ways to delay propagation
 class DelayType(Enum):
     NOTHING = 1
     EVENTS_EMITTED = 2

@@ -1,36 +1,25 @@
-from JSONParser import parse_projection_JSON_file
-from DataObjects.TimeJSONTransfer import TimeJSONTransfer
+"""\
+Creates and holds all information for a log.
+Log is constructed differently depeding on given settings,
+such as if time is included and what kind of delay in propagation is used.
+
+"""
+from typing import List, Dict
+from collections import defaultdict
+from itertools import groupby
+from operator import attrgetter
+
 from DataObjects.Declaration import Declaration
 from DataObjects.JSONTransfer import JSONTransfer
 from DataObjects.Channel import Channel
 from DataObjects.ModelSettings import ModelSettings, DelayType
 from DataObjects.Model import Model
-from typing import List, Dict
-from collections import defaultdict
+from JSONParser import parse_projection_JSON_file
 from Utils import Utils
 from Functions import *
 from Log import Log
 from Role import Role
 from GraphAnalyser import analyze_graph
-from operator import attrgetter
-from itertools import groupby
-import subprocess
-import os
-
-
-
-currentModel = ""
-
-# attempts to write the contens to a file.
-def save_xml_to_file(xml_data: str, file_name: str, file_path: str):
-    full_file_path = f"{file_path}/{file_name}.xml"
-    
-    try:
-        with open(full_file_path, 'w', encoding='utf-8') as file:
-            file.write(xml_data)
-        print(f"XML file saved successfully at {full_file_path}")
-    except Exception as e:
-        print(f"An error occurred while saving the file: {e}")
 
 def add_branching_functionality(declaration: Declaration, branching_events, eventname_to_UID_dict):
     # Handling branching events
@@ -39,7 +28,6 @@ def add_branching_functionality(declaration: Declaration, branching_events, even
     partioned_branching_events = [{Utils.get_eventtype_UID(event.event_name) for event in group}
         for _, group in groupby(sorted_events, key=attrgetter('source'))]
     
-
     outer_size = len(partioned_branching_events)
     inner_size_max = 0
 
@@ -84,7 +72,7 @@ def add_branching_functionality(declaration: Declaration, branching_events, even
     declaration.add_variable(f"const int isBranchingList[amountOfUniqueEvents] = {Utils.python_list_to_uppaal_list(is_branching_list).lower()};")
     declaration.add_variable(f"const int isInBranchingPartion[amountOfUniqueEvents] = {Utils.python_list_to_uppaal_list(is_in_branching_partion)};")
 
-def calculateRelevantMappings(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, int]):
+def calculate_relevant_mappings(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, int]):
     eventnames_dict = {} # Maps eventname/logtypes to Unique names 
     amount_names = {} # Maps role name to typedef name. 
     advance_channels = {} # Maps role name to advance channel.
@@ -116,7 +104,7 @@ def calculateRelevantMappings(jsonTransfers: List[JSONTransfer], name_amount_dic
 
     return eventnames_dict, amount_names, advance_channels, update_channels, reset_channels
 
-def addFunctions(declaration: Declaration):
+def add_functions(declaration: Declaration):
     # Ordering is important as some functions depend on others.
     declaration.add_function_call(generate_function_is_in_subsciption)
     declaration.add_function_call(generate_function_is_int_in_list)
@@ -142,10 +130,9 @@ def addFunctions(declaration: Declaration):
     declaration.add_function_call(generate_function_update_true_global_log)
     declaration.add_function_call(generate_function_update_global_log)
     declaration.add_function_call(generate_function_update_log)
-    #declaration.add_function_call(generate_function_handle_other_event)
 
-
-def createFlowList(jsonTransfer: JSONTransfer, eventname_to_UID_dict) -> tuple[int, List[List[int]]]:
+# Creates the list and variables for keeping track of where the role currently is.
+def create_flow_list(jsonTransfer: JSONTransfer, eventname_to_UID_dict) -> tuple[int, List[List[int]]]:
     # We first need to map all locations to a unigue int ID
     location_map = {}
     counter = 0
@@ -179,17 +166,9 @@ def createFlowList(jsonTransfer: JSONTransfer, eventname_to_UID_dict) -> tuple[i
 
     return location_map[jsonTransfer.initial], flow_list
 
-
-
-def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTransfer, model_settings: ModelSettings):
-    # We first create the nessesary variable names to be used in UPPAAL.
-    eventnames_dict, amount_names, advance_channels, update_channels, reset_channels = calculateRelevantMappings(jsonTransfers, model_settings.role_amount)
-    name_amount_dict = model_settings.role_amount
-
-    # Set total amount of events
+def enrich_json(jsonTransfers, eventnames_dict):
     for jsonTransfer in jsonTransfers:
         jsonTransfer.total_amount_of_events = len(eventnames_dict)
-
 
     set_of_preceding_events = defaultdict(set)
     max_amount_of_preceding_events = 1
@@ -197,7 +176,6 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     all_loop_events = set()
 
     for jsonTransfer in jsonTransfers:
-
         all_events = jsonTransfer.own_events.copy()
         all_events.extend(jsonTransfer.other_events)
 
@@ -227,6 +205,39 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     all_loop_event_names = set()
     for loop_event in all_loop_events:
         all_loop_event_names.add(Utils.get_eventtype_UID(loop_event.event_name))
+    return set_of_preceding_events,max_amount_of_preceding_events,branching_events,all_loop_event_names
+
+# Creates UPPAAL functions for setting what event each event should be based on
+def create_basedOn_functions(jsonTransfers, name_amount_dict, eventnames_dict, declaration):
+    name_basedOnEvents = {}
+    for jsonTransfer in jsonTransfers:
+        basedOnEvents = {}
+
+        all_events = jsonTransfer.own_events.copy()
+        all_events.extend(jsonTransfer.other_events)
+
+        for current_event in jsonTransfer.own_events:
+            for event in all_events:
+                if event.target == current_event.source:
+                    if eventnames_dict[current_event.event_name] in basedOnEvents:
+                        basedOnEvents[eventnames_dict[current_event.event_name]].append(eventnames_dict[event.event_name])
+                    else:
+                        basedOnEvents[eventnames_dict[current_event.event_name]] = [eventnames_dict[event.event_name]]
+    
+        name_basedOnEvents[jsonTransfer.name] = basedOnEvents
+
+
+    for name in name_amount_dict:
+        declaration.add_function_call(generate_function_update_log_name, name,name_basedOnEvents[name])
+
+
+def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTransfer, model_settings: ModelSettings):
+    # We first create the nessesary variable names to be used in UPPAAL.
+    eventnames_dict, amount_names, advance_channels, update_channels, reset_channels = calculate_relevant_mappings(jsonTransfers, model_settings.role_amount)
+    name_amount_dict = model_settings.role_amount
+
+    # Set total amount of events
+    set_of_preceding_events, max_amount_of_preceding_events, branching_events, all_loop_event_names = enrich_json(jsonTransfers, eventnames_dict)
 
 
     declaration = Declaration()
@@ -301,12 +312,12 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     add_branching_functionality(declaration, branching_events, eventname_to_UID_dict)
 
     # Creating a list to use for letting the log know where we are
-    global_pointer, global_flow_list = createFlowList(globalJsonTransfer, eventname_to_UID_dict)
+    global_pointer, global_flow_list = create_flow_list(globalJsonTransfer, eventname_to_UID_dict)
     declaration.add_variable(f"int globalCurrentLocation = {global_pointer};")
     declaration.add_variable(f"const int globalEventLocationMap[amountOfUniqueEvents][2] = {Utils.python_list_to_uppaal_list(global_flow_list)};")
 
     for jsonTransfer in jsonTransfers:
-        initial_pointer, flow_list = createFlowList(jsonTransfer, eventname_to_UID_dict)
+        initial_pointer, flow_list = create_flow_list(jsonTransfer, eventname_to_UID_dict)
         jsonTransfer.initial_pointer = initial_pointer
         jsonTransfer.flow_list = flow_list
 
@@ -332,8 +343,8 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
             declaration.add_channel(Channel(urgent=False, broadcast=True, type=currentAmount, name=advance_channel))
 
     # Functions
-    addFunctions(declaration)
-    createBasedOnFunctions(jsonTransfers, name_amount_dict, eventnames_dict, declaration)
+    add_functions(declaration)
+    create_basedOn_functions(jsonTransfers, name_amount_dict, eventnames_dict, declaration)
 
     # Adding templates comprised of roles and logs for each jsonTransfer we create one of each.
     roles = []
@@ -364,88 +375,3 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
         logs.append(log)
 
     return Model(declaration, roles, logs)
-
-def createBasedOnFunctions(jsonTransfers, name_amount_dict, eventnames_dict, declaration):
-    name_basedOnEvents = {}
-    for jsonTransfer in jsonTransfers:
-        basedOnEvents = {}
-
-        all_events = jsonTransfer.own_events.copy()
-        all_events.extend(jsonTransfer.other_events)
-
-        for current_event in jsonTransfer.own_events:
-            for event in all_events:
-                if event.target == current_event.source:
-                    if eventnames_dict[current_event.event_name] in basedOnEvents:
-                        basedOnEvents[eventnames_dict[current_event.event_name]].append(eventnames_dict[event.event_name])
-                    else:
-                        basedOnEvents[eventnames_dict[current_event.event_name]] = [eventnames_dict[event.event_name]]
-    
-        name_basedOnEvents[jsonTransfer.name] = basedOnEvents
-
-
-    for name in name_amount_dict:
-        declaration.add_function_call(generate_function_update_log_name, name,name_basedOnEvents[name])
-
-def parseJsonFiles(paths_to_jsons: List[str]):
-    jsonTransfers = []
-    for path in paths_to_jsons:
-        jsonTransfers.append(parse_projection_JSON_file(path))
-
-    return jsonTransfers
-
-def wareHousedemo():
-    jsonTransfers = []
-    jsonTransfers.append(parse_projection_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse\\Door.json"))
-    jsonTransfers.append(parse_projection_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse\\Forklift.json"))
-    jsonTransfers.append(parse_projection_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse\\Transport.json"))
-
-    name_amount_dict = {}
-    for jsonTransfer in jsonTransfers:
-        if (jsonTransfer.name == "Forklift"):
-            name_amount_dict[jsonTransfer.name] = 2
-        else:
-            name_amount_dict[jsonTransfer.name] = 1
-
-    loop_bound = 2
-    currentModel = createModel(jsonTransfers, name_amount_dict, loop_bound)
-    save_xml_to_file(currentModel, "warehouse_example6", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse")
-
-def plantRobotDemo():
-    jsonTransfers = [] 
-    jsonTransfers.append(parse_projection_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\RobotPump\\Robot.json"))
-    jsonTransfers.append(parse_projection_JSON_file("C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\RobotPump\\Pump.json"))
-
-    name_amount_dict = {}
-    for jsonTransfer in jsonTransfers:
-        if (jsonTransfer.name == "Robot"):
-            name_amount_dict[jsonTransfer.name] = 2
-        else:
-            name_amount_dict[jsonTransfer.name] = 1
-
-    currentModel = createModel(jsonTransfers, name_amount_dict, standard_setting=True)
-    save_xml_to_file(currentModel, "example_file", "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\RobotPump")
-
-def verifyta_example():
-    plantRobotDemo()
-    verifyta_path = "C:\\Program Files\\uppaal-5.0.0-win64\\bin\\verifyta"
-    model_path = "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\RobotPump\\example_file.xml"
-    query_string = "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\RobotPump\\query_file.txt"
-    # Define the command as a list of strings
-    command = [verifyta_path,model_path , query_string]
-
-    # Run the command
-    result = subprocess.run(command, capture_output=True, text=True)
-
-    # Check if it was successful
-    if result.returncode == 0:
-        print("Success:", result.stdout)  # Print the standard output
-    else:
-        print("Error:", result.stderr)    # Print the standard error
-
-
-if __name__ == "__main__":
-    # Should just load all json files in a given folder.
-    #verifyta_example()
-    plantRobotDemo()
-    #wareHousedemo()

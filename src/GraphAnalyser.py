@@ -1,3 +1,9 @@
+"""\
+Used to analyse swarms to find loops, branching events and
+what each event should use for branch tracking
+
+"""
+
 from typing import List, Set, Dict
 from dataclasses import dataclass
 from collections import defaultdict
@@ -13,7 +19,6 @@ class GraphAnalyzer:
         self.outgoing = defaultdict(list)  # source -> [events]
         self.incoming = defaultdict(list)  # target -> [events]
         
-        # Get all unique locations (states)
         locations = []
         
         for event in events:
@@ -24,7 +29,7 @@ class GraphAnalyzer:
 
         self.locations = sorted(set(locations))
 
-    
+    # For branch tracking    
     def find_preceding_branch_events(self, event: EventData,branching_events: Set[EventData] , joining_events: Set[EventData]) -> Set[EventData]:
         incoming_to_source = self.incoming[event.source]
         for incoming in incoming_to_source:
@@ -41,8 +46,8 @@ class GraphAnalyzer:
                 res_list.add(part)
         return res_list
 
+    # Using dfs to find loops
     def find_loops(self) -> Set[EventData]:
-        """Find events that start loops using DFS."""
         loop_starters = dict()
         visited = set()
         path_stack = []
@@ -50,12 +55,10 @@ class GraphAnalyzer:
 
         def dfs(location: str, current_event: EventData = None):
             if location in path_stack:
-                # We found a loop! Find the event that first leads to a location in our current path
                 loop_events = set()
-                # Look through events in our path to find the first one that creates the loop
-                for i in range(len(event_stack) - 1, -1, -1):  # Go backwards through events
+
+                for i in range(len(event_stack) - 1, -1, -1):
                     event = event_stack[i]
-                    # Go backwards through events untill we find the one which started this loop so source == target
                     if event.source == location:
                         loop_starters[event] = loop_events
                         break
@@ -81,7 +84,6 @@ class GraphAnalyzer:
         return loop_starters
 
     def find_branching_events(self) -> Set[EventData]:
-        """Find events where a location has multiple outgoing paths."""
         branching = set()
         for location in self.outgoing:
             if len(self.outgoing[location]) > 1:
@@ -89,7 +91,6 @@ class GraphAnalyzer:
         return branching
 
     def find_joining_events(self) -> Set[EventData]:
-        """Find events where multiple paths lead to the same location."""
         joining = set()
         for location in self.incoming:
             if len(self.incoming[location]) > 1:

@@ -1,20 +1,29 @@
-from Template import Template
+"""\
+Creates and holds all information for a role.
+Each role is reposible for emitting the events by directly communicating with its log
+
+"""
+
+from typing import List
+
+import math
+
+from graphviz import Digraph
 from DataObjects.Declaration import Declaration
 from DataObjects.Transition import Transition
 from DataObjects.Location import Location, LocationType
 from DataObjects.JSONTransfer import JSONTransfer, EventData
 from DataObjects.TimeJSONTransfer import EventTimeData
+from Template import Template
 from Utils import Utils
-from typing import List
-from graphviz import Digraph
-import math
-
 
 class Role(Template):
 
     def get_evetname_loopcounter(self):
         return self.evetname_loopcounter
 
+    # Using graphViz to space out locations and edges in UPPAAL to get somewhat more readable models
+    # Only important when directly using the UPPAAL UI.
     def graphVizHelper(self, locations, transitions):
         graph = Digraph()
 
@@ -67,9 +76,8 @@ class Role(Template):
         transitions = []
 
         for location_name in all_location_names:
-            #source_event_name = self.findEventNameFromSource(location_name, all_events)
             source_event_names = (self.findoutGoingEventsFromLocation(location_name, all_events))
-            matching_time_events = [event_data for event_data in time_data_list if event_data in source_event_names]
+            matching_time_events = [event_data for event_data in time_data_list if event_data in source_event_names and event_data.event_name in jsonTransfer.own_events]
             time_data_event = None
 
             if len(matching_time_events) > 0:
@@ -135,6 +143,15 @@ class Role(Template):
                 if(jsonTransfer.loop_events != [] and event.event_name in jsonTransfer.loop_events):
                         loop_counter_name = Utils.get_next_loopcount()
                         self.evetname_loopcounter[Utils.get_eventtype_UID(event.event_name)] = loop_counter_name
+
+                        if (time_guard_addition != ""):
+                            time_guard_addition += " && "
+
+                        # Add disabeling part to invariant
+                        if (lsource.invariant != None):
+                            lsource.invariant += f" || {loop_counter_name} == {loop_bound}"
+                        else:
+                            lsource.invariant = f"{loop_counter_name} == {loop_bound}"
 
                         transitions.append(Transition(
                         id=Utils.get_next_id(),
