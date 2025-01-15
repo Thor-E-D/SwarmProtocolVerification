@@ -1,0 +1,47 @@
+{
+    "events": [
+      {
+        "logType": "Open",
+        "min_time": 2,
+        "max_time": 13
+      },
+      {
+        "logType": "Close",
+        "min_time": 5,
+        "max_time": 17
+      },
+      {
+        "logType": "Request",
+        "min_time": 3,
+        "max_time": 12
+      },
+      {
+        "logType": "Get",
+        "min_time": 17,
+        "max_time": 52
+      },
+      {
+        "logType": "Deliver",
+        "min_time": 6,
+        "max_time": 13
+      }
+    ],
+    "logs": [
+        {
+          "role_name": "Door",
+          "min_time": 12,
+          "max_time": 21
+        },
+        {
+          "role_name": "Transport",
+          "min_time": 2,
+          "max_time": 33
+        },
+        {
+          "role_name": "Forklift",
+          "min_time": 7,
+          "max_time": 12
+        }
+      ]
+  }
+  

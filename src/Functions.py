@@ -246,6 +246,9 @@ void updateTrueGlobalLog() {
         }
         trueCurrentIndex--;
     } else {
+        if (loopCountMap[tmpLogEntry.eventID] != -1) {
+            loopCountMap[tmpLogEntry.eventID]++;
+        }
         trueGlobalLog[trueCurrentIndex] = tmpLogEntry;
     }
 }"""
@@ -726,7 +729,7 @@ void mergePropagationLog() {
     for event_name in evetname_loopcounter:
             function_str += f"""                
                 if (tmpLogEntry.eventID == {event_name} &amp;&amp; tmpLogEntry.emitterID == id + log_id_start) {{
-                    {evetname_loopcounter[event_name]} = {evetname_loopcounter[event_name]} - 1;
+                    {evetname_loopcounter[event_name]}[id] = {evetname_loopcounter[event_name]}[id] - 1;
                 }}"""
 
 

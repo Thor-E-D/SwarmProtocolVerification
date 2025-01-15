@@ -55,3 +55,15 @@ def test_branch_join_only_time_log_delay():
     base_path = os.path.dirname(os.path.abspath(__file__))
 
     do_full_test(base_path, model_settings, name_of_query_file, time_file="time2")
+
+@pytest.mark.integration
+def test_branch_join_time_branch():
+    name_of_query_file = "query_file_time4"
+    model_settings = ModelSettings({"O": 1, "R": 2}, {"O": DelayType.NOTHING, "R": DelayType.NOTHING})
+    model_settings.loop_counter = 2
+    model_settings.standard_setting = True
+    model_settings.log_size = 9
+
+    base_path = os.path.dirname(os.path.abspath(__file__))
+
+    do_full_test(base_path, model_settings, name_of_query_file, time_file="time3")

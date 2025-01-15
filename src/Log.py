@@ -78,7 +78,7 @@ class Log(Template):
         declaration.add_function_call(generate_function_handle_log_entry, own_event_names, other_event_names)
         declaration.add_function_call(generate_function_merge_propagation_log,evetname_loopcounter) 
         
-        l1 = Location (id = Utils.get_next_id(), x=-204, y=-238, name="l_prop1", locationType = LocationType.COMMITTED)
+        l1 = Location (id = Utils.get_next_id(), x=-204, y=-298, name="l_prop1", locationType = LocationType.COMMITTED)
         l2 = Location (id = Utils.get_next_id(), x=-748, y=-136, locationType = LocationType.COMMITTED)
         l3 = Location (id = Utils.get_next_id(), x=-204, y=-136)
         l4 = Location (id = Utils.get_next_id(), x=229, y=-127, locationType = LocationType.COMMITTED)
@@ -110,8 +110,8 @@ class Log(Template):
             assigmentAddition = "x := 0, "
             guard_extension_addition = "&& updatesSincePropagation != 1"
 
-            intitial_location = Location (id = Utils.get_next_id(), x=-204, y=-166, locationType = LocationType.COMMITTED)
-            waiting_location = Location (id = Utils.get_next_id(), x=-204, y=-196, locationType = LocationType.NEITHER)
+            intitial_location = Location (id = Utils.get_next_id(), x=-204, y=-186, locationType = LocationType.COMMITTED)
+            waiting_location = Location (id = Utils.get_next_id(), x=-204, y=-246, locationType = LocationType.NEITHER)
             locations.append(intitial_location)
             locations.append(waiting_location)
 
@@ -192,7 +192,7 @@ class Log(Template):
 updatesSincePropagation := 0,
 newUpdates := false,
 setPropagationLog(currentLog)""",
-            nails = [(-136, -187)]
+            nails = [(-76, -221), (-76,-263)]
         ))
 
         transitions.append(Transition(
@@ -245,7 +245,7 @@ resetCount--""",
             source=l1,
             target=l3,
             synchronisation="propagate_log!",
-            nails = [(-272, -195)]
+            nails = [(-347, -255)]
         ))
 
         transitions.append(Transition(

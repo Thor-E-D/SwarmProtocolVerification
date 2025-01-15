@@ -139,6 +139,8 @@ class Role(Template):
                         time_guard_addition = f"x <= {time_data_event.max_time}"
                     elif time_data_event.min_time != None and time_data_event.max_time == None:
                         time_guard_addition = f"x >= {time_data_event.min_time}"
+                elif lsource.locationType == LocationType.NEITHER:
+                     time_guard_addition = f"x == 0" # Happens only when other branch is timed but this event isn't so we enforce instant emission or none at all.
 
                 if(jsonTransfer.loop_events != [] and event.event_name in jsonTransfer.loop_events):
                         loop_counter_name = Utils.get_next_loopcount()
@@ -149,19 +151,19 @@ class Role(Template):
 
                         # Add disabeling part to invariant
                         if (lsource.invariant != None):
-                            lsource.invariant += f" || {loop_counter_name} == {loop_bound}"
+                            lsource.invariant += f" || {loop_counter_name}[id] == {loop_bound} || loopCountMap[{Utils.get_eventtype_UID(event.event_name)}] == {loop_bound}"
                         else:
-                            lsource.invariant = f"{loop_counter_name} == {loop_bound}"
+                            lsource.invariant = f"{loop_counter_name}[id] == {loop_bound} || loopCountMap[{Utils.get_eventtype_UID(event.event_name)}] == {loop_bound}"
 
                         transitions.append(Transition(
                         id=Utils.get_next_id(),
                         source=lsource,
                         target=ltarget,
-                        guard=time_guard_addition + f"{loop_counter_name} < {loop_bound}",
+                        guard=time_guard_addition + f"{loop_counter_name}[id] < {loop_bound} && loopCountMap[{Utils.get_eventtype_UID(event.event_name)}] < {loop_bound}",
                         synchronisation=f"{jsonTransfer.do_update_channel_name}[id]!",
                         assignment=time_assignment_addition + f"""setLogEntryForUpdate(
         {Utils.get_eventtype_UID(event.event_name)},id,
-        -2, false), {loop_counter_name}++"""))
+        -2, false), {loop_counter_name}[id]++"""))
                 else:
                     transitions.append(Transition(
                         id=Utils.get_next_id(),

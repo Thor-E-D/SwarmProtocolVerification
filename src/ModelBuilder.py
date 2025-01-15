@@ -79,8 +79,6 @@ def calculate_relevant_mappings(jsonTransfers: List[JSONTransfer], name_amount_d
     update_channels = {} # Maps role name to update channel.
     reset_channels = {} # Maps role name to reset channel
 
-    log_id_start = 0
-
     for jsonTransfer in jsonTransfers:
         current_advance_channel_names = []
         current_advance_channel_dict = {}
@@ -89,9 +87,6 @@ def calculate_relevant_mappings(jsonTransfers: List[JSONTransfer], name_amount_d
             current_advance_channel_names.append(advance_channel_name)
             current_advance_channel_dict[subscription] = advance_channel_name
             eventnames_dict[subscription] = (Utils.get_eventtype_UID(subscription))
-        
-        jsonTransfer.log_id_start = log_id_start
-        log_id_start += name_amount_dict[jsonTransfer.name]
 
         jsonTransfer.advance_channel_names = current_advance_channel_dict
         advance_channels[jsonTransfer.name] = current_advance_channel_names
@@ -268,10 +263,18 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
         declaration.add_variable(f"clock globalTime;")
 
     number_of_names = []
+    log_id_start_entries = {}
+    log_id_start_sumizer = "0"
     for name in name_amount_dict:
-        declaration.add_variable(f"const int NUMBER_OF_{name} = {name_amount_dict[name]};")
-        declaration.add_variable(f"typedef int[0,NUMBER_OF_{name}-1] {amount_names[name]};")
-        number_of_names.append(f"NUMBER_OF_{name}")
+        log_id_start_entries[name] = log_id_start_sumizer
+        current_variable = f"NUMBER_OF_{name}"
+        declaration.add_variable(f"const int {current_variable} = {name_amount_dict[name]};")
+        declaration.add_variable(f"typedef int[0,{current_variable}-1] {amount_names[name]};")
+        number_of_names.append(current_variable)
+        log_id_start_sumizer += f" + {current_variable}"
+
+    for jsonTransfer in jsonTransfers:
+        jsonTransfer.log_id_start = log_id_start_entries[jsonTransfer.name]  
 
     amount_of_logs_string = "int amountOfLogs = "
     for number_of_name in number_of_names:
@@ -349,6 +352,7 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     # Adding templates comprised of roles and logs for each jsonTransfer we create one of each.
     roles = []
     logs = []
+    all_start_loop_events = set()
 
     for jsonTransfer in jsonTransfers:
         if model_settings.delay_type[jsonTransfer.name] != DelayType.NOTHING:
@@ -364,7 +368,11 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
         # Adding loopcounter to global decleration
         current_evetname_loopcounter = role.get_evetname_loopcounter()
         for eventname in current_evetname_loopcounter:
-            declaration.add_variable(f"int {current_evetname_loopcounter[eventname]} = 0;")
+            current_loopcounter_string = (f"int {current_evetname_loopcounter[eventname]}[{name_amount_dict[jsonTransfer.name]}] = {{")
+            for i in range (name_amount_dict[jsonTransfer.name]):
+                current_loopcounter_string += "0, "
+            declaration.add_variable(current_loopcounter_string[:-2] + "};")
+        all_start_loop_events.update(jsonTransfer.loop_events)
 
         log = None
         if model_settings.time_json_transfer == None:
@@ -373,5 +381,15 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
             log_time_data_role = next((log_time_data for log_time_data in model_settings.time_json_transfer.log_time_data if log_time_data.role_name == jsonTransfer.name), None)
             log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, model_settings.log_size,model_settings.delay_type[jsonTransfer.name], log_time_data_role)
         logs.append(log)
+
+    #Adding start loop event to global decleration
+    all_start_loop_events = [Utils.get_eventtype_UID(event_name_UID) for event_name_UID in all_start_loop_events]
+    loop_events_string = "int loopCountMap[amountOfUniqueEvents] = {"
+    for event_name_ID in eventname_to_UID_dict:
+        if event_name_ID in all_start_loop_events:
+            loop_events_string += "0 ,"
+        else:
+            loop_events_string += "-1 ,"
+    declaration.add_variable(loop_events_string[:-2] + "};")
 
     return Model(declaration, roles, logs)
