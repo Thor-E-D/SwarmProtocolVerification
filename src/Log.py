@@ -18,12 +18,12 @@ from Utils import Utils
 from Functions import generate_function_merge_propagation_log, generate_function_handle_log_entry
 
 class Log(Template):
-    def __init__(self, parameter: str, jsonTransfer: JSONTransfer, evetname_loopcounter: Dict[str,str], log_size: int, log_delay_type: DelayType, log_time_data: LogTimeData = None):
+    def __init__(self, parameter: str, json_transfer: JSONTransfer, evetname_loopcounter: Dict[str,str], log_size: int, log_delay_type: DelayType, log_time_data: LogTimeData = None):
         
         # We set a flag if our delay is nothing
         delay_nothing = (log_delay_type == DelayType.NOTHING)
         
-        name = jsonTransfer.name
+        name = json_transfer.name
         declaration = Declaration()
 
         declaration.add_variable("logEntryType currentLog[logSize];")
@@ -31,7 +31,7 @@ class Log(Template):
         declaration.add_variable("bool newUpdates = false;")
         declaration.add_variable("int counter = 0;")
 
-        declaration.add_variable(f"int log_id_start = {jsonTransfer.log_id_start};")
+        declaration.add_variable(f"int log_id_start = {json_transfer.log_id_start};")
 
         declaration.add_variable("int emittedOrderCounts[logSize];")
         declaration.add_variable("int discardedEvents[logSize];")
@@ -52,26 +52,26 @@ class Log(Template):
 
         subscription_str = "int subscriptions[amountOfUniqueEvents] = {"
         subscription_counter = 0
-        for subscription in jsonTransfer.subscriptions:
+        for subscription in json_transfer.subscriptions:
             subscription_counter += 1
             subscription_str += Utils.get_eventtype_UID(subscription) +", "
 
-        subscription_str += "-1, " * (jsonTransfer.total_amount_of_events - subscription_counter)
+        subscription_str += "-1, " * (json_transfer.total_amount_of_events - subscription_counter)
         declaration.add_variable(subscription_str[:-2] + "};")
 
         # Flow list and pointer
-        declaration.add_variable(f"int initialLocation = {jsonTransfer.initial_pointer};")
-        declaration.add_variable(f"int currentLocation = {jsonTransfer.initial_pointer};")
-        declaration.add_variable(f"const int eventLocationMap[amountOfUniqueEvents][2] = {Utils.python_list_to_uppaal_list(jsonTransfer.flow_list)};")
+        declaration.add_variable(f"int initialLocation = {json_transfer.initial_pointer};")
+        declaration.add_variable(f"int currentLocation = {json_transfer.initial_pointer};")
+        declaration.add_variable(f"const int eventLocationMap[amountOfUniqueEvents][2] = {Utils.python_list_to_uppaal_list(json_transfer.flow_list)};")
 
         # Get names of own events and names of other events for function
         own_event_names = []
         other_event_names = []
 
-        for eventData in jsonTransfer.own_events:
+        for eventData in json_transfer.own_events:
             own_event_names.append(Utils.get_eventtype_UID(eventData.event_name))
         
-        for eventData in jsonTransfer.other_events:
+        for eventData in json_transfer.other_events:
             other_event_names.append(Utils.get_eventtype_UID(eventData.event_name))
 
         # Adding function calls
@@ -156,7 +156,7 @@ class Log(Template):
                 id=Utils.get_next_id(),
                 source=l4,
                 target=intitial_location,
-                guard=f"!(updatesSincePropagation > maxUpdatesSincePropagation_{jsonTransfer.name}) && updatesSincePropagation == 1",
+                guard=f"!(updatesSincePropagation > maxUpdatesSincePropagation_{json_transfer.name}) && updatesSincePropagation == 1",
                 assignment=Utils.remove_last_two_chars(assigmentAddition),
                 nails = [(0, 20)]
                 ))
@@ -174,8 +174,8 @@ class Log(Template):
             id=Utils.get_next_id(),
             source=waiting_location,
             target=l4,
-            synchronisation=f"{jsonTransfer.do_update_channel_name}[id]?",
-            assignment=f"""updateLog{jsonTransfer.name}(currentLog,emittedOrderCounts,log_id_start),
+            synchronisation=f"{json_transfer.do_update_channel_name}[id]?",
+            assignment=f"""updateLog{json_transfer.name}(currentLog,emittedOrderCounts,log_id_start),
                     updatesSincePropagation++,
                     newUpdates := true,
                     currentSizeOfLog++""",
@@ -220,7 +220,7 @@ backTracking := true"""
             target=l8,
             assignment="""discardedEventIDs[resetCount - 1] = -1,
 resetCount--""",
-            synchronisation=f"{jsonTransfer.reset_channel_name}[id]!",
+            synchronisation=f"{json_transfer.reset_channel_name}[id]!",
             nails = [(-978, 136)]
         ))
 
@@ -252,8 +252,8 @@ resetCount--""",
             id=Utils.get_next_id(),
             source=l3,
             target=l4,
-            synchronisation=f"{jsonTransfer.do_update_channel_name}[id]?",
-            assignment=f"""updateLog{jsonTransfer.name}(currentLog,emittedOrderCounts,log_id_start),
+            synchronisation=f"{json_transfer.do_update_channel_name}[id]?",
+            assignment=f"""updateLog{json_transfer.name}(currentLog,emittedOrderCounts,log_id_start),
 updatesSincePropagation++,
 newUpdates := true,
 currentSizeOfLog++""",
@@ -265,14 +265,14 @@ currentSizeOfLog++""",
                 id=Utils.get_next_id(),
                 source=l4,
                 target=intitial_location,
-                guard=f"!(updatesSincePropagation > maxUpdatesSincePropagation_{jsonTransfer.name})" + guard_extension_addition
+                guard=f"!(updatesSincePropagation > maxUpdatesSincePropagation_{json_transfer.name})" + guard_extension_addition
             ))
 
             transitions.append(Transition(
                 id=Utils.get_next_id(),
                 source=l4,
                 target=l6,
-                guard=f"updatesSincePropagation > maxUpdatesSincePropagation_{jsonTransfer.name}",
+                guard=f"updatesSincePropagation > maxUpdatesSincePropagation_{json_transfer.name}",
                 assignment="""currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
     updatesSincePropagation := 0,
     newUpdates := false"""
@@ -327,7 +327,7 @@ eventsToRead := 0"""
         start_x = l7.x - 85
 
 
-        for subscription in jsonTransfer.subscriptions:
+        for subscription in json_transfer.subscriptions:
             nails = [(start_x + 68, start_y), (start_x, start_y)]
             start_y += 34
             start_x -= 34
@@ -337,7 +337,7 @@ eventsToRead := 0"""
                 source=l7,
                 target=l5,
                 guard=f"currentLog[counter].eventID == {Utils.get_eventtype_UID(subscription)}",
-                synchronisation=f"{jsonTransfer.advance_channel_names[subscription]}[id]!",
+                synchronisation=f"{json_transfer.advance_channel_names[subscription]}[id]!",
                 assignment="counter++",
                 nails=nails
             ))

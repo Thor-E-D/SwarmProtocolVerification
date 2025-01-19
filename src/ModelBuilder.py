@@ -4,24 +4,23 @@ Log is constructed differently depeding on given settings,
 such as if time is included and what kind of delay in propagation is used.
 
 """
-from typing import List, Dict
+from typing import List, Dict, Set
 from collections import defaultdict
 from itertools import groupby
 from operator import attrgetter
 
 from DataObjects.Declaration import Declaration
-from DataObjects.JSONTransfer import JSONTransfer
+from DataObjects.JSONTransfer import JSONTransfer, EventData
 from DataObjects.Channel import Channel
 from DataObjects.ModelSettings import ModelSettings, DelayType
 from DataObjects.Model import Model
-from JSONParser import parse_projection_JSON_file
 from Utils import Utils
 from Functions import *
 from Log import Log
 from Role import Role
 from GraphAnalyser import analyze_graph
 
-def add_branching_functionality(declaration: Declaration, branching_events, eventname_to_UID_dict):
+def add_branching_functionality(declaration: Declaration, branching_events: Set[EventData], eventname_to_UID_dict: Dict[str, int]):
     # Handling branching events
     # based on source partition the branching events into set so we have a list of sets
     sorted_events = sorted(branching_events, key=attrgetter('source'))
@@ -72,7 +71,7 @@ def add_branching_functionality(declaration: Declaration, branching_events, even
     declaration.add_variable(f"const int isBranchingList[amountOfUniqueEvents] = {Utils.python_list_to_uppaal_list(is_branching_list).lower()};")
     declaration.add_variable(f"const int isInBranchingPartion[amountOfUniqueEvents] = {Utils.python_list_to_uppaal_list(is_in_branching_partion)};")
 
-def calculate_relevant_mappings(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, int]):
+def calculate_relevant_mappings(jsonTransfers: List[JSONTransfer]):
     eventnames_dict = {} # Maps eventname/logtypes to Unique names 
     amount_names = {} # Maps role name to typedef name. 
     advance_channels = {} # Maps role name to advance channel.
@@ -127,7 +126,7 @@ def add_functions(declaration: Declaration):
     declaration.add_function_call(generate_function_update_log)
 
 # Creates the list and variables for keeping track of where the role currently is.
-def create_flow_list(jsonTransfer: JSONTransfer, eventname_to_UID_dict) -> tuple[int, List[List[int]]]:
+def create_flow_list(jsonTransfer: JSONTransfer, eventname_to_UID_dict: Dict[str, int]) -> tuple[int, List[List[int]]]:
     # We first need to map all locations to a unigue int ID
     location_map = {}
     counter = 0
@@ -161,7 +160,7 @@ def create_flow_list(jsonTransfer: JSONTransfer, eventname_to_UID_dict) -> tuple
 
     return location_map[jsonTransfer.initial], flow_list
 
-def enrich_json(jsonTransfers, eventnames_dict):
+def enrich_json(jsonTransfers: List[JSONTransfer], eventnames_dict: Dict[str,str]):
     for jsonTransfer in jsonTransfers:
         jsonTransfer.total_amount_of_events = len(eventnames_dict)
 
@@ -203,7 +202,7 @@ def enrich_json(jsonTransfers, eventnames_dict):
     return set_of_preceding_events,max_amount_of_preceding_events,branching_events,all_loop_event_names
 
 # Creates UPPAAL functions for setting what event each event should be based on
-def create_basedOn_functions(jsonTransfers, name_amount_dict, eventnames_dict, declaration):
+def create_basedOn_functions(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, int], eventnames_dict: Dict[str, str], declaration: Declaration):
     name_basedOnEvents = {}
     for jsonTransfer in jsonTransfers:
         basedOnEvents = {}
@@ -228,7 +227,7 @@ def create_basedOn_functions(jsonTransfers, name_amount_dict, eventnames_dict, d
 
 def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTransfer, model_settings: ModelSettings):
     # We first create the nessesary variable names to be used in UPPAAL.
-    eventnames_dict, amount_names, advance_channels, update_channels, reset_channels = calculate_relevant_mappings(jsonTransfers, model_settings.role_amount)
+    eventnames_dict, amount_names, advance_channels, update_channels, reset_channels = calculate_relevant_mappings(jsonTransfers)
     name_amount_dict = model_settings.role_amount
 
     # Set total amount of events

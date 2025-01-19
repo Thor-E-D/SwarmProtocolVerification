@@ -10,7 +10,7 @@ import argparse
 import json
 import os
 import subprocess
-from typing import Dict
+from typing import Any, List
 import re
 
 from DataObjects.Model import Model
@@ -19,8 +19,7 @@ from JSONParser import parse_time_JSON, parse_projection_JSON_file, parse_protoc
 from ModelBuilder import createModel
 
 state_path = "PermanentState\\state.json" # Hardcoded relative path to local state file.
-base_path = os.path.dirname(os.path.abspath(__file__)) 
-current_model = None
+base_path = os.path.dirname(os.path.abspath(__file__))
 
 # Mapping user-friendly strings to DelayType values
 DELAY_TYPE_MAPPING = {
@@ -39,7 +38,7 @@ def save_xml_to_file(xml_data: str, file_name: str, file_path: str):
     except Exception as e:
         print(f"An error occurred while saving the file: {e}")
 
-def identify_json_files(folder_path):
+def identify_json_files(folder_path: str):
     projection_json_files = set()
     protocol_json_file = None
     time_json_file = None
@@ -67,7 +66,7 @@ def identify_json_files(folder_path):
                 print(f"Invalid JSON file found: {file_name}")
     return projection_json_files, protocol_json_file, time_json_file
 
-def get_state_data(key, file_path = ""):
+def get_state_data(key: Any, file_path: str = "") -> Any:
     try:
         if file_path == "":
             file_path = os.path.join(base_path, state_path)
@@ -88,7 +87,7 @@ def get_state_data(key, file_path = ""):
         print(f"Unexpected error: {e}")
 
 
-def update_local_state(key, value):
+def update_local_state(key: Any, value: Any):
     try:
         file_path = os.path.join(base_path, state_path)
         with open(file_path, 'r') as json_file:
@@ -262,7 +261,7 @@ def set_verifyta_path(newPath: str):
     except Exception as e:
         print(f"Error occurred while verifying the tool: {e}")
 
-def get_lines_in_file(file_path: str):
+def get_lines_in_file(file_path: str) -> List[str]:
     try:
         with open(file_path, 'r') as file:
             lines = file.readlines()
@@ -278,14 +277,14 @@ def filter_ouput(file_path_input: str) -> str:
     # Define regular expressions for the patterns
     state_pattern = re.compile(r"State:")
     transition_pattern = re.compile(r"Transition:")
-    propagation_pattern = re.compile(r"l_prop[0-9]->")
+    role_transition_pattern = re.compile(r"setLogEntryForUpdate\(\w+_ID,")
+    propagation_pattern = re.compile(r"log\(\d+\).l_prop[1-9]->")
     property_satisfied_pattern = re.compile(r"-- Formula is satisfied.")
     delay_pattern = re.compile(r"Delay: \d+")
     global_time_pattern = re.compile(r"globalTime=\d+")
 
     result = ""
 
-    # Open the input file for reading and the output file for writing
     with open(file_path_input, "r") as infile:
         next_is_state = False
         next_is_transition = False
@@ -296,7 +295,7 @@ def filter_ouput(file_path_input: str) -> str:
         if (property_satisfied_pattern.search(content) != None):
             result += "Query was satisfied \n"
         else:
-            result += "Query not satified \n"
+            result += "Query not satisfied \n"
         
         for line in content.splitlines():
             state_match = state_pattern.search(line)
@@ -319,12 +318,14 @@ def filter_ouput(file_path_input: str) -> str:
             
             if next_is_transition:
                 propagation_match = propagation_pattern.search(line)
+                role_transition_match = role_transition_pattern.search(line)
                 transition = line.partition("{")[0]
                 if propagation_match != None:
                     role = line.partition("_log")
-                    result += (f"Role {role[0]}({role[2][1]}) propagted to all other roles\n")
-                if "_log" not in transition:
-                    result += (f"Transition: {transition}\n")
+                    result += (f"Role {role[0]}({role[2][1]}) propagated to all other roles\n")
+                if role_transition_match != None:
+                    grouped = role_transition_match.group()
+                    result += (f"Transition: {transition} {(grouped.partition("(")[2])[:-4]}\n")
                 next_is_transition = False
 
             delay_match = delay_pattern.search(line)
@@ -338,7 +339,7 @@ def filter_ouput(file_path_input: str) -> str:
     
     return result
 
-def verify_model(model_path, query_path, verifyta_path):
+def verify_model(model_path: str, query_path: str, verifyta_path: str):
     if verifyta_path == None:
         verifyta_path = get_state_data("verifyta_path")
     else:
@@ -360,7 +361,7 @@ def verify_model(model_path, query_path, verifyta_path):
         print(filtered_output)
 
 # Checks correct format of given information.
-def parse_json_dict(key, json_input):
+def parse_json_dict(key, json_input: str):
     try:
         updates = json.loads(json_input)
         if (not isinstance(updates, dict)):
@@ -410,7 +411,7 @@ def set_arguments(args):
         args.role_amount = " ".join(args.role_amount)
         parse_json_dict("role_amount", args.role_amount)
 
-def set_base_path(path_to_files):
+def set_base_path(path_to_files: str):
     update_local_state("base_path", path_to_files)
 
 def create_parser():

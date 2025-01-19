@@ -4,7 +4,7 @@ full protocol json, projection json and time json in
 to either of the two json transfer classes.
 Only works if jsons are formattet correctly.
 
-Also capable of constructing projection if nessesary.
+Also capable of constructing projections.
 
 """
 
@@ -43,26 +43,26 @@ class Edge:
 
 class Graph:
     def __init__(self):
-        self.nodes = set()
+        self.edges = set()
         self.initial = ""
 
-    def set_nodes(self, nodes: Set[Edge]):
-        self.nodes = nodes
+    def set_edges(self, edges: Set[Edge]):
+        self.edges = edges
 
     def add_edge(self, edge: Edge):
-        self.nodes.add(edge)
+        self.edges.add(edge)
 
     def remove_edge(self, edge_name: str):
-        if edge_name in self.nodes:
-            edge_for_removal = next(edge for edge in self.nodes if edge.name == edge_name)
-            for edge_new in self.nodes:
+        if edge_name in self.edges:
+            edge_for_removal = next(edge for edge in self.edges if edge.name == edge_name)
+            for edge_new in self.edges:
                 if edge_new.target == edge_for_removal.source:
                     edge_new.target = edge_for_removal.target
-            self.nodes.remove(edge_for_removal)
+            self.edges.remove(edge_for_removal)
 
     def get_role_names(self):
         names = set()
-        for edge in self.nodes:
+        for edge in self.edges:
             names.add(edge.role)
         return names
 
@@ -74,29 +74,22 @@ def build_graph(transitions: List[Dict[str, Any]]) -> Graph:
         graph.add_edge(edge)
     return graph
 
-def build_graph(transitions: List[Dict[str, Any]]) -> Graph:
-    graph = Graph()
-    for t in transitions:
-        edge = Edge(t["label"]["logType"][0], t["source"], t["target"], t["label"]["role"])
-        graph.add_edge(edge)
-    return graph
-
 def generate_projection(graph: Graph, role: str) -> Graph:
     copyGraph = Graph()
-    copyGraph.set_nodes(copy.deepcopy(graph.nodes))
+    copyGraph.set_edges(copy.deepcopy(graph.edges))
     copyGraph.initial = graph.initial
 
     # First we find own events
     own_edges = set()
     own_edges_sources = set()
-    for edge in graph.nodes:
+    for edge in graph.edges:
         if edge.role == role:
             own_edges.add(edge)
             own_edges_sources.add(edge.source)
 
     # Find those that come before
     preceding_edges = set()
-    for edge in graph.nodes:
+    for edge in graph.edges:
         if edge.target in own_edges_sources:
             preceding_edges.add(edge)
 
@@ -104,33 +97,33 @@ def generate_projection(graph: Graph, role: str) -> Graph:
     branching_edges = set()
     all_sources = set()
     branching_sources = set()
-    for edge in graph.nodes:
+    for edge in graph.edges:
         if edge.source in all_sources:
             branching_sources.add(edge.source)
         all_sources.add(edge.source)
 
-    for edge in graph.nodes:
+    for edge in graph.edges:
         if edge.source in branching_sources:
             branching_edges.add(edge)
 
     project_edges = own_edges | preceding_edges | branching_edges
 
-    for edge in graph.nodes:
+    for edge in graph.edges:
         if edge not in project_edges:
             # We need to get the one from copyGraph as it might have changed the target
-            copy_edge_for_removal = next(copy_edge for copy_edge in copyGraph.nodes if edge.name == copy_edge)
+            copy_edge_for_removal = next(copy_edge for copy_edge in copyGraph.edges if edge.name == copy_edge)
             if copy_edge_for_removal.source == copyGraph.initial:
                 copyGraph.initial = copy_edge_for_removal.target
             copyGraph.remove_edge(copy_edge_for_removal)
     
     return copyGraph
 
-def createJsonTransfer(graph: Graph, role: str) -> JSONTransfer:
+def create_JSONTransfer(graph: Graph, role: str) -> JSONTransfer:
     own_events = []
     other_events = []
     subscriptions = []
 
-    for edge in graph.nodes:
+    for edge in graph.edges:
         if edge.role == role:
             own_events.append(EventData(event_name=edge.name, source=edge.source, target=edge.target))
         else:
@@ -145,7 +138,7 @@ def createJsonTransfer(graph: Graph, role: str) -> JSONTransfer:
         other_events=other_events
     )
 
-def parse_protocol_JSON_file(json_file: str):
+def parse_protocol_JSON_file(json_file: str) -> tuple[JSONTransfer, List[JSONTransfer]]:
     with open(json_file, 'r') as f:
         data = json.load(f)
     
@@ -153,23 +146,23 @@ def parse_protocol_JSON_file(json_file: str):
     graph.initial = data["initial"]
 
     jsonTransfers = []
-    globalJsonTransfer = (createJsonTransfer(graph,"GlobalProtocol"))
+    globalJsonTransfer = (create_JSONTransfer(graph,"GlobalProtocol"))
 
     for role in graph.get_role_names():
         newGraph = generate_projection(graph,role)
 
-        jsonTransfers.append(createJsonTransfer(newGraph,role))
+        jsonTransfers.append(create_JSONTransfer(newGraph,role))
 
     return globalJsonTransfer, jsonTransfers
 
-def parse_protocol_seperatly(json_file: str):
+def parse_protocol_seperatly(json_file: str) -> JSONTransfer: 
     with open(json_file, 'r') as f:
         data = json.load(f)
 
     graph = build_graph(data["transitions"])
     graph.initial = data["initial"]
 
-    return createJsonTransfer(graph,"GlobalProtocol")
+    return create_JSONTransfer(graph,"GlobalProtocol")
 
 
 def parse_projection_JSON_file(json_file: str) -> JSONTransfer:
@@ -211,7 +204,7 @@ def parse_projection_JSON_file(json_file: str) -> JSONTransfer:
     )
 
 
-def parse_time_JSON(json_file: str) -> List[TimeJSONTransfer]:
+def parse_time_JSON(json_file: str) -> TimeJSONTransfer:
     event_time_data = []
     log_time_data = []
     with open(json_file, 'r') as file:
@@ -233,6 +226,6 @@ def parse_time_JSON(json_file: str) -> List[TimeJSONTransfer]:
             for event_data in data.get("logs", [])
         ]
 
-    time_json_transger = TimeJSONTransfer(log_time_data=log_time_data, event_time_data=event_time_data)
-    return time_json_transger
+    time_json_transfer = TimeJSONTransfer(log_time_data=log_time_data, event_time_data=event_time_data)
+    return time_json_transfer
     

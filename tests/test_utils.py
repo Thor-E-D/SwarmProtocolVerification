@@ -83,10 +83,10 @@ def auto_generate_queries(protocol_json_file: str, log_size: int, base_path: str
 
     # Find edges with outdegree 0
     locations = []
-    for edge in graph.nodes:
+    for edge in graph.edges:
         current_target = edge.target
         found_end = True
-        for edge_inner in graph.nodes:
+        for edge_inner in graph.edges:
             if current_target == edge_inner.source:
                 found_end = False
                 break

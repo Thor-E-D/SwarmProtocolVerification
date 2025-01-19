@@ -4,8 +4,7 @@ what each event should use for branch tracking
 
 """
 
-from typing import List, Set, Dict
-from dataclasses import dataclass
+from typing import List, Set, Dict, Union
 from collections import defaultdict
 
 from DataObjects.JSONTransfer import EventData
@@ -30,7 +29,7 @@ class GraphAnalyzer:
         self.locations = sorted(set(locations))
 
     # For branch tracking    
-    def find_preceding_branch_events(self, event: EventData,branching_events: Set[EventData] , joining_events: Set[EventData]) -> Set[EventData]:
+    def find_preceding_branch_events(self, event: EventData,branching_events: Set[EventData]) -> Set[EventData]:
         incoming_to_source = self.incoming[event.source]
         for incoming in incoming_to_source:
             if incoming in branching_events:
@@ -41,7 +40,7 @@ class GraphAnalyzer:
 
         res_list = set()
         for incoming in incoming_to_source:
-            set_of_events = self.find_preceding_branch_events(incoming, branching_events, joining_events)
+            set_of_events = self.find_preceding_branch_events(incoming, branching_events)
             for part in set_of_events:
                 res_list.add(part)
         return res_list
@@ -90,26 +89,16 @@ class GraphAnalyzer:
                 branching.update(self.outgoing[location])
         return branching
 
-    def find_joining_events(self) -> Set[EventData]:
-        joining = set()
-        for location in self.incoming:
-            if len(self.incoming[location]) > 1:
-                joining.update(self.incoming[location])
-        return joining
 
-
-def analyze_graph(eventData: List[EventData], initial_name: str):
-
-    """Analyze a graph and return all special transitions."""
+def analyze_graph(eventData: List[EventData], initial_name: str) -> Dict[str, Union[Dict[EventData, Set[EventData]], Set[EventData]]]:
     analyzer = GraphAnalyzer(eventData)
     
     loop_events = analyzer.find_loops()
     branching_events = analyzer.find_branching_events()
-    joining_events = analyzer.find_joining_events()
 
     preceding_events = {}
     for event in eventData:
-        preceding = analyzer.find_preceding_branch_events(event,branching_events,joining_events)
+        preceding = analyzer.find_preceding_branch_events(event,branching_events)
         if preceding:  # Only include if there are preceding events
             preceding_events[event] = preceding
 
@@ -117,7 +106,7 @@ def analyze_graph(eventData: List[EventData], initial_name: str):
         if event.source == initial_name and any(e not in loop_events for e in preceding_events[event]):
             preceding_events[event] = {}
 
-    #return preceding_events
+    # return preceding_events
     return {
         'preceding_events': preceding_events,
         'branching_events': branching_events,

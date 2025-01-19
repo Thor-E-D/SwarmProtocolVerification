@@ -3,3 +3,4 @@ E<> forall(i:Transport_t) forall(j:Forklift_t) Transport(i).l1 imply Forklift(j)
 E<> Transport(0).l3 imply Forklift(0).l1
 E<> Transport(0).l3 imply globalTime == 43
 E<> Transport(0).l3 imply globalTime == 262
+E<> deadlock and forall(i:logSize_t) not (trueGlobalLog[i].eventID == Request_ID and trueGlobalLog[i].orderCount != 0)

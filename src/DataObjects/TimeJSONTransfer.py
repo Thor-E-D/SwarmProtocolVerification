@@ -3,28 +3,29 @@ Python dataclass for the information stored in a json file with time information
 the UPPAAL model. To allow easy transfer.
 
 """
-
+from abc import ABC
 from dataclasses import dataclass
 from typing import List, Optional
 
 @dataclass
-class LogTimeData:
-    role_name: str
+class TimeData(ABC):
     min_time: Optional[int] = None
     max_time: Optional[int] = None
+
+@dataclass
+class LogTimeData(TimeData):
+    role_name: str = None
 
     def __eq__(self, other):
         if isinstance(other, LogTimeData):
             return self.role_name == other.role_name
-        elif isinstance(other, str):  # Allow comparison directly with a string (event_name)
+        elif isinstance(other, str):
             return self.role_name == other
         return False
 
 @dataclass
-class EventTimeData:
-    event_name: str
-    min_time: Optional[int] = None
-    max_time: Optional[int] = None
+class EventTimeData(TimeData):
+    event_name: str = None
 
     def __eq__(self, other):
         if isinstance(other, EventTimeData):

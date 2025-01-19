@@ -24,7 +24,7 @@ class Role(Template):
 
     # Using graphViz to space out locations and edges in UPPAAL to get somewhat more readable models
     # Only important when directly using the UPPAAL UI.
-    def graphVizHelper(self, locations, transitions):
+    def graphViz_helper(self, locations: List[Location], transitions: List[Transition]):
         graph = Digraph()
 
 
@@ -52,13 +52,13 @@ class Role(Template):
                     current_t = next((tran for tran in transitions if tran.id == int(node_id)), None)
                     current_t.nails = [(math.floor(float(x) * 100 ), math.floor(float(y) * 100 ))]
 
-    def findLocation(self, name: str, locations: List[Location]):
+    def find_location(self, name: str, locations: List[Location]):
         return next((loc for loc in locations if loc.name == name), None)
     
-    def findEventNameFromSource(self, source: str, events: List[EventData]):
+    def find_eventname_from_source(self, source: str, events: List[EventData]):
          return next((event.event_name for event in events if event.source == source), None)
     
-    def findoutGoingEventsFromLocation(self, source: str, events: List[EventData]):
+    def find_outgoing_events_from_location(self, source: str, events: List[EventData]):
          return [event.event_name for event in events if event.source == source]
 
 
@@ -76,7 +76,7 @@ class Role(Template):
         transitions = []
 
         for location_name in all_location_names:
-            source_event_names = (self.findoutGoingEventsFromLocation(location_name, all_events))
+            source_event_names = (self.find_outgoing_events_from_location(location_name, all_events))
             matching_time_events = [event_data for event_data in time_data_list if event_data in source_event_names and event_data.event_name in jsonTransfer.own_events]
             time_data_event = None
 
@@ -98,7 +98,7 @@ class Role(Template):
             else:
                 locations.append(Location(id = Utils.get_next_id(), name=location_name, x=0, y=0, invariant=f"x <= {time_data_event.max_time}", locationType=LocationType.NEITHER))
 
-        linitial = self.findLocation(jsonTransfer.initial, locations)
+        linitial = self.find_location(jsonTransfer.initial, locations)
 
         time_assignment_addition = ""
         if time_data_list != []:
@@ -106,8 +106,8 @@ class Role(Template):
                     time_assignment_addition = "x := 0, "
 
         for event in all_events:
-            lsource = self.findLocation(event.source, locations)
-            ltarget = self.findLocation(event.target, locations)
+            lsource = self.find_location(event.source, locations)
+            ltarget = self.find_location(event.target, locations)
 
             # Reset event for backtracking
             transitions.append(Transition(
@@ -175,6 +175,6 @@ class Role(Template):
         {Utils.get_eventtype_UID(event.event_name)},id,
         -2, false)"""))
 
-        self.graphVizHelper(locations, transitions)
+        self.graphViz_helper(locations, transitions)
 
         super().__init__(name, parameter, declaration, locations, linitial, transitions)

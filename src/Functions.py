@@ -7,6 +7,8 @@ functionality, but with different length of arrays.
 
 """
 
+from typing import Dict
+
 def generate_function_is_in_subsciption() -> str:
     return """
 bool isInSubsciptions(int tmpList[amountOfUniqueEvents], int possibleEntry) {
@@ -379,19 +381,18 @@ bool handleBranchingEventStandardSetting(logEntryType &amp;tmpLogEntry,logEntryT
     }
     
     for (j = currentIndex - 1; j &gt;= 0; j--) {
-        // tmpLogEntry.basedOnOrderCount == resLog[j].basedOnOrderCount
-        if (true) {
-            if(isInBranchingConflict(isInBranchingPartion[tmpLogEntry.eventID], resLog[j].eventID)) {
-                if (!isIntInList(discardedEvents, resLog[j].orderCount)) {
-                    if (tmpLogEntry.eventID == resLog[j].eventID) { //Same one so does not need to ignore branch
-                        tmpLogEntry.ignored = true;
-                        return false;
-                    }
-                    // if in competetion we have to check if correct
-                    checkAndFixBranchCompetetion(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
+        // Occours when we are merging two logs and a new event is in the same branchpartition as one already accepted in the result of the merged log.
+        // If this happens we have to check if we need to move some discarded events around
+        if(isInBranchingConflict(isInBranchingPartion[tmpLogEntry.eventID], resLog[j].eventID)) {
+            if (!isIntInList(discardedEvents, resLog[j].orderCount)) {
+                if (tmpLogEntry.eventID == resLog[j].eventID) { //Same one so does not need to ignore branch
                     tmpLogEntry.ignored = true;
-                    return true;
+                    return false;
                 }
+                // if in competetion we have to check if correct
+                checkAndFixBranchCompetetion(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
+                tmpLogEntry.ignored = true;
+                return true;
             }
         }
     }
@@ -454,9 +455,9 @@ bool handle_standard_setting(logEntryType &amp;tmpLogEntry,logEntryType &amp;res
         // Need to check if a we have to move from discardedEvents to discardedDueToCompetionEvents
        if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.tiedTo) &amp;&amp; isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
             int lookingForOrderCount = tmpLogEntry.basedOnOrderCount;
+            logEntryType currentEvent = getEntryFromOrderCount(lookingForOrderCount);
             for (i = 0; i &lt; logSize; i++) {
                 if (discardedEvents[i] != 0) {
-                    logEntryType currentEvent = getEntryFromOrderCount(lookingForOrderCount);
                     if (isIntInList(discardedDueToCompetionEvents, currentEvent.basedOnOrderCount)) { // we have to move it
                         addIntToList(discardedDueToCompetionEvents, currentEvent.orderCount);
                         discardedEvents[i] = 0;
@@ -626,7 +627,7 @@ logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[lo
     
     return function_str
 
-def generate_function_merge_propagation_log(evetname_loopcounter) -> str:
+def generate_function_merge_propagation_log(evetname_loopcounter: Dict[str,str]) -> str:
     function_str = """
 void mergePropagationLog() {
     int currentLogCounter = 0;
