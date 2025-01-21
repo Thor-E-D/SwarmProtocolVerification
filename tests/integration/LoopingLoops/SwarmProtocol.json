@@ -1,0 +1,77 @@
+{
+    "initial": "1",
+    "transitions": [
+        {
+            "label": {
+                "cmd": "E12",
+                "logType": ["e12"],
+                "role": "R"
+            },
+            "source": "1",
+            "target": "2"
+        },
+        {
+            "label": {
+                "cmd": "E23",
+                "logType": ["e23"],
+                "role": "R"
+            },
+            "source": "2",
+            "target": "3"
+        },
+        {
+            "label": {
+                "cmd": "E33",
+                "logType": ["e33"],
+                "role": "R"
+            },
+            "source": "3",
+            "target": "3"
+        },
+        {
+            "label": {
+                "cmd": "E42",
+                "logType": ["e42"],
+                "role": "R"
+            },
+            "source": "4",
+            "target": "2"
+        },
+        {
+            "label": {
+                "cmd": "E24",
+                "logType": ["e24"],
+                "role": "R"
+            },
+            "source": "2",
+            "target": "4"
+        },
+        {
+            "label": {
+                "cmd": "E34",
+                "logType": ["e34"],
+                "role": "R"
+            },
+            "source": "3",
+            "target": "4"
+        },
+        {
+            "label": {
+                "cmd": "E41",
+                "logType": ["e41"],
+                "role": "R"
+            },
+            "source": "4",
+            "target": "1"
+        },
+        {
+            "label": {
+                "cmd": "E45",
+                "logType": ["e45"],
+                "role": "R"
+            },
+            "source": "4",
+            "target": "5"
+        }
+    ]
+}

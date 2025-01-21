@@ -11,12 +11,19 @@ import subprocess
 import json
 from typing import List, Dict
 
+from GraphAnalyser import analyze_graph
 from ModelBuilder import createModel
-from DataObjects.ModelSettings import ModelSettings
+from DataObjects.ModelSettings import ModelSettings, DelayType
 from JSONParser import Graph, parse_time_JSON, parse_projection_JSON_file, parse_protocol_seperatly, parse_protocol_JSON_file, build_graph
 
 #verifyta_path = "C:\\Program Files\\uppaal-5.0.0-win64\\bin\\verifyta" # 5.0.0
 verifyta_path = "C:\\Program Files\\UPPAAL-5.1.0-beta5\\app\\bin\\verifyta" # 5.1.0 beta-5
+
+all_events = None
+analysis_results = None
+protocol_json_transfer = None
+projection_jsonTransfers = None
+
 
 def save_xml_to_file(xml_data: str, file_name: str, file_path: str):
     full_file_path = f"{file_path}/{file_name}.xml"
@@ -70,13 +77,34 @@ def count_lines_in_file(file_path: str):
         print(f"An error occurred: {e}")
         raise
 
+def get_event_info():
+    global protocol_json_transfer
+
+    global all_events
+    all_events = protocol_json_transfer.own_events.copy()
+    all_events.extend(protocol_json_transfer.other_events)
+
+    global analysis_results 
+    analysis_results = (analyze_graph(all_events, protocol_json_transfer.initial))
+
+def find_new_location(current_loc, all_sources):    
+    if current_loc in all_sources:
+        return current_loc
+    else:
+        global all_events
+        for event in all_events:
+            if event.source == current_loc:
+                return find_new_location(event.target, all_sources)
+    
+    return None
+
+
 # Auto generates two queries for a given swarm protocol verifying we reach the end and that the log does not overflow.
-def auto_generate_queries(protocol_json_file: str, log_size: int, base_path: str) -> str:
+def auto_generate_queries(protocol_json_file: str, base_path: str) -> str:
     # Add size of log query
     queries = f"A[] globalLog[logSize - 1].orderCount == 0 \n"
 
     # Add deadlock query
-    # A[] forall(i:R48_t) forall(j:R49_t) (deadlock and globalLog[logSize - 1].orderCount == 0) imply R48(i).l54 and R49(j).l54
     with open(protocol_json_file, 'r') as f:
         data = json.load(f)
     graph = build_graph(data["transitions"])
@@ -96,14 +124,45 @@ def auto_generate_queries(protocol_json_file: str, log_size: int, base_path: str
             else:
                 locations.append(current_target)
     
+    # Also need to find locations where they can get stuck due to loops
+    global analysis_results
+    global all_events
+    branching_events = analysis_results["branching_events"]
+    loop_events = analysis_results["loop_events"]
+
+    start_loops = set()
+    for start in loop_events:
+        start_loops.add(start)
+
+    loop_locations = set()
+
+    for start in start_loops:
+        if start not in branching_events:
+            loop_locations.add(start.source)
+
+        # If all branching events are looping we could get stuck
+        if start in branching_events:
+            # Find partition 
+            branching_event_partition = []
+            for event in all_events:
+                if event.source == start.source:
+                    branching_event_partition.append(event)
+            
+            all_branching = True
+            for event in branching_event_partition:
+                if event not in start_loops:
+                    all_branching = False
+                    break
+            
+            if all_branching:
+                loop_locations.add(start.source)
+
     index = 'i'
     map_role_index = {}
 
     for role in graph.get_role_names():
         map_role_index[role] = index
         index = chr(ord(index) + 1)
-
-    print(map_role_index)
 
     deadlock_query = "A[] "
     for role in map_role_index:
@@ -112,9 +171,33 @@ def auto_generate_queries(protocol_json_file: str, log_size: int, base_path: str
     deadlock_query += "(deadlock and globalLog[logSize - 1].orderCount == 0) imply "
 
     for role in map_role_index:
+        current_locations = locations.copy()
+        # If we have looping locations
+        if loop_locations != []:
+            global projection_jsonTransfers
+            # We have to check projections
+            current_projection = None
+            for projection in projection_jsonTransfers:
+                if projection.name == role:
+                    current_projection = projection
+            
+            projection_events = current_projection.own_events.copy()
+            projection_events.extend(current_projection.other_events)
+            #print(f"events: {projection_events}")
+
+            all_sources = set()
+            for projection_event in projection_events:
+                all_sources.add(projection_event.source)
+
+            for loop_loc in loop_locations:
+                # Find the new location it will get stuck in
+                new_loc = find_new_location(loop_loc, all_sources)
+                new_loc = "l" + new_loc if new_loc[0].isdigit() else new_loc
+                current_locations.append(new_loc)
+
         current_index = map_role_index[role]
         current_role_addition = "("
-        for location in locations:
+        for location in current_locations:
             current_role_addition += f"{role}({current_index}).{location} or "
         current_role_addition = current_role_addition[:-4] + ")"
         deadlock_query += current_role_addition + " and "
@@ -129,11 +212,118 @@ def auto_generate_queries(protocol_json_file: str, log_size: int, base_path: str
 
     return "example_queries"
 
+def calculate_approximate_log_size(events_to_amounts, all_events, branching_events, loop_events, loop_bound, initial):
+    start_loops = set()
+    for key in loop_events:
+        start_loops.add(key)
+
+    checked_branches = set()
+
+    def calculate_loop(current_event, extra):
+        res = events_to_amounts[current_event.event_name]
+        for event in loop_events[current_event]:
+            if event in branching_events and event not in checked_branches:
+                extra += recursize_size_calculate(event)
+            else:
+                res += events_to_amounts[event.event_name]
+        return res, extra
+
+    def recursize_size_calculate(current_event):
+        if current_event in branching_events and current_event not in checked_branches:
+            # We need to get the other branching events for this branch
+            branching_event_partition = []
+            for event in all_events:
+                if event.source == current_event.source:
+                    branching_event_partition.append(event)
+            
+            branch_total = 0
+            for branching_event in branching_event_partition:
+                checked_branches.add(branching_event)
+                current_branch = recursize_size_calculate(branching_event)
+                branch_total += current_branch * events_to_amounts[branching_event.event_name]
+            return branch_total
+
+        elif current_event in start_loops:
+            loop_total, extra = calculate_loop(current_event, 0)
+            loop_total *= loop_bound
+            return loop_total + extra
+
+        else:
+            next_event = next((event for event in all_events if event.source == current_event.target), None)
+            if next_event == None:
+                return events_to_amounts[current_event.event_name]
+            return recursize_size_calculate(next_event) + events_to_amounts[current_event.event_name]
+
+    # We first get initial
+    initial_event = None
+    for event in all_events:
+        if event.source == initial:
+            initial_event = event
+
+    return recursize_size_calculate(initial_event)
+
+
+def generate_standard_settings(model_settings: ModelSettings, protocol_json_file: str):
+    with open(protocol_json_file, 'r') as f:
+        data = json.load(f)
+    graph = build_graph(data["transitions"])
+
+    # Need to get all roles and figure out who the first one is so they can have amount 1 and the rest 2
+    # Find edges with indegree 0
+    roles = set()
+    firstRole = ""
+    for edge in graph.edges:
+        roles.add(edge.role)
+
+        current_source = edge.source
+        found_start = True
+        for edge_inner in graph.edges:
+            if current_source == edge_inner.target:
+                found_start = False
+                break
+        if found_start:
+            firstRole = edge.role
+    
+    # We now need to make role_amount: Dict[str, int], delay_type: Dict[str, DelayType], delay_amount: Optional[Dict[str, int]]
+    role_amount = {}
+    delay_type = {}
+    delay_amount = {}
+    for role in roles:
+        if firstRole == role:
+            role_amount[role] = 1
+        else:
+            role_amount[role] = 1 # Set to 2 will slow it down
+        delay_type[role] = DelayType.EVENTS_SELF_EMITTED
+        delay_amount[role] = 1
+
+    # Only change those set to None
+    if model_settings.role_amount == None:
+        model_settings.role_amount = role_amount
+    if model_settings.delay_type == None:
+        model_settings.delay_type = delay_type
+    if model_settings.delay_amount == None:
+        model_settings.delay_amount = delay_amount
+
+    # Checking for log size and calulating a very rough estimate.
+    # Be aware this could still cause overflow
+    if model_settings.log_size == None:
+        jsonTransfer = parse_protocol_seperatly(protocol_json_file)
+        events_to_amounts = {}
+
+        for transition in data["transitions"]:
+            for event in all_events:
+                if event.event_name == transition["label"]["logType"][0]:
+                    events_to_amounts[event.event_name] = model_settings.role_amount[transition["label"]["role"]]
+
+        branching_events = analysis_results["branching_events"]
+        loop_events = analysis_results["loop_events"]
+
+        model_settings.log_size = (calculate_approximate_log_size(events_to_amounts, all_events,branching_events,loop_events, model_settings.loop_bound, jsonTransfer.initial)) + 1
+
 
 def do_full_test(base_path: str, model_settings: ModelSettings, name_of_query_file: str = "", time_file: str = None):
 
     projection_json_files, protocol_json_file, time_json_file = identify_json_files(base_path, time_file)
-    name_amount_dict = model_settings.role_amount
 
     time_file = None
     if (time_json_file != None):
@@ -141,22 +331,31 @@ def do_full_test(base_path: str, model_settings: ModelSettings, name_of_query_fi
 
     model_settings.time_json_transfer = time_file
 
-    jsonTransfers = []
-    globalJsonTransfer = None
-    if len(projection_json_files) == 0:
-        globalJsonTransfer, jsonTransfers = parse_protocol_JSON_file(protocol_json_file)
-    else:
-        globalJsonTransfer = (parse_protocol_seperatly(protocol_json_file))
-        for projection_json_file in projection_json_files:
-            jsonTransfers.append(parse_projection_JSON_file(projection_json_file))
 
-    currentModel = createModel(jsonTransfers, globalJsonTransfer, model_settings)
+    global projection_jsonTransfers
+    projection_jsonTransfers = []
+    global protocol_json_transfer
+    protocol_json_transfer = None
+    if len(projection_json_files) == 0:
+        protocol_json_transfer, projection_jsonTransfers = parse_protocol_JSON_file(protocol_json_file)
+    else:
+        protocol_json_transfer = (parse_protocol_seperatly(protocol_json_file))
+        for projection_json_file in projection_json_files:
+            projection_jsonTransfers.append(parse_projection_JSON_file(projection_json_file))
+    
+    # We need the model settings so if None we will auto generate
+    if model_settings.role_amount == None or model_settings.delay_type == None or model_settings.delay_amount == None or model_settings.log_size == None or name_of_query_file == "":
+        get_event_info()
+    if model_settings.role_amount == None or model_settings.delay_type == None or model_settings.delay_amount == None or model_settings.log_size == None:
+        generate_standard_settings(model_settings, protocol_json_file)
+
+    currentModel = createModel(projection_jsonTransfers, protocol_json_transfer, model_settings)
     save_xml_to_file(currentModel.to_xml(), "example_file", base_path)
 
     model_path = base_path + "\\example_file.xml"
 
     if name_of_query_file == "":
-        name_of_query_file = auto_generate_queries(protocol_json_file, model_settings.log_size, base_path)
+        name_of_query_file = auto_generate_queries(protocol_json_file, base_path)
     
     query_string = base_path + f"\\{name_of_query_file}.txt"
 

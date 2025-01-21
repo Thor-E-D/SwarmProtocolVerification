@@ -69,8 +69,7 @@ class GraphAnalyzer:
 
             for event in self.outgoing[location]:
                 event_stack.append(event)
-                if event.target not in visited or event.target in path_stack:
-                    dfs(event.target, event)
+                dfs(event.target, event)
                 event_stack.pop()
 
             path_stack.pop()

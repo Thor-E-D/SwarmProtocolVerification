@@ -612,7 +612,11 @@ logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[lo
     
     # Generate the "own" events handling with `handleOwnEvent`
     for event in own_events:
-        function_str += f" else if (currentEventType == {event}) {{\n"
+        if first:
+            function_str += f"    if (currentEventType == {event}) {{\n"
+            first = False
+        else:
+            function_str += f" else if (currentEventType == {event}) {{\n"
         function_str += "        inCompetetion = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, id + log_id_start, olderEntryIgnored, currentLocation, eventLocationMap);\n"
         function_str += "    }"
     

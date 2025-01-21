@@ -21,7 +21,7 @@ def test_warehouse_extended():
 
 
 @pytest.mark.integration
-def test_warehouse_two_transport_two_forklift():
+def test_warehouse_two_transport_two_transport():
     name_of_query_file = "query_file2"
 
     name_amount_dict = {"Door": 1, "Forklift": 1, "Transport": 2}
@@ -30,7 +30,7 @@ def test_warehouse_two_transport_two_forklift():
     model_settings.loop_counter = 2
     model_settings.standard_setting = True
     model_settings.delay_amount = {"Door": 1, "Forklift": 1, "Transport": 1}
-    model_settings.log_size = 16
+    model_settings.log_size = 25
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 

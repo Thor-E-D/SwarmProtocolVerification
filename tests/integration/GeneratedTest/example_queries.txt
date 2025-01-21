@@ -1,2 +1,0 @@
-A[] globalLog[logSize - 1].orderCount == 0 
-A[] forall(i: R49_t) forall(j: R48_t) (deadlock and globalLog[logSize - 1].orderCount == 0) imply (R49(i).l54) and (R48(j).l54)

@@ -1,0 +1,2 @@
+A[] globalLog[logSize - 1].orderCount == 0 
+A[] forall(i: R60_t) forall(j: R62_t) forall(k: R61_t) (deadlock and globalLog[logSize - 1].orderCount == 0) imply (R60(i).l79 or R60(i).l80 or R60(i).l81) and (R62(j).l79 or R62(j).l80 or R62(j).l81) and (R61(k).l79 or R61(k).l80 or R61(k).l81)

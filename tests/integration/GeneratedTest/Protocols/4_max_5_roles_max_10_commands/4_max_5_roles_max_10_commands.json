@@ -1,0 +1,167 @@
+{
+    "initial": "63",
+    "transitions": [
+        {
+            "label": {
+                "cmd": "R62_cmd_1",
+                "logType": ["R62_e_1"],
+                "role": "R62"
+            },
+            "source": "63",
+            "target": "64"
+        },
+        {
+            "label": {
+                "cmd": "R62_cmd_2",
+                "logType": ["R62_e_2"],
+                "role": "R62"
+            },
+            "source": "64",
+            "target": "65"
+        },
+        {
+            "label": {
+                "cmd": "R61_cmd_7",
+                "logType": ["R61_e_7"],
+                "role": "R61"
+            },
+            "source": "65",
+            "target": "66"
+        },
+        {
+            "label": {
+                "cmd": "R62_cmd_7",
+                "logType": ["R62_e_7"],
+                "role": "R62"
+            },
+            "source": "66",
+            "target": "67"
+        },
+        {
+            "label": {
+                "cmd": "R61_cmd_1",
+                "logType": ["R61_e_1"],
+                "role": "R61"
+            },
+            "source": "63",
+            "target": "68"
+        },
+        {
+            "label": {
+                "cmd": "R60_cmd_0",
+                "logType": ["R60_e_0"],
+                "role": "R60"
+            },
+            "source": "67",
+            "target": "69"
+        },
+        {
+            "label": {
+                "cmd": "R62_cmd_3",
+                "logType": ["R62_e_3"],
+                "role": "R62"
+            },
+            "source": "69",
+            "target": "70"
+        },
+        {
+            "label": {
+                "cmd": "R62_cmd_4",
+                "logType": ["R62_e_4"],
+                "role": "R62"
+            },
+            "source": "70",
+            "target": "71"
+        },
+        {
+            "label": {
+                "cmd": "R62_cmd_0",
+                "logType": ["R62_e_0"],
+                "role": "R62"
+            },
+            "source": "68",
+            "target": "72"
+        },
+        {
+            "label": {
+                "cmd": "R62_cmd_6",
+                "logType": ["R62_e_6"],
+                "role": "R62"
+            },
+            "source": "71",
+            "target": "73"
+        },
+        {
+            "label": {
+                "cmd": "R61_cmd_2",
+                "logType": ["R61_e_2"],
+                "role": "R61"
+            },
+            "source": "73",
+            "target": "74"
+        },
+        {
+            "label": {
+                "cmd": "R62_cmd_8",
+                "logType": ["R62_e_8"],
+                "role": "R62"
+            },
+            "source": "71",
+            "target": "75"
+        },
+        {
+            "label": {
+                "cmd": "R61_cmd_0",
+                "logType": ["R61_e_0"],
+                "role": "R61"
+            },
+            "source": "74",
+            "target": "76"
+        },
+        {
+            "label": {
+                "cmd": "R61_cmd_6",
+                "logType": ["R61_e_6"],
+                "role": "R61"
+            },
+            "source": "75",
+            "target": "77"
+        },
+        {
+            "label": {
+                "cmd": "R61_cmd_3",
+                "logType": ["R61_e_3"],
+                "role": "R61"
+            },
+            "source": "72",
+            "target": "78"
+        },
+        {
+            "label": {
+                "cmd": "R62_cmd_5",
+                "logType": ["R62_e_5"],
+                "role": "R62"
+            },
+            "source": "76",
+            "target": "79"
+        },
+        {
+            "label": {
+                "cmd": "R61_cmd_5",
+                "logType": ["R61_e_5"],
+                "role": "R61"
+            },
+            "source": "78",
+            "target": "80"
+        },
+        {
+            "label": {
+                "cmd": "R61_cmd_4",
+                "logType": ["R61_e_4"],
+                "role": "R61"
+            },
+            "source": "77",
+            "target": "81"
+        }
+    ]
+}
