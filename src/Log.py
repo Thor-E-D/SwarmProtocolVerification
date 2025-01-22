@@ -18,7 +18,7 @@ from Utils import Utils
 from Functions import generate_function_merge_propagation_log, generate_function_handle_log_entry
 
 class Log(Template):
-    def __init__(self, parameter: str, json_transfer: JSONTransfer, evetname_loopcounter: Dict[str,str], log_size: int, log_delay_type: DelayType, log_time_data: LogTimeData = None):
+    def __init__(self, parameter: str, json_transfer: JSONTransfer, evetname_loopcounter: Dict[str,str], log_size: int, log_delay_type: DelayType, using_global_event_bound: bool,log_time_data: LogTimeData = None):
         
         # We set a flag if our delay is nothing
         delay_nothing = (log_delay_type == DelayType.NOTHING)
@@ -78,115 +78,40 @@ class Log(Template):
         declaration.add_function_call(generate_function_handle_log_entry, own_event_names, other_event_names)
         declaration.add_function_call(generate_function_merge_propagation_log,evetname_loopcounter) 
         
-        l1 = Location (id = Utils.get_next_id(), x=-204, y=-298, name="l_prop1", locationType = LocationType.COMMITTED)
-        l2 = Location (id = Utils.get_next_id(), x=-748, y=-136, locationType = LocationType.COMMITTED)
-        l3 = Location (id = Utils.get_next_id(), x=-204, y=-136)
-        l4 = Location (id = Utils.get_next_id(), x=229, y=-127, locationType = LocationType.COMMITTED)
-        l5 = Location (id = Utils.get_next_id(), x=-612, y=34, locationType = LocationType.COMMITTED)
+        l_prop1 = Location (id = Utils.get_next_id(), x=-204, y=-298, name="l_prop1", locationType = LocationType.COMMITTED)
+        l_merge_log = Location (id = Utils.get_next_id(), x=-748, y=-136, name="merge_log", locationType = LocationType.COMMITTED)
+        l_initial = Location (id = Utils.get_next_id(), x=-204, y=-136, name="initial")
+        l_accepting_emitted_1 = Location (id = Utils.get_next_id(), x=8, y=-76, name="accepting_emitted_1", locationType = LocationType.COMMITTED)
+        l_accepting_emitted_2 = Location (id = Utils.get_next_id(), x=238, y=-136, name="accepting_emitted_2", locationType = LocationType.COMMITTED)
+        l_updating_role_1 = Location (id = Utils.get_next_id(), x=-612, y=34, name="updating_role_1", locationType = LocationType.COMMITTED)
         if (not delay_nothing):
-            l6 = Location (id = Utils.get_next_id(), x=25, y=76, name="l_prop2", locationType = LocationType.COMMITTED)
-        l7 = Location (id = Utils.get_next_id(), x=-561, y=153, locationType = LocationType.COMMITTED)
-        l8 = Location (id = Utils.get_next_id(), x=-977, y=34, locationType = LocationType.COMMITTED)
-        l9 = Location (id = Utils.get_next_id(), x=-1079, y=136, locationType = LocationType.COMMITTED)
+            l_prop2 = Location (id = Utils.get_next_id(), x=238, y=68, name="l_prop2", locationType = LocationType.COMMITTED)
+        l_updating_role_2 = Location (id = Utils.get_next_id(), x=-561, y=153, name="updating_role_2", locationType = LocationType.COMMITTED)
+        l_backtracking_1 = Location (id = Utils.get_next_id(), x=-977, y=34, name="backtracking_1", locationType = LocationType.COMMITTED)
+        l_backtracking_2 = Location (id = Utils.get_next_id(), x=-1079, y=136, name="backtracking_2", locationType = LocationType.COMMITTED)
 
         locations = []
         if (delay_nothing):
-            locations = [l1, l2, l3, l4, l5, l7, l8, l9]
+            locations = [l_prop1, l_merge_log, l_initial, l_accepting_emitted_1, l_accepting_emitted_2, l_updating_role_1, l_updating_role_2, l_backtracking_1, l_backtracking_2]
         else:
-            locations = [l1, l2, l3, l4, l5, l6, l7, l8, l9]
+            locations = [l_prop1, l_merge_log, l_initial, l_accepting_emitted_1, l_accepting_emitted_2 ,l_updating_role_1, l_prop2, l_updating_role_2, l_backtracking_1, l_backtracking_2]
 
         transitions = []
 
-        intitial_location = l3
-        waiting_location = l3
+        intitial_location = l_initial
+        waiting_location = l_initial
 
         assigmentAddition = ""
         guard_addition = ""
         guard_extension_addition = ""
 
         if log_time_data != None:
-            declaration.add_variable("clock x;")
-
-            assigmentAddition = "x := 0, "
-            guard_extension_addition = "&& updatesSincePropagation != 1"
-
-            intitial_location = Location (id = Utils.get_next_id(), x=-204, y=-186, locationType = LocationType.COMMITTED)
-            waiting_location = Location (id = Utils.get_next_id(), x=-204, y=-246, locationType = LocationType.NEITHER)
-            locations.append(intitial_location)
-            locations.append(waiting_location)
-
-            if log_time_data.max_time != None:
-                waiting_location.invariant = f"x <= {log_time_data.max_time}"
-
-            if log_time_data.min_time != None:
-                guard_addition = f"x >= {log_time_data.min_time} &&"
-
-            transitions.append(Transition(
-            id=Utils.get_next_id(),
-            source=intitial_location,
-            target=l3,
-            guard="!newUpdates"
-            ))
-
-            transitions.append(Transition(
-            id=Utils.get_next_id(),
-            source=intitial_location,
-            target=waiting_location,
-            guard="newUpdates"
-            ))
-            
-            if (delay_nothing):
-                transitions.append(Transition(
-                id=Utils.get_next_id(),
-                source=l4,
-                target=intitial_location,
-                guard=f"updatesSincePropagation == 1", # We know it is the first since propagation and need to reset the clock.
-                assignment=Utils.remove_last_two_chars(assigmentAddition),
-                ))
-
-                transitions.append(Transition(
-                id=Utils.get_next_id(),
-                source=l4,
-                target=intitial_location,
-                guard=f"updatesSincePropagation != 1",
-                nails = [(0, 20)]
-                ))
-            else:
-                transitions.append(Transition(
-                id=Utils.get_next_id(),
-                source=l4,
-                target=intitial_location,
-                guard=f"!(updatesSincePropagation > maxUpdatesSincePropagation_{json_transfer.name}) && updatesSincePropagation == 1",
-                assignment=Utils.remove_last_two_chars(assigmentAddition),
-                nails = [(0, 20)]
-                ))
-
-            transitions.append(Transition(
-            id=Utils.get_next_id(),
-            source=waiting_location,
-            target=l2,
-            guard="currentLogToPropagate == log_id_start + id",
-            synchronisation="propagate_log?",
-            assignment="mergePropagationLog()"
-            ))
-
-            transitions.append(Transition(
-            id=Utils.get_next_id(),
-            source=waiting_location,
-            target=l4,
-            synchronisation=f"{json_transfer.do_update_channel_name}[id]?",
-            assignment=f"""updateLog{json_transfer.name}(currentLog,emittedOrderCounts,log_id_start),
-                    updatesSincePropagation++,
-                    newUpdates := true,
-                    currentSizeOfLog++""",
-            nails = [(0, -61)]
-            ))
-
+            intitial_location, waiting_location, assigmentAddition, guard_addition, guard_extension_addition = self.add_timing_functionality(json_transfer, log_time_data, delay_nothing, declaration, l_merge_log, l_initial, l_accepting_emitted_1, l_accepting_emitted_2, locations, transitions)
 
         transitions.append(Transition(
             id=Utils.get_next_id(),
             source=waiting_location,
-            target=l1,
+            target=l_prop1,
             guard=guard_addition + "newUpdates",
             assignment=assigmentAddition + """currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
 updatesSincePropagation := 0,
@@ -197,8 +122,8 @@ setPropagationLog(currentLog)""",
 
         transitions.append(Transition(
             id=Utils.get_next_id(),
-            source=l2,
-            target=l8,
+            source=l_merge_log,
+            target=l_backtracking_1,
             guard="didLogChange && resetCount != 0",
             assignment="""counter := currentSizeOfLog - eventsToRead,
 setNextLogToPropagate(),
@@ -207,8 +132,8 @@ backTracking := true"""
 
         transitions.append(Transition(
             id=Utils.get_next_id(),
-            source=l8,
-            target=l9,
+            source=l_backtracking_1,
+            target=l_backtracking_2,
             guard="resetCount != 0",
             assignment="""currentEventResetID = discardedEventIDs[resetCount - 1]""",
             nails = [(-1079, 34)]
@@ -216,8 +141,8 @@ backTracking := true"""
 
         transitions.append(Transition(
             id=Utils.get_next_id(),
-            source=l9,
-            target=l8,
+            source=l_backtracking_2,
+            target=l_backtracking_1,
             assignment="""discardedEventIDs[resetCount - 1] = -1,
 resetCount--""",
             synchronisation=f"{json_transfer.reset_channel_name}[id]!",
@@ -226,8 +151,8 @@ resetCount--""",
 
         transitions.append(Transition(
             id=Utils.get_next_id(),
-            source=l9,
-            target=l8,
+            source=l_backtracking_2,
+            target=l_backtracking_1,
             guard="!isInSubsciptions(subscriptions, currentEventResetID)",
             assignment="""discardedEventIDs[resetCount - 1] = -1,
 resetCount--""",
@@ -235,43 +160,48 @@ resetCount--""",
 
         transitions.append(Transition(
             id=Utils.get_next_id(),
-            source=l8,
-            target=l5,
+            source=l_backtracking_1,
+            target=l_updating_role_1,
             guard="resetCount == 0"
         ))
 
         transitions.append(Transition(
             id=Utils.get_next_id(),
-            source=l1,
-            target=l3,
+            source=l_prop1,
+            target=l_initial,
             synchronisation="propagate_log!",
             nails = [(-347, -255)]
         ))
 
         transitions.append(Transition(
             id=Utils.get_next_id(),
-            source=l3,
-            target=l4,
+            source=l_initial,
+            target=l_accepting_emitted_1,
             synchronisation=f"{json_transfer.do_update_channel_name}[id]?",
             assignment=f"""updateLog{json_transfer.name}(currentLog,emittedOrderCounts,log_id_start),
 updatesSincePropagation++,
 newUpdates := true,
-currentSizeOfLog++""",
-            nails = [(0, -51)]
+currentSizeOfLog++"""
+        ))
+
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l_accepting_emitted_1,
+            target=l_accepting_emitted_2
         ))
 
         if (not delay_nothing):
             transitions.append(Transition(
                 id=Utils.get_next_id(),
-                source=l4,
+                source=l_accepting_emitted_2,
                 target=intitial_location,
                 guard=f"!(updatesSincePropagation > maxUpdatesSincePropagation_{json_transfer.name})" + guard_extension_addition
             ))
 
             transitions.append(Transition(
                 id=Utils.get_next_id(),
-                source=l4,
-                target=l6,
+                source=l_accepting_emitted_2,
+                target=l_prop2,
                 guard=f"updatesSincePropagation > maxUpdatesSincePropagation_{json_transfer.name}",
                 assignment="""currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
     updatesSincePropagation := 0,
@@ -280,7 +210,7 @@ currentSizeOfLog++""",
 
             transitions.append(Transition(
                 id=Utils.get_next_id(),
-                source=l6,
+                source=l_prop2,
                 target=intitial_location,
                 synchronisation="propagate_log!",
                 assignment=assigmentAddition + "setPropagationLog(currentLog)"
@@ -288,8 +218,8 @@ currentSizeOfLog++""",
 
         transitions.append(Transition(
             id=Utils.get_next_id(),
-            source=l3,
-            target=l2,
+            source=l_initial,
+            target=l_merge_log,
             guard="currentLogToPropagate == log_id_start + id",
             synchronisation="propagate_log?",
             assignment="mergePropagationLog()"
@@ -297,8 +227,8 @@ currentSizeOfLog++""",
 
         transitions.append(Transition(
             id=Utils.get_next_id(),
-            source=l2,
-            target=l5,
+            source=l_merge_log,
+            target=l_updating_role_1,
             assignment="""counter := currentSizeOfLog - eventsToRead,
 setNextLogToPropagate()""",
             guard="!didLogChange || resetCount == 0"
@@ -306,7 +236,7 @@ setNextLogToPropagate()""",
 
         transitions.append(Transition(
             id=Utils.get_next_id(),
-            source=l5,
+            source=l_updating_role_1,
             target=intitial_location,
             guard="currentLog[counter].orderCount == 0",
             synchronisation="propagate_log!",
@@ -317,14 +247,14 @@ eventsToRead := 0"""
 
         transitions.append(Transition(
             id=Utils.get_next_id(),
-            source=l5,
-            target=l7,
+            source=l_updating_role_1,
+            target=l_updating_role_2,
             guard="currentLog[counter].orderCount != 0"
         ))
 
 
-        start_y = l7.y + 51
-        start_x = l7.x - 85
+        start_y = l_updating_role_2.y + 51
+        start_x = l_updating_role_2.x - 85
 
 
         for subscription in json_transfer.subscriptions:
@@ -334,8 +264,8 @@ eventsToRead := 0"""
 
             transitions.append(Transition(
                 id=Utils.get_next_id(),
-                source=l7,
-                target=l5,
+                source=l_updating_role_2,
+                target=l_updating_role_1,
                 guard=f"currentLog[counter].eventID == {Utils.get_eventtype_UID(subscription)}",
                 synchronisation=f"{json_transfer.advance_channel_names[subscription]}[id]!",
                 assignment="counter++",
@@ -346,11 +276,250 @@ eventsToRead := 0"""
 
         transitions.append(Transition(
             id=Utils.get_next_id(),
-            source=l7,
-            target=l5,
+            source=l_updating_role_2,
+            target=l_updating_role_1,
             guard=f"!isInSubsciptions(subscriptions, currentLog[counter].eventID)",
             assignment="counter++",
             nails=nails
         ))
+
+        # Altering the base model if nessesary finding transitions and changing them as required.
+        if using_global_event_bound:
+            # Adding nessesary locations
+            l_forced_prop_1 = Location (id = Utils.get_next_id(), x=17, y=178, name="forced_prop_1", locationType = LocationType.COMMITTED)
+            l_forced_prop_2 = Location (id = Utils.get_next_id(), x=-204, y=68, name="forced_prop_2", locationType = LocationType.COMMITTED)
+            locations.append(l_forced_prop_1)
+            locations.append(l_forced_prop_2)
+
+            # Changing transitions based on their names
+            current_transition = self.find_transition(transitions, l_source=l_prop2, l_target=intitial_location)
+            current_transition.target = l_forced_prop_1
+
+            current_transition = self.find_transition(transitions, l_source=l_updating_role_1, l_target=intitial_location)
+            current_transition.guard += " && !anyForcedToPropagate"
+            current_transition.nail = (-306, 34)
+
+            current_transition = self.find_transition(transitions, l_source=l_accepting_emitted_2, l_target=l_initial)
+            current_transition.synchronisation = "force_propagate!"
+
+            # Allowing forced propagation to attempt to propagate once more
+            transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l_updating_role_1,
+            target=l_initial,
+            guard="""currentLog[counter].orderCount == 0 &&
+                anyForcedToPropagate &&
+                currentLogToPropagate == log_id_start + id""",
+            synchronisation="attempt_propagation!",
+            assignment="""didLogChange := false,
+                backTracking := false,
+                eventsToRead := 0"""
+            ))
+
+            transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l_updating_role_1,
+            target=intitial_location,
+            guard="""currentLog[counter].orderCount == 0 &&
+                anyForcedToPropagate &&
+                currentLogToPropagate != log_id_start + id""",
+            synchronisation="propagate_log!",
+            assignment="""didLogChange := false,
+                backTracking := false,
+                eventsToRead := 0"""
+            ))
+
+            # Adding transitions for propagating before force propagating
+            transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l_forced_prop_1,
+            target=l_forced_prop_2,
+            guard="""(currentLogToPropagate + 1) % amountOfLogs == log_id_start + id
+                && amountOfPropagation == 0""",
+            synchronisation="propagate_log?"
+            ))
+
+            transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l_forced_prop_2,
+            target=l_initial,
+            synchronisation="force_propagate!"
+            ))
+
+
+            if log_delay_type == DelayType.EVENTS_EMITTED:
+                l_forced_prop_3 = Location (id = Utils.get_next_id(), x=297, y=-289, name="forced_prop_3", locationType = LocationType.COMMITTED)
+                locations.append(l_forced_prop_3)
+
+                current_transition = self.find_transition(transitions, l_source=l_initial, l_target=l_accepting_emitted_1)
+                current_transition.assignment=f"updateLog{json_transfer.name}(currentLog,emittedOrderCounts,log_id_start),currentSizeOfLog++"
+
+                current_transition = self.find_transition(transitions, l_source=l_accepting_emitted_1, l_target=l_accepting_emitted_2)
+                current_transition.guard = "newUpdates"
+
+                transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l_accepting_emitted_1,
+                target=l_accepting_emitted_2,
+                guard="!newUpdates",
+                assignment="""updatesSincePropagation := globalLogIndex,
+                    newUpdates := true""",
+                nails=[(8, 34), (170, -34)]
+                ))
+
+                current_transition = self.find_transition(transitions, l_source=l_accepting_emitted_2, l_target=l_initial)
+                current_transition.guard = f"(updatesSincePropagation + maxUpdatesSincePropagation_{json_transfer.name} > globalLogIndex)"
+
+                current_transition = self.find_transition(transitions, l_source=l_accepting_emitted_2, l_target=l_prop2)
+                current_transition.guard = f"!(updatesSincePropagation + maxUpdatesSincePropagation_{json_transfer.name} > globalLogIndex)"
+
+                # Adding the new transitions for ensuring forced propagation happens in order.
+
+                transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l_initial,
+                target=l_forced_prop_3,
+                guard=f"newUpdates && !(updatesSincePropagation + maxUpdatesSincePropagation_{json_transfer.name} > globalLogIndex)",
+                synchronisation="force_propagate?",
+                assignment="forcedToPropagate[id + log_id_start] := true"
+                ))
+
+                transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l_initial,
+                target=l_forced_prop_3,
+                synchronisation="attempt_propagation?",
+                guard="forcedToPropagate[id + log_id_start]",
+                nails=[(238,-204)]
+                ))
+
+                transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l_forced_prop_3,
+                target=l_initial,
+                synchronisation="abandon_propagation?",
+                nails=[(306,-170)]
+                ))
+
+                transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l_forced_prop_3,
+                target=l_forced_prop_3,
+                guard="!(forcedToPropagate[forcedPropagationCounter])",
+                assignment="forcedPropagationCounter++"
+                ))
+
+                transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l_forced_prop_3,
+                target=l_prop1,
+                guard="""(forcedToPropagate[forcedPropagationCounter]) &&
+                    forcedPropagationCounter == (id + log_id_start)""",
+                synchronisation="abandon_propagation!",
+                assignment="""forcedToPropagate[forcedPropagationCounter] := false,
+                    forcedPropagationCounter := 0,
+                    calculateAnyForcedToPropagate(),
+                    currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+                    updatesSincePropagation := 0,
+                    newUpdates := false,
+                    setPropagationLog(currentLog)"""
+                ))
+
+
         
-        super().__init__(name + "_log", parameter, declaration, locations, l3, transitions)
+        super().__init__(name + "_log", parameter, declaration, locations, l_initial, transitions)
+
+    def find_transition(self, transitions, l_source, l_target):
+        res_list = []
+
+        for transition in transitions:
+            if transition.source == l_source and transition.target == l_target:
+                res_list.append(transition)
+
+        if len(res_list) == 1:
+            return res_list[0]
+
+        return res_list
+
+
+    def add_timing_functionality(self, json_transfer, log_time_data, delay_nothing, declaration, l_merge_log, l_initial, l_accepting_emitted_1,l_accepting_emitted_2, locations, transitions):
+        declaration.add_variable("clock x;")
+
+        #l_merge_log, 
+
+        assigmentAddition = "x := 0, "
+        guard_extension_addition = "&& updatesSincePropagation != 1"
+
+        intitial_location = Location (id = Utils.get_next_id(), x=-204, y=-186, locationType = LocationType.COMMITTED)
+        waiting_location = Location (id = Utils.get_next_id(), x=-204, y=-246, locationType = LocationType.NEITHER)
+        locations.append(intitial_location)
+        locations.append(waiting_location)
+
+        if log_time_data.max_time != None:
+            waiting_location.invariant = f"x <= {log_time_data.max_time}"
+
+        if log_time_data.min_time != None:
+            guard_addition = f"x >= {log_time_data.min_time} &&"
+
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=intitial_location,
+            target=l_initial,
+            guard="!newUpdates"
+            ))
+
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=intitial_location,
+            target=waiting_location,
+            guard="newUpdates"
+            ))
+            
+        if (delay_nothing):
+            transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l_accepting_emitted_2,
+                target=intitial_location,
+                guard=f"updatesSincePropagation == 1", # We know it is the first since propagation and need to reset the clock.
+                assignment=Utils.remove_last_two_chars(assigmentAddition),
+                ))
+
+            transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l_accepting_emitted_2,
+                target=intitial_location,
+                guard=f"updatesSincePropagation != 1",
+                nails = [(0, 20)]
+                ))
+        else:
+            transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l_accepting_emitted_2,
+                target=intitial_location,
+                guard=f"!(updatesSincePropagation > maxUpdatesSincePropagation_{json_transfer.name}) && updatesSincePropagation == 1",
+                assignment=Utils.remove_last_two_chars(assigmentAddition),
+                nails = [(0, 20)]
+                ))
+
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=waiting_location,
+            target=l_merge_log,
+            guard="currentLogToPropagate == log_id_start + id",
+            synchronisation="propagate_log?",
+            assignment="mergePropagationLog()"
+            ))
+
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=waiting_location,
+            target=l_accepting_emitted_1,
+            synchronisation=f"{json_transfer.do_update_channel_name}[id]?",
+            assignment=f"""updateLog{json_transfer.name}(currentLog,emittedOrderCounts,log_id_start),
+                    updatesSincePropagation++,
+                    newUpdates := true,
+                    currentSizeOfLog++""",
+            nails = [(0, -61)]
+            ))
+        
+        return intitial_location,waiting_location,assigmentAddition,guard_addition,guard_extension_addition

@@ -9,6 +9,18 @@ functionality, but with different length of arrays.
 
 from typing import Dict
 
+def generate_function_calculate_any_forced_to_propagte() -> str:
+    return """
+void calculateAnyForcedToPropagate() {
+    int i = 0;
+    bool tempAnyForcedToPropagate = false;
+    for (i = 0; i &lt; amountOfLogs; i++) {
+        tempAnyForcedToPropagate = tempAnyForcedToPropagate || forcedToPropagate[i];
+    }
+    anyForcedToPropagate = tempAnyForcedToPropagate;
+}"""
+
+
 def generate_function_is_in_subsciption() -> str:
     return """
 bool isInSubsciptions(int tmpList[amountOfUniqueEvents], int possibleEntry) {
@@ -259,15 +271,9 @@ void updateTrueGlobalLog() {
 def generate_function_update_global_log() -> str:
     return """
 void updateGlobalLog() {
-    int i;
-    bool notAdded = true;
-    for (i = 0; i &lt; (logSize); i++) {
-        if (notAdded &amp;&amp; globalLog[i].orderCount == 0) {
-            globalLog[i] = tempLogEntry;
-            trueCurrentIndex++;
-            notAdded = false;
-        } 
-    }
+    globalLog[globalLogIndex] = tempLogEntry;
+    globalLogIndex++;
+    trueCurrentIndex++;
     updateTrueGlobalLog();
 }"""
 

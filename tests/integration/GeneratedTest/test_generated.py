@@ -16,7 +16,6 @@ def test_generated_file():
     base_path = os.path.dirname(os.path.abspath(__file__))
     directory_path = os.path.join(base_path, "Protocols")
 
-
     try:
         # Get all folders in dir
         entries = os.listdir(directory_path)

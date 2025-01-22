@@ -98,8 +98,10 @@ def calculate_relevant_mappings(jsonTransfers: List[JSONTransfer]):
 
     return eventnames_dict, amount_names, advance_channels, update_channels, reset_channels
 
-def add_functions(declaration: Declaration):
+def add_functions(declaration: Declaration, using_global_event_bound):
     # Ordering is important as some functions depend on others.
+    if using_global_event_bound:
+        declaration.add_function_call(generate_function_calculate_any_forced_to_propagte)
     declaration.add_function_call(generate_function_is_in_subsciption)
     declaration.add_function_call(generate_function_is_int_in_list)
     declaration.add_function_call(generate_function_is_order_count_in_log)
@@ -233,6 +235,12 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     # Set total amount of events
     set_of_preceding_events, max_amount_of_preceding_events, branching_events, all_loop_event_names = enrich_json(jsonTransfers, eventnames_dict)
 
+    # set flag if any are using global events as bounds
+    using_global_event_bound = False
+    for key_role in model_settings.delay_type:
+        if model_settings.delay_type[key_role] == DelayType.EVENTS_EMITTED:
+            using_global_event_bound = True
+            break
 
     declaration = Declaration()
 
@@ -252,6 +260,7 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     declaration.add_variable("logEntryType tempLogEntry;")
     declaration.add_variable("logEntryType propagationLog[logSize];")
     declaration.add_variable("logEntryType globalLog[logSize];")
+    declaration.add_variable("int globalLogIndex = 0;")
     declaration.add_variable("logEntryType trueGlobalLog[logSize];")
     declaration.add_variable("int trueDiscardedEvents[logSize];")
     declaration.add_variable("int trueDiscardedDueToCompetionEvents[logSize];")
@@ -275,7 +284,7 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     for jsonTransfer in jsonTransfers:
         jsonTransfer.log_id_start = log_id_start_entries[jsonTransfer.name]  
 
-    amount_of_logs_string = "int amountOfLogs = "
+    amount_of_logs_string = "const int amountOfLogs = "
     for number_of_name in number_of_names:
         if number_of_names.index(number_of_name) != len(number_of_names) - 1:
             amount_of_logs_string += number_of_name + " + "
@@ -284,8 +293,7 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     declaration.add_variable(amount_of_logs_string)
 
     declaration.add_variable("int currentLogToPropagate;")
-    declaration.add_variable("int amountOfPropagation = 0;")    
-
+    declaration.add_variable("int amountOfPropagation = 0;") 
 
     # For branch tracking we create a list which ties each event to the branches before it
     eventsTiedTo = "const int eventsTiedTo[amountOfUniqueEvents][maxAmountOfTied] = {"
@@ -344,8 +352,26 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
         for advance_channel in list_of_advance_channels:
             declaration.add_channel(Channel(urgent=False, broadcast=True, type=currentAmount, name=advance_channel))
 
+
+    if using_global_event_bound:
+        declaration.add_variable("int forcedPropagationCounter = 0;")
+        # Calculate global amount of logs
+        global_amount_of_logs = 0
+        for key in name_amount_dict:
+            global_amount_of_logs += name_amount_dict[key]
+        
+        forced_to_propagte_str = "bool forcedToPropagate[amountOfLogs] = {"
+        for _ in range(global_amount_of_logs):
+            forced_to_propagte_str += "false, " 
+        forced_to_propagte_str = forced_to_propagte_str[:-2] + "};"
+        declaration.add_variable(forced_to_propagte_str)
+        declaration.add_variable("bool anyForcedToPropagate = false;")
+        declaration.add_channel(Channel(urgent=False, broadcast=True, name="abandon_propagation"))
+        declaration.add_channel(Channel(urgent=False, broadcast=True, name="attempt_propagation"))
+        declaration.add_channel(Channel(urgent=False, broadcast=True, name="force_propagate"))
+
     # Functions
-    add_functions(declaration)
+    add_functions(declaration, using_global_event_bound)
     create_basedOn_functions(jsonTransfers, name_amount_dict, eventnames_dict, declaration)
 
     # Adding templates comprised of roles and logs for each jsonTransfer we create one of each.
@@ -375,10 +401,10 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
 
         log = None
         if model_settings.time_json_transfer == None:
-            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, model_settings.log_size, model_settings.delay_type[jsonTransfer.name])
+            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, model_settings.log_size, model_settings.delay_type[jsonTransfer.name], using_global_event_bound)
         else:
             log_time_data_role = next((log_time_data for log_time_data in model_settings.time_json_transfer.log_time_data if log_time_data.role_name == jsonTransfer.name), None)
-            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, model_settings.log_size,model_settings.delay_type[jsonTransfer.name], log_time_data_role)
+            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, model_settings.log_size,model_settings.delay_type[jsonTransfer.name], using_global_event_bound, log_time_data_role)
         logs.append(log)
 
     #Adding start loop event to global decleration

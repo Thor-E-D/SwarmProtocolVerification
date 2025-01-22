@@ -1,0 +1,5 @@
+E[] not Transport(0).l2
+E<> forall(j:Forklift_t) Transport(0).l1 and Forklift(j).l2
+E<> Transport(0).l3 imply Forklift(0).l1
+E<> deadlock and forall(i:logSize_t) not (trueGlobalLog[i].eventID == Request_ID and trueGlobalLog[i].orderCount != 0)
+E<> Transport_log(0).forced_prop_3 and Door_log(0).forced_prop_3
