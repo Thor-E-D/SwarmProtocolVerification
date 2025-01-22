@@ -382,6 +382,10 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     for jsonTransfer in jsonTransfers:
         if model_settings.delay_type[jsonTransfer.name] != DelayType.NOTHING:
                 declaration.add_variable(f"int maxUpdatesSincePropagation_{jsonTransfer.name} = {model_settings.delay_amount[jsonTransfer.name]};")
+        else:
+            # If using a nothing delay we simply set to 0 with since functionality is the same but simplfies log construction.
+            # Need to keep DelayType.NOTHING as flag for log construction
+            declaration.add_variable(f"int maxUpdatesSincePropagation_{jsonTransfer.name} = 0;")
 
         role = None
         if model_settings.time_json_transfer == None:

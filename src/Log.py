@@ -20,8 +20,11 @@ from Functions import generate_function_merge_propagation_log, generate_function
 class Log(Template):
     def __init__(self, parameter: str, json_transfer: JSONTransfer, evetname_loopcounter: Dict[str,str], log_size: int, log_delay_type: DelayType, using_global_event_bound: bool,log_time_data: LogTimeData = None):
         
-        # We set a flag if our delay is nothing
-        delay_nothing = (log_delay_type == DelayType.NOTHING)
+        no_delay_flag = False
+
+        if (log_delay_type == DelayType.NOTHING):
+            log_delay_type = DelayType.EVENTS_SELF_EMITTED
+            no_delay_flag = True
         
         name = json_transfer.name
         declaration = Declaration()
@@ -84,36 +87,21 @@ class Log(Template):
         l_accepting_emitted_1 = Location (id = Utils.get_next_id(), x=8, y=-76, name="accepting_emitted_1", locationType = LocationType.COMMITTED)
         l_accepting_emitted_2 = Location (id = Utils.get_next_id(), x=238, y=-136, name="accepting_emitted_2", locationType = LocationType.COMMITTED)
         l_updating_role_1 = Location (id = Utils.get_next_id(), x=-612, y=34, name="updating_role_1", locationType = LocationType.COMMITTED)
-        if (not delay_nothing):
-            l_prop2 = Location (id = Utils.get_next_id(), x=238, y=68, name="l_prop2", locationType = LocationType.COMMITTED)
+        l_prop2 = Location (id = Utils.get_next_id(), x=238, y=68, name="l_prop2", locationType = LocationType.COMMITTED)
         l_updating_role_2 = Location (id = Utils.get_next_id(), x=-561, y=153, name="updating_role_2", locationType = LocationType.COMMITTED)
         l_backtracking_1 = Location (id = Utils.get_next_id(), x=-977, y=34, name="backtracking_1", locationType = LocationType.COMMITTED)
         l_backtracking_2 = Location (id = Utils.get_next_id(), x=-1079, y=136, name="backtracking_2", locationType = LocationType.COMMITTED)
 
-        locations = []
-        if (delay_nothing):
-            locations = [l_prop1, l_merge_log, l_initial, l_accepting_emitted_1, l_accepting_emitted_2, l_updating_role_1, l_updating_role_2, l_backtracking_1, l_backtracking_2]
-        else:
-            locations = [l_prop1, l_merge_log, l_initial, l_accepting_emitted_1, l_accepting_emitted_2 ,l_updating_role_1, l_prop2, l_updating_role_2, l_backtracking_1, l_backtracking_2]
-
+        locations = [l_prop1, l_merge_log, l_initial, l_accepting_emitted_1, l_accepting_emitted_2 ,l_updating_role_1, l_prop2, l_updating_role_2, l_backtracking_1, l_backtracking_2]
         transitions = []
 
-        intitial_location = l_initial
-        waiting_location = l_initial
-
-        assigmentAddition = ""
-        guard_addition = ""
-        guard_extension_addition = ""
-
-        if log_time_data != None:
-            intitial_location, waiting_location, assigmentAddition, guard_addition, guard_extension_addition = self.add_timing_functionality(json_transfer, log_time_data, delay_nothing, declaration, l_merge_log, l_initial, l_accepting_emitted_1, l_accepting_emitted_2, locations, transitions)
-
+        # Normal model based on untimed and using DELAY.EVENT_SELF_EMITTED
         transitions.append(Transition(
             id=Utils.get_next_id(),
-            source=waiting_location,
+            source=l_initial,
             target=l_prop1,
-            guard=guard_addition + "newUpdates",
-            assignment=assigmentAddition + """currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+            guard="newUpdates",
+            assignment="""currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
 updatesSincePropagation := 0,
 newUpdates := false,
 setPropagationLog(currentLog)""",
@@ -190,31 +178,30 @@ currentSizeOfLog++"""
             target=l_accepting_emitted_2
         ))
 
-        if (not delay_nothing):
-            transitions.append(Transition(
-                id=Utils.get_next_id(),
-                source=l_accepting_emitted_2,
-                target=intitial_location,
-                guard=f"!(updatesSincePropagation > maxUpdatesSincePropagation_{json_transfer.name})" + guard_extension_addition
-            ))
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l_accepting_emitted_2,
+            target=l_initial,
+            guard=f"!(updatesSincePropagation > maxUpdatesSincePropagation_{json_transfer.name})"
+        ))
 
-            transitions.append(Transition(
-                id=Utils.get_next_id(),
-                source=l_accepting_emitted_2,
-                target=l_prop2,
-                guard=f"updatesSincePropagation > maxUpdatesSincePropagation_{json_transfer.name}",
-                assignment="""currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
-    updatesSincePropagation := 0,
-    newUpdates := false"""
-            ))
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l_accepting_emitted_2,
+            target=l_prop2,
+            guard=f"updatesSincePropagation > maxUpdatesSincePropagation_{json_transfer.name}",
+            assignment="""currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+updatesSincePropagation := 0,
+newUpdates := false"""
+        ))
 
-            transitions.append(Transition(
-                id=Utils.get_next_id(),
-                source=l_prop2,
-                target=intitial_location,
-                synchronisation="propagate_log!",
-                assignment=assigmentAddition + "setPropagationLog(currentLog)"
-            ))
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l_prop2,
+            target=l_initial,
+            synchronisation="propagate_log!",
+            assignment="setPropagationLog(currentLog)"
+        ))
 
         transitions.append(Transition(
             id=Utils.get_next_id(),
@@ -237,7 +224,7 @@ setNextLogToPropagate()""",
         transitions.append(Transition(
             id=Utils.get_next_id(),
             source=l_updating_role_1,
-            target=intitial_location,
+            target=l_initial,
             guard="currentLog[counter].orderCount == 0",
             synchronisation="propagate_log!",
             assignment="""didLogChange := false,
@@ -283,6 +270,53 @@ eventsToRead := 0"""
             nails=nails
         ))
 
+        # Altering the based model based on time
+        if log_time_data != None:
+            declaration.add_variable("clock x;")
+
+            assigmentAddition = "x := 0, "
+            guard_extension_addition = "&& updatesSincePropagation != 1"
+
+            if log_time_data.max_time != None:
+                l_initial.invariant = f"x <= {log_time_data.max_time} || !newUpdates"
+
+            if log_time_data.min_time != None:
+                guard_addition = f"x >= {log_time_data.min_time} &&"
+
+            current_transition = self.find_transition(transitions, l_source=l_initial, l_target=l_prop1)
+            current_transition.assignment = assigmentAddition + current_transition.assignment
+            current_transition.guard = guard_addition + current_transition.guard
+                
+            current_transition = self.find_transition(transitions, l_source=l_accepting_emitted_2, l_target=l_initial)
+            current_transition.guard = current_transition.guard + guard_extension_addition
+
+            current_transition = self.find_transition(transitions, l_source=l_prop2, l_target=l_initial)
+            current_transition.assignment = assigmentAddition + current_transition.assignment
+            
+
+            transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l_accepting_emitted_2,
+                target=l_initial,
+                guard=f"!(updatesSincePropagation > maxUpdatesSincePropagation_{json_transfer.name}) && updatesSincePropagation == 1",
+                assignment=Utils.remove_last_two_chars(assigmentAddition),
+                nails = [(0, 20)]
+                ))
+            
+            # If timed and no delay we have to remove the instant propagation part
+            if no_delay_flag:
+                current_transition = self.find_transition(transitions, l_source=l_accepting_emitted_2, l_target=l_prop2)
+                transitions.remove(current_transition)
+                current_transition = self.find_transition(transitions, l_source=l_prop2, l_target=l_initial)
+                transitions.remove(current_transition)
+                locations.remove(l_prop2)
+
+                # We have to change some guards.
+                current_transitions = self.find_transition(transitions, l_source=l_accepting_emitted_2, l_target=l_initial)
+                for transition in current_transitions:
+                    split_guard = transition.guard.split("&&")
+                    transition.guard = split_guard[1]
+
         # Altering the base model if nessesary finding transitions and changing them as required.
         if using_global_event_bound:
             # Adding nessesary locations
@@ -292,10 +326,10 @@ eventsToRead := 0"""
             locations.append(l_forced_prop_2)
 
             # Changing transitions based on their names
-            current_transition = self.find_transition(transitions, l_source=l_prop2, l_target=intitial_location)
+            current_transition = self.find_transition(transitions, l_source=l_prop2, l_target=l_initial)
             current_transition.target = l_forced_prop_1
 
-            current_transition = self.find_transition(transitions, l_source=l_updating_role_1, l_target=intitial_location)
+            current_transition = self.find_transition(transitions, l_source=l_updating_role_1, l_target=l_initial)
             current_transition.guard += " && !anyForcedToPropagate"
             current_transition.nail = (-306, 34)
 
@@ -319,7 +353,7 @@ eventsToRead := 0"""
             transitions.append(Transition(
             id=Utils.get_next_id(),
             source=l_updating_role_1,
-            target=intitial_location,
+            target=l_initial,
             guard="""currentLog[counter].orderCount == 0 &&
                 anyForcedToPropagate &&
                 currentLogToPropagate != log_id_start + id""",
