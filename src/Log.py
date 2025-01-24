@@ -334,7 +334,16 @@ eventsToRead := 0"""
             current_transition.nail = (-306, 34)
 
             current_transition = self.find_transition(transitions, l_source=l_accepting_emitted_2, l_target=l_initial)
-            current_transition.synchronisation = "force_propagate!"
+            if log_time_data == None:
+                current_transition.synchronisation = "force_propagate!"
+            else:
+                # Have to find difference in assigment
+                for trans in current_transition:
+                    if trans.assignment == None:
+                        trans.synchronisation = "force_propagate!"
+                    else:
+                        trans.target = l_forced_prop_2
+
 
             # Allowing forced propagation to attempt to propagate once more
             transitions.append(Transition(
@@ -343,11 +352,13 @@ eventsToRead := 0"""
             target=l_initial,
             guard="""currentLog[counter].orderCount == 0 &&
                 anyForcedToPropagate &&
-                currentLogToPropagate == log_id_start + id""",
+                currentLogToPropagate == log_id_start + id && 
+                !forcedToPropagate[id + log_id_start]""",
             synchronisation="attempt_propagation!",
             assignment="""didLogChange := false,
                 backTracking := false,
-                eventsToRead := 0"""
+                eventsToRead := 0""",
+            nails=[(-340,170), (-238, 170), (-238, -68)]
             ))
 
             transitions.append(Transition(
@@ -360,7 +371,8 @@ eventsToRead := 0"""
             synchronisation="propagate_log!",
             assignment="""didLogChange := false,
                 backTracking := false,
-                eventsToRead := 0"""
+                eventsToRead := 0""",
+            nails=[(-612,-102), (-272, -102)]
             ))
 
             # Adding transitions for propagating before force propagating
@@ -401,14 +413,37 @@ eventsToRead := 0"""
                 nails=[(8, 34), (170, -34)]
                 ))
 
+                time_guard_addition = ""
+                if log_time_data != None:
+                    time_guard_addition = " && updatesSincePropagation == globalLogIndex"
+
+                    current_transition = self.find_transition(transitions, l_source=l_accepting_emitted_2, l_target=l_forced_prop_2)
+                    current_transition.guard = f"(updatesSincePropagation + maxUpdatesSincePropagation_{json_transfer.name} > globalLogIndex)" + time_guard_addition
+
+                    time_guard_addition = " && updatesSincePropagation != globalLogIndex"
+
                 current_transition = self.find_transition(transitions, l_source=l_accepting_emitted_2, l_target=l_initial)
-                current_transition.guard = f"(updatesSincePropagation + maxUpdatesSincePropagation_{json_transfer.name} > globalLogIndex)"
+                current_transition.guard = f"(updatesSincePropagation + maxUpdatesSincePropagation_{json_transfer.name} > globalLogIndex)" + time_guard_addition
 
                 current_transition = self.find_transition(transitions, l_source=l_accepting_emitted_2, l_target=l_prop2)
                 current_transition.guard = f"!(updatesSincePropagation + maxUpdatesSincePropagation_{json_transfer.name} > globalLogIndex)"
 
                 # Adding the new transitions for ensuring forced propagation happens in order.
-
+                transitions.append(Transition(
+                id=Utils.get_next_id(),
+                source=l_updating_role_1,
+                target=l_forced_prop_3,
+                guard="""currentLog[counter].orderCount == 0 &&
+                    anyForcedToPropagate &&
+                    currentLogToPropagate == log_id_start + id && 
+                    forcedToPropagate[id + log_id_start]""",
+                synchronisation="attempt_propagation!",
+                assignment="""didLogChange := false,
+                    backTracking := false,
+                    eventsToRead := 0""",
+                nails=[(-238, 272), (442, 272), (442, -289)]
+                ))
+                
                 transitions.append(Transition(
                 id=Utils.get_next_id(),
                 source=l_initial,

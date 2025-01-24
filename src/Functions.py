@@ -9,6 +9,40 @@ functionality, but with different length of arrays.
 
 from typing import Dict
 
+def generate_function_update_exit_path_guards() -> str:
+    return """
+void updateExitPathGuards(int currentEventID) {
+    // Check if we have reached the loopBound if so disable all loop events other than those leading to the closets end state
+    // Be aware that if other loops need a an event this loop want to disable then we cannot disable it
+    int i;
+    int j;
+    bool noOneNeedsEvent = true;
+    if (loopCountMap[currentEventID] == loopBound) {
+        for(i = 0; i &lt; amountOfUniqueEvents; i++) {
+            if (allExitEventMaps[currentEventID][i] == 1) {
+                // Do not enable other looping events they can only enable themselves
+                if (i == currentEventID || loopCountMap[i] == -1) {
+                    exitEventMap[i] = true;
+                }
+            } else if(allExitEventMaps[currentEventID][i] == 0) {
+                // Check other loops
+                for(j = 0; j &lt; amountOfUniqueEvents; j++) {
+                    if (j != i &amp;&amp; allExitEventMaps[j][i] == 1) {
+                        noOneNeedsEvent = false;
+                        j = amountOfUniqueEvents; // Break
+                    }
+                }
+                if (noOneNeedsEvent) {
+                    exitEventMap[i] = false;
+                }
+                noOneNeedsEvent = true;
+            }
+            // If it is -1 we simply ignore it
+        }
+        return;
+    }
+}"""
+
 def generate_function_calculate_any_forced_to_propagte() -> str:
     return """
 void calculateAnyForcedToPropagate() {

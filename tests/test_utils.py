@@ -11,7 +11,7 @@ import subprocess
 import json
 from typing import List, Dict
 
-from GraphAnalyser import analyze_graph
+from GraphAnalyser import GraphAnalyser
 from ModelBuilder import createModel
 from DataObjects.ModelSettings import ModelSettings, DelayType
 from JSONParser import Graph, parse_time_JSON, parse_projection_JSON_file, parse_protocol_seperatly, parse_protocol_JSON_file, build_graph
@@ -84,8 +84,9 @@ def get_event_info():
     all_events = protocol_json_transfer.own_events.copy()
     all_events.extend(protocol_json_transfer.other_events)
 
-    global analysis_results 
-    analysis_results = (analyze_graph(all_events, protocol_json_transfer.initial))
+    global analysis_results
+    analyzer = GraphAnalyser(all_events)
+    analysis_results = (analyzer.analyse_graph(protocol_json_transfer.initial))
 
 def find_new_location(current_loc, all_sources):    
     if current_loc in all_sources:
@@ -123,39 +124,6 @@ def auto_generate_queries(protocol_json_file: str, base_path: str) -> str:
                 locations.append("l" + current_target)
             else:
                 locations.append(current_target)
-    
-    # Also need to find locations where they can get stuck due to loops
-    global analysis_results
-    global all_events
-    branching_events = analysis_results["branching_events"]
-    loop_events = analysis_results["loop_events"]
-
-    start_loops = set()
-    for start in loop_events:
-        start_loops.add(start)
-
-    loop_locations = set()
-
-    for start in start_loops:
-        if start not in branching_events:
-            loop_locations.add(start.source)
-
-        # If all branching events are looping we could get stuck
-        if start in branching_events:
-            # Find partition 
-            branching_event_partition = []
-            for event in all_events:
-                if event.source == start.source:
-                    branching_event_partition.append(event)
-            
-            all_branching = True
-            for event in branching_event_partition:
-                if event not in start_loops:
-                    all_branching = False
-                    break
-            
-            if all_branching:
-                loop_locations.add(start.source)
 
     index = 'i'
     map_role_index = {}
@@ -171,33 +139,9 @@ def auto_generate_queries(protocol_json_file: str, base_path: str) -> str:
     deadlock_query += "(deadlock and globalLog[logSize - 1].orderCount == 0) imply "
 
     for role in map_role_index:
-        current_locations = locations.copy()
-        # If we have looping locations
-        if loop_locations != []:
-            global projection_jsonTransfers
-            # We have to check projections
-            current_projection = None
-            for projection in projection_jsonTransfers:
-                if projection.name == role:
-                    current_projection = projection
-            
-            projection_events = current_projection.own_events.copy()
-            projection_events.extend(current_projection.other_events)
-            #print(f"events: {projection_events}")
-
-            all_sources = set()
-            for projection_event in projection_events:
-                all_sources.add(projection_event.source)
-
-            for loop_loc in loop_locations:
-                # Find the new location it will get stuck in
-                new_loc = find_new_location(loop_loc, all_sources)
-                new_loc = "l" + new_loc if new_loc[0].isdigit() else new_loc
-                current_locations.append(new_loc)
-
         current_index = map_role_index[role]
         current_role_addition = "("
-        for location in current_locations:
+        for location in locations:
             current_role_addition += f"{role}({current_index}).{location} or "
         current_role_addition = current_role_addition[:-4] + ")"
         deadlock_query += current_role_addition + " and "
@@ -293,7 +237,7 @@ def generate_standard_settings(model_settings: ModelSettings, protocol_json_file
             role_amount[role] = 1
         else:
             role_amount[role] = 1 # Set to 2 will slow it down
-        delay_type[role] = DelayType.EVENTS_SELF_EMITTED
+        delay_type[role] = DelayType.NOTHING # If we have any type of delay it massively slows down the bigger swarm protocols
         delay_amount[role] = 1
 
     # Only change those set to None

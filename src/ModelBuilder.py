@@ -18,7 +18,7 @@ from Utils import Utils
 from Functions import *
 from Log import Log
 from Role import Role
-from GraphAnalyser import analyze_graph
+from GraphAnalyser import GraphAnalyser
 
 def add_branching_functionality(declaration: Declaration, branching_events: Set[EventData], eventname_to_UID_dict: Dict[str, int]):
     # Handling branching events
@@ -98,8 +98,10 @@ def calculate_relevant_mappings(jsonTransfers: List[JSONTransfer]):
 
     return eventnames_dict, amount_names, advance_channels, update_channels, reset_channels
 
-def add_functions(declaration: Declaration, using_global_event_bound):
+def add_functions(declaration: Declaration, using_global_event_bound: bool, exit_paths_exist: bool):
     # Ordering is important as some functions depend on others.
+    if exit_paths_exist:
+        declaration.add_function_call(generate_function_update_exit_path_guards)
     if using_global_event_bound:
         declaration.add_function_call(generate_function_calculate_any_forced_to_propagte)
     declaration.add_function_call(generate_function_is_in_subsciption)
@@ -162,7 +164,7 @@ def create_flow_list(jsonTransfer: JSONTransfer, eventname_to_UID_dict: Dict[str
 
     return location_map[jsonTransfer.initial], flow_list
 
-def enrich_json(jsonTransfers: List[JSONTransfer], eventnames_dict: Dict[str,str]):
+def enrich_json(start_exit_path_events: List[EventData], jsonTransfers: List[JSONTransfer], eventnames_dict: Dict[str,str]):
     for jsonTransfer in jsonTransfers:
         jsonTransfer.total_amount_of_events = len(eventnames_dict)
 
@@ -170,12 +172,15 @@ def enrich_json(jsonTransfers: List[JSONTransfer], eventnames_dict: Dict[str,str
     max_amount_of_preceding_events = 1
     branching_events = None
     all_loop_events = set()
+    
+    target_start_loop_events = {}
 
     for jsonTransfer in jsonTransfers:
         all_events = jsonTransfer.own_events.copy()
         all_events.extend(jsonTransfer.other_events)
 
-        analysis_results = (analyze_graph(all_events, jsonTransfer.initial))
+        analyzer = GraphAnalyser(all_events)
+        analysis_results = (analyzer.analyse_graph(jsonTransfer.initial))
         preceding_events = analysis_results["preceding_events"]
         branching_events = analysis_results["branching_events"]
         loop_events = analysis_results["loop_events"]
@@ -190,6 +195,16 @@ def enrich_json(jsonTransfers: List[JSONTransfer], eventnames_dict: Dict[str,str
             all_loop_events = all_loop_events.union(loop_events[loop_event])
             all_loop_events.add(loop_event)
 
+            # Find events that lead to the start of loop as they have to check if
+            # Exit should be enabled.
+            if loop_event in start_exit_path_events:
+                for inner_event in all_events:
+                    if inner_event.target == loop_event.source:
+                        if inner_event in target_start_loop_events.keys():
+                            target_start_loop_events[inner_event].append(loop_event)
+                        else:    
+                            target_start_loop_events[inner_event] = [loop_event]
+
         for key_event in preceding_events:
             name_of_event = Utils.get_eventtype_UID(key_event.event_name)
             for event in preceding_events[key_event]:
@@ -197,11 +212,30 @@ def enrich_json(jsonTransfers: List[JSONTransfer], eventnames_dict: Dict[str,str
             
             if len(set_of_preceding_events[name_of_event]) > max_amount_of_preceding_events:
                 max_amount_of_preceding_events = len(set_of_preceding_events[name_of_event])
+        
+        # Have to set what events need exit path guards
+        # and what events needs to test for end of loop.
+        exit_own_events = []
+        check_loop_exit_events = {}
+        for own_event in jsonTransfer.own_events:
+            if own_event in all_loop_events and own_event.target != own_event.source and start_exit_path_events != []:
+                exit_own_events.append(own_event.event_name)
+
+            if own_event in target_start_loop_events.keys():
+                check_loop_exit_events[own_event] = target_start_loop_events[own_event]
+            
+        
+        if exit_own_events != []:
+            jsonTransfer.exit_events = exit_own_events
+        
+        if check_loop_exit_events != {}:
+            jsonTransfer.check_loop_exit_events = check_loop_exit_events
 
     all_loop_event_names = set()
     for loop_event in all_loop_events:
         all_loop_event_names.add(Utils.get_eventtype_UID(loop_event.event_name))
-    return set_of_preceding_events,max_amount_of_preceding_events,branching_events,all_loop_event_names
+        
+    return branching_events, all_loop_event_names
 
 # Creates UPPAAL functions for setting what event each event should be based on
 def create_basedOn_functions(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, int], eventnames_dict: Dict[str, str], declaration: Declaration):
@@ -232,8 +266,27 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     eventnames_dict, amount_names, advance_channels, update_channels, reset_channels = calculate_relevant_mappings(jsonTransfers)
     name_amount_dict = model_settings.role_amount
 
+    # Get all exit events for enriching JSONs
+    all_events = globalJsonTransfer.own_events.copy()
+    all_events.extend(globalJsonTransfer.other_events)
+
+    analyzer = GraphAnalyser(all_events)
+    analysis_results = (analyzer.analyse_graph(globalJsonTransfer.initial))
+    exit_paths = analysis_results["exit_paths"]
+    loop_events = analysis_results["loop_events"]
+    global_branching_events = analysis_results["branching_events"]
+    start_looping_events = []
+    for start_loop_event in loop_events:
+        start_looping_events.append(start_loop_event)
+
+    start_exit_path_events = list(exit_paths.keys())
+
+    all_exit_events = set()
+    for exit_event in exit_paths:
+        all_exit_events.update(exit_paths[exit_event])
+
     # Set total amount of events
-    set_of_preceding_events, max_amount_of_preceding_events, branching_events, all_loop_event_names = enrich_json(jsonTransfers, eventnames_dict)
+    branching_events, all_loop_event_names = enrich_json(start_exit_path_events, jsonTransfers, eventnames_dict)
 
     # set flag if any are using global events as bounds
     using_global_event_bound = False
@@ -296,6 +349,12 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     declaration.add_variable("int amountOfPropagation = 0;") 
 
     # For branch tracking we create a list which ties each event to the branches before it
+    tiedto_dict = analyzer.find_tiedto(global_branching_events)
+    max_branches_before = 1
+    for set_of_events in tiedto_dict.values():
+        if len(set_of_events) > max_branches_before:
+            max_branches_before = len(set_of_events)
+
     eventsTiedTo = "const int eventsTiedTo[amountOfUniqueEvents][maxAmountOfTied] = {"
     counter = 0
     eventname_to_UID_dict = {}
@@ -305,19 +364,63 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
         counter += 1
 
         tiedTo = "{"
-        tiedTolength = 0
-        if eventnames_dict[event_key] in set_of_preceding_events:
-                tiedTolength = len(set_of_preceding_events[eventnames_dict[event_key]])
-                for event_name in set_of_preceding_events[eventnames_dict[event_key]]:
-                    tiedTo += "" + event_name + ", "
-                        
+        tiedTolength = len(tiedto_dict[event_key])
+        for tiedto_event in tiedto_dict[event_key]:
+            tiedTo += "" + Utils.get_eventtype_UID(tiedto_event.event_name) + ", "                        
         
-        tiedTo += "-1, " * (max_amount_of_preceding_events - tiedTolength)
+        tiedTo += "-1, " * (max_branches_before - tiedTolength)
         eventsTiedTo += tiedTo[:-2] + "}, "
 
     eventsTiedTo = eventsTiedTo[:-2] + "};"
-    
+
     declaration.add_variable(f"const int amountOfUniqueEvents = {counter};")
+    declaration.add_variable(f"const int maxAmountOfTied = {max_branches_before};")
+    declaration.add_variable(eventsTiedTo)
+
+    # Variables for exiting loops
+    if exit_paths != {}:
+        current_bool_map = []
+        loop_exit_path_maps = []
+
+        for event_name_temp in eventnames_dict:
+            # Get int by eventname_to_UID_dict[eventnames_dict[event_name_temp]]
+            if event_name_temp in start_looping_events:
+                current_bool_map.append(False)
+            else:
+                current_bool_map.append(True)
+
+            if event_name_temp in start_exit_path_events:
+                current_event = None
+                for event in all_events:
+                    if event.event_name == event_name_temp:
+                        current_event = event
+                        break
+                loop_exit_path_map = []
+                for event_name_temp_two in eventnames_dict:
+                    current_event_two = None
+                    for event in all_events:
+                        if event.event_name == event_name_temp_two:
+                            current_event_two = event
+                            break
+                    if event_name_temp == event_name_temp_two:
+                        loop_exit_path_map.append(1)
+
+                    elif current_event_two in loop_events[current_event] and current_event_two in exit_paths[current_event]:
+                        loop_exit_path_map.append(1)
+
+                    elif current_event_two in loop_events[current_event]:
+                        loop_exit_path_map.append(0)
+                    else:
+                        loop_exit_path_map.append(-1)
+                loop_exit_path_maps.append(loop_exit_path_map)
+
+            else:
+                loop_exit_path_maps.append(([-1] * counter))
+
+        declaration.add_variable(f"const int loopBound = {model_settings.loop_bound};") # Need for function
+        declaration.add_variable(f"const int allExitEventMaps[amountOfUniqueEvents][amountOfUniqueEvents] = {Utils.python_list_to_uppaal_list(str(loop_exit_path_maps))};")
+        declaration.add_variable(f"int exitEventMap[amountOfUniqueEvents] = {Utils.python_list_to_uppaal_list(str(current_bool_map).lower())};")
+
 
     add_branching_functionality(declaration, branching_events, eventname_to_UID_dict)
 
@@ -337,9 +440,6 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
         if event_key in all_loop_event_names:
             is_in_loop_list[eventname_to_UID_dict[event_key]] = True
     declaration.add_variable(f"const int isInLoop[amountOfUniqueEvents] = {Utils.python_list_to_uppaal_list(is_in_loop_list).lower()};")
-
-    declaration.add_variable(f"const int maxAmountOfTied = {max_amount_of_preceding_events};")
-    declaration.add_variable(eventsTiedTo)
 
     # Channels
     declaration.add_channel(Channel(urgent=True,broadcast=True, name="propagate_log"))
@@ -371,7 +471,7 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
         declaration.add_channel(Channel(urgent=False, broadcast=True, name="force_propagate"))
 
     # Functions
-    add_functions(declaration, using_global_event_bound)
+    add_functions(declaration, using_global_event_bound, exit_paths != {})
     create_basedOn_functions(jsonTransfers, name_amount_dict, eventnames_dict, declaration)
 
     # Adding templates comprised of roles and logs for each jsonTransfer we create one of each.

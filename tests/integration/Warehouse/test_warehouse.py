@@ -43,7 +43,7 @@ def test_warehouse_two_forklifts_time():
 
     name_amount_dict = {"Door": 1, "Forklift": 2, "Transport": 1}
 
-    model_settings = ModelSettings(name_amount_dict, {"Door": DelayType.EVENTS_SELF_EMITTED, "Forklift": DelayType.EVENTS_SELF_EMITTED, "Transport": DelayType.EVENTS_SELF_EMITTED})
+    model_settings = ModelSettings(name_amount_dict, {"Door": DelayType.EVENTS_EMITTED, "Forklift": DelayType.EVENTS_SELF_EMITTED, "Transport": DelayType.EVENTS_SELF_EMITTED})
     model_settings.loop_counter = 2
     model_settings.standard_setting = True
     model_settings.delay_amount = {"Door": 1, "Forklift": 1, "Transport": 1}

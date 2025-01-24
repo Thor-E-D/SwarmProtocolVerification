@@ -142,6 +142,16 @@ class Role(Template):
                 elif lsource.locationType == LocationType.NEITHER:
                      time_guard_addition = f"x == 0" # Happens only when other branch is timed but this event isn't so we enforce instant emission or none at all.
 
+                # If exit path then we need to add the guard
+                exit_path_guard_addition = ""
+                if jsonTransfer.exit_events != None and event in jsonTransfer.exit_events:
+                    exit_path_guard_addition = f" || exitEventMap[{Utils.get_eventtype_UID(event.event_name)}]"
+
+                exit_path_check_assigment_addition = ""
+                if jsonTransfer.check_loop_exit_events != None and event in jsonTransfer.check_loop_exit_events.keys():
+                    for inner_event in jsonTransfer.check_loop_exit_events[event]:
+                        exit_path_check_assigment_addition += (f", updateExitPathGuards({Utils.get_eventtype_UID(inner_event.event_name)})")
+
                 if(jsonTransfer.loop_events != [] and event.event_name in jsonTransfer.loop_events):
                         loop_counter_name = Utils.get_next_loopcount()
                         self.evetname_loopcounter[Utils.get_eventtype_UID(event.event_name)] = loop_counter_name
@@ -159,21 +169,25 @@ class Role(Template):
                         id=Utils.get_next_id(),
                         source=lsource,
                         target=ltarget,
-                        guard=time_guard_addition + f"{loop_counter_name}[id] < {loop_bound} && loopCountMap[{Utils.get_eventtype_UID(event.event_name)}] < {loop_bound}",
+                        guard=time_guard_addition + f"{loop_counter_name}[id] < {loop_bound} && loopCountMap[{Utils.get_eventtype_UID(event.event_name)}] < {loop_bound}" + exit_path_guard_addition,
                         synchronisation=f"{jsonTransfer.do_update_channel_name}[id]!",
                         assignment=time_assignment_addition + f"""setLogEntryForUpdate(
         {Utils.get_eventtype_UID(event.event_name)},id,
-        -2, false), {loop_counter_name}[id]++"""))
+        -2, false), {loop_counter_name}[id]++""" + exit_path_check_assigment_addition))
+                        
                 else:
+                    if not (time_guard_addition != "" and exit_path_guard_addition != ""):
+                         exit_path_guard_addition = exit_path_guard_addition[4:]
+
                     transitions.append(Transition(
                         id=Utils.get_next_id(),
                         source=lsource,
                         target=ltarget,
-                        guard=time_guard_addition,
+                        guard=time_guard_addition + exit_path_guard_addition,
                         synchronisation=f"{jsonTransfer.do_update_channel_name}[id]!",
                         assignment=time_assignment_addition + f"""setLogEntryForUpdate(
         {Utils.get_eventtype_UID(event.event_name)},id,
-        -2, false)"""))
+        -2, false)""" + exit_path_check_assigment_addition))
 
         self.graphViz_helper(locations, transitions)
 

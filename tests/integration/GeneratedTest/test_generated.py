@@ -24,6 +24,5 @@ def test_generated_file():
         folders = []
 
     for folder in folders:
-        if folder != "2_max_10_roles_max_10_commands":
-            folder_path = os.path.join(directory_path, folder)
-            do_full_test(folder_path, copy.deepcopy(model_settings))
+        folder_path = os.path.join(directory_path, folder)
+        do_full_test(folder_path, copy.deepcopy(model_settings))
