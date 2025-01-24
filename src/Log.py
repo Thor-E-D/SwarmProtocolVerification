@@ -91,9 +91,12 @@ class Log(Template):
         l_updating_role_2 = Location (id = Utils.get_next_id(), x=-561, y=153, name="updating_role_2", locationType = LocationType.COMMITTED)
         l_backtracking_1 = Location (id = Utils.get_next_id(), x=-977, y=34, name="backtracking_1", locationType = LocationType.COMMITTED)
         l_backtracking_2 = Location (id = Utils.get_next_id(), x=-1079, y=136, name="backtracking_2", locationType = LocationType.COMMITTED)
+        l_overflow = Location (id = Utils.get_next_id(), x=-204, y=214, name="overflow", locationType = LocationType.COMMITTED)
 
-        locations = [l_prop1, l_merge_log, l_initial, l_accepting_emitted_1, l_accepting_emitted_2 ,l_updating_role_1, l_prop2, l_updating_role_2, l_backtracking_1, l_backtracking_2]
+        locations = [l_prop1, l_merge_log, l_initial, l_accepting_emitted_1, l_accepting_emitted_2 ,l_updating_role_1, l_prop2, l_updating_role_2, l_backtracking_1, l_backtracking_2, l_overflow]
         transitions = []
+
+
 
         # Normal model based on untimed and using DELAY.EVENT_SELF_EMITTED
         transitions.append(Transition(
@@ -175,7 +178,8 @@ currentSizeOfLog++"""
         transitions.append(Transition(
             id=Utils.get_next_id(),
             source=l_accepting_emitted_1,
-            target=l_accepting_emitted_2
+            target=l_accepting_emitted_2,
+            guard="globalLogIndex != logSize"
         ))
 
         transitions.append(Transition(
@@ -268,6 +272,21 @@ eventsToRead := 0"""
             guard=f"!isInSubsciptions(subscriptions, currentLog[counter].eventID)",
             assignment="counter++",
             nails=nails
+        ))
+
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l_accepting_emitted_1,
+            target=l_overflow,
+            guard="globalLogIndex == logSize",
+            synchronisation="chan_overflow!"
+        ))
+
+        transitions.append(Transition(
+            id=Utils.get_next_id(),
+            source=l_initial,
+            target=l_overflow,
+            synchronisation="chan_overflow?"
         ))
 
         # Altering the based model based on time
@@ -401,13 +420,13 @@ eventsToRead := 0"""
                 current_transition.assignment=f"updateLog{json_transfer.name}(currentLog,emittedOrderCounts,log_id_start),currentSizeOfLog++"
 
                 current_transition = self.find_transition(transitions, l_source=l_accepting_emitted_1, l_target=l_accepting_emitted_2)
-                current_transition.guard = "newUpdates"
+                current_transition.guard = current_transition.guard +  "&& newUpdates"
 
                 transitions.append(Transition(
                 id=Utils.get_next_id(),
                 source=l_accepting_emitted_1,
                 target=l_accepting_emitted_2,
-                guard="!newUpdates",
+                guard="globalLogIndex != logSize && !newUpdates",
                 assignment="""updatesSincePropagation := globalLogIndex,
                     newUpdates := true""",
                 nails=[(8, 34), (170, -34)]

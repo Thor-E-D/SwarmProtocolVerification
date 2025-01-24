@@ -443,6 +443,7 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
 
     # Channels
     declaration.add_channel(Channel(urgent=True,broadcast=True, name="propagate_log"))
+    declaration.add_channel(Channel(broadcast=True, name="chan_overflow"))
 
     for name in name_amount_dict:
         currentAmount = amount_names[name]
