@@ -1,0 +1,1 @@
+E<> trueGlobalLog[0].eventID == Open_ID and trueGlobalLog[1].eventID == Request_ID and trueGlobalLog[2].eventID == Get_ID and trueGlobalLog[3].eventID == Deliver_ID and trueGlobalLog[4].eventID == Close_ID and trueGlobalLog[4].orderCount != 0

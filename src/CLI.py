@@ -17,9 +17,16 @@ from DataObjects.Model import Model
 from DataObjects.ModelSettings import DelayType, ModelSettings
 from JSONParser import parse_time_JSON, parse_projection_JSON_file, parse_protocol_JSON_file, build_graph
 from ModelBuilder import createModel
+from QueryGenerator import QueryGenerator, generate_log_query
 
-state_path = "PermanentState\\state.json" # Hardcoded relative path to local state file.
+state_path = "PermanentState\\state.json" # Hardcoded relative path to local state file
+autoQuery_path = "PermanentState\\autoQueries.txt" # Hardcoded relative path to local state file.
 base_path = os.path.dirname(os.path.abspath(__file__))
+
+str_validity = "validity"
+str_sizebound = "sizebound"
+str_timebound = "timebound"
+auto_query_choices = [str_validity, str_sizebound, str_timebound]
 
 # Mapping user-friendly strings to DelayType values
 DELAY_TYPE_MAPPING = {
@@ -312,6 +319,12 @@ def filter_output(file_path_input: str) -> str:
         current_global_time = None
 
         content = infile.read()
+
+        if "Error " in content or "syntax error:" in content:
+            print("Error during verification")
+            print(content)
+            return result
+        
         if (property_satisfied_pattern.search(content) != None):
             result += "Query was satisfied \n"
         else:
@@ -326,9 +339,8 @@ def filter_output(file_path_input: str) -> str:
                 result += grouped
                 return result
             
-            if "-- Result: bounds:" in line:
-                result_bounds = line.partition("bounds: ")[2]
-                result += "Giving the resulting bound: " + result_bounds[:-1]
+            if "globalTime: " in line:
+                result += "Giving the resulting bound: " + line[12:]
                 return result
 
             if state_match != None:
@@ -380,16 +392,20 @@ def verify_model(model_path: str, query_path: str, verifyta_path: str):
 
     for i in range(len(queries)):
         print(f"Verifying query {i}: {queries[i]}")
-        command = [verifyta_path, model_path, query_path, "--query-index", f"{i}","--diagnostic", "0"]
-        file_path = os.path.join(base_path, state_path[:-11], "trace.txt")
+        filtered_output = verify_query(model_path, query_path, verifyta_path, i)
+        print(filtered_output)
+
+def verify_query(model_path, query_path, verifyta_path, index):
+    command = [verifyta_path, model_path, query_path, "--query-index", f"{index}","--diagnostic", "0"]
+    file_path = os.path.join(base_path, state_path[:-11], "trace.txt")
 
         # Run the command and write the output directly to the file
-        with open(file_path, "w") as file:
-            subprocess.run(command, stdout=file, stderr=subprocess.STDOUT, text=True)
+    with open(file_path, "w") as file:
+        subprocess.run(command, stdout=file, stderr=subprocess.STDOUT, text=True)
         
         # We must filter the output file into a format that the user can understand
-        filtered_output = filter_output(file_path)
-        print(filtered_output)
+    filtered_output = filter_output(file_path)
+    return filtered_output
 
 # Checks correct format of given information.
 def parse_json_dict(key, json_input: str):
@@ -418,6 +434,88 @@ def parse_json_dict(key, json_input: str):
                 update_local_state(key, updates)
     except json.JSONDecodeError as e:
         print(f"Error: Invalid JSON input. {e}")
+
+def auto_verify_model(model_path: str, base_folder_path: str, type: str, verifyta_path: str):
+    if verifyta_path == None:
+        verifyta_path = get_state_data("verifyta_path")
+    else:
+        verifyta_path = " ".join(verifyta_path)
+
+    try:
+        projection_json_files, protocol_json_file, _ = identify_json_files(base_folder_path)
+        query_generator = QueryGenerator(protocol_json_file, projection_json_files)
+    except:
+        return
+    
+    query_path = os.path.join(base_path, autoQuery_path)
+
+    if (type == str_validity):
+        validity_query = query_generator.generate_end_state_query()
+
+        # Write to local query file
+        with open(query_path, 'w') as file:
+            file.write(validity_query)
+
+        queries = get_lines_in_file(query_path)
+        print(f"Verifying query {0}: {queries[0]}")
+        print(verify_query(model_path, query_path, verifyta_path, 0))
+    elif (type == str_sizebound):
+        overflow_query = query_generator.generate_overflow_query()
+        # Write to local query file
+        with open(query_path, 'w') as file:
+            file.write(overflow_query)
+
+        result = verify_query(model_path, query_path, verifyta_path, 0)
+        if "Query was satisfied" in result:
+            print("Model did not overflow finding smallest possible log size")
+            size_bound_query = query_generator.generate_sizebound_query()
+
+            with open(query_path, 'w') as file:
+                file.write(size_bound_query)
+
+            result = verify_query(model_path, query_path, verifyta_path, 0)
+            match = re.search(r"Result:\s*(\d+)", result)
+            if match:
+                print(f"Recommended log size: {int(match.group(1)) + 1}")
+        else:
+            print("Model overflow!! Cannot find optimal logsize")
+    
+    elif (type == str_timebound):
+        role_queries_dict = query_generator.generate_timebound_queries()
+        for role in role_queries_dict:
+            print(f"{role} has the following time bounds")
+            for query in role_queries_dict[role]:
+                with open(query_path, 'w') as file:
+                    file.write(query)
+
+                result = verify_query(model_path, query_path, verifyta_path, 0)
+                result = result.replace("âˆž)", "INF]")
+                match_query = re.search(r"\.(l\d+)", query)
+                if match_query:
+                    print (f"Location {match_query.group(1)}: {result.split(": ")[1]}")
+        
+        print ("---------------------------")
+
+def verify_log(model_path: str, log_path: str, verifyta_path: str):
+    if verifyta_path == None:
+        verifyta_path = get_state_data("verifyta_path")
+    else:
+        verifyta_path = " ".join(verifyta_path)
+    
+    log_line = get_lines_in_file(log_path)
+    log_list = [event.strip() for event in log_line[0].split(",") if event.strip()]
+
+    query_path = os.path.join(base_path, autoQuery_path)
+    query_to_verify = generate_log_query(log_list)
+
+    print(f"Verifying query: {query_to_verify}")
+
+    with open(query_path, 'w') as file:
+        file.write(query_to_verify)
+
+    filtered_output = verify_query(model_path, query_path, verifyta_path, 0)
+    print(filtered_output)
+
 
 # For parsing booleans from strings
 def str2bool(value):
@@ -565,7 +663,7 @@ def create_parser():
         help="The absolute path to where the file should be saved"
     )
 
-    verify_parser = subparsers.add_parser("verify", help="Verify a given model")
+    verify_parser = subparsers.add_parser("verify", help="Verifies a given model with a set of given queries")
     verify_parser.add_argument(
         "model_path",
         type=str,
@@ -587,6 +685,64 @@ def create_parser():
         help="Path to the verifyta distribution if not specified local will be used ",
         required=False
     )
+
+    auto_verify_parser = subparsers.add_parser("autoVerify", help="Verifies a given model using automatically generated queries")
+    auto_verify_parser.add_argument(
+        "model_path",
+        type=str,
+        nargs='+',
+        help="Path to the UPPAAL xml file"
+    )
+
+    auto_verify_parser.add_argument(
+        "base_path",
+        type=str,
+        nargs='+',
+        help="Path to the folder containing the json files used to build the model"
+    )
+
+    auto_verify_parser.add_argument(
+    "--type",
+    type=str,
+    choices=auto_query_choices,
+    default=str_validity,
+    help=f"""Type of auto query wanted:
+    - {str_validity}: (Defualt). Ensures all roles reach an endstate eventually. 
+    - {str_sizebound}: Returns the smalles log size that does not cause overflow
+    - {str_timebound}: Returns the global time reachable for all locations of all roles (Warning SLOW) (ONLY WORKS WITH UPPAAL 5.1.0-beta)"""
+    )
+
+    auto_verify_parser.add_argument(
+        "-vp", "--verifyta-path",
+        type=str,
+        nargs='+',
+        help="Path to the verifyta distribution if not specified local will be used ",
+        required=False
+    )
+
+    verify_log_parser = subparsers.add_parser("verifyLog", help="Verifies if a given global can exists in the model")
+    verify_log_parser.add_argument(
+        "model_path",
+        type=str,
+        nargs='+',
+        help="Path to the UPPAAL xml file"
+    )
+
+    verify_log_parser.add_argument(
+        "log_file_path",
+        type=str,
+        nargs='+',
+        help="Path to the txt file containing a log as comma(,) seperated strings"
+    )
+
+    verify_log_parser.add_argument(
+    "-vp", "--verifyta-path",
+    type=str,
+    nargs='+',
+    help="Path to the verifyta distribution if not specified local will be used ",
+    required=False
+    )
+
 
     subparsers.add_parser("q", help="Quit the CLI.") 
 
@@ -635,6 +791,14 @@ def main():
                 model_path = " ".join(args.model_path)
                 query_path = " ".join(args.query_path)
                 verify_model(model_path, query_path, args.verifyta_path)
+            elif args.command == "autoVerify":
+                model_path = " ".join(args.model_path)
+                base_path = " ".join(args.base_path)
+                auto_verify_model(model_path, base_path, args.type, args.verifyta_path)
+            elif args.command == "verifyLog":
+                model_path = " ".join(args.model_path)
+                log_path = " ".join(args.log_file_path)
+                verify_log(model_path, log_path, args.verifyta_path)
             elif args.command == "q":
                 print("Goodbye!")
                 break

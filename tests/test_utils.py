@@ -103,7 +103,7 @@ def find_new_location(current_loc, all_sources):
 # Auto generates two queries for a given swarm protocol verifying we reach the end and that the log does not overflow.
 def auto_generate_queries(protocol_json_file: str, base_path: str) -> str:
     # Add size of log query
-    queries = f"A[] globalLog[logSize - 1].orderCount == 0 \n"
+    queries = "A[] globalLog[logSize - 1].orderCount == 0 \n"
 
     # Add deadlock query
     with open(protocol_json_file, 'r') as f:
