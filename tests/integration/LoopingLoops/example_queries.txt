@@ -1,2 +1,0 @@
-A[] globalLog[logSize - 1].orderCount == 0 
-A[] forall(i: R_t) (deadlock and globalLog[logSize - 1].orderCount == 0) imply (R(i).l5 or R(i).l2 or R(i).l1)

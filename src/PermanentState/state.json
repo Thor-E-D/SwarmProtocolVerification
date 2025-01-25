@@ -1,13 +1,13 @@
 {
     "verifyta_path": "C:\\Program Files\\UPPAAL-5.1.0-beta5\\app\\bin\\verifyta.exe",
-    "base_path": "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\SwarmProtocolVerification\\tests\\integration\\Warehouse",
+    "base_path": "C:\\Users\\thore\\OneDrive\\Skrivebord\\MasterThesis\\TimingExample\\",
     "delay_type": {
         "Door": "S",
         "Forklift": "S",
         "Transport": "S"
     },
     "loop_bound": 2,
-    "standard_setting": true,
+    "branch_tracking": false,
     "log_size": 20,
     "delay_amount": {
         "Door": 1,
@@ -17,7 +17,7 @@
     "subsets": "SubsetA",
     "role_amount": {
         "Door": 1,
-        "Forklift": 2,
-        "Transport": 1
+        "Forklift": 1,
+        "Transport": 2
     }
 }

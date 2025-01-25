@@ -1,5 +1,5 @@
 A[] forall(i:O_t) forall(j:R_t) (deadlock and globalLog[logSize - 1].orderCount == 0) imply O(i).l5 and R(j).l5
-A[] globalLog[8].orderCount == 0
+A[] globalLog[logSize - 1].orderCount == 0
 E<> (deadlock and globalLog[logSize - 1].orderCount == 0 and globalTime <= 50)
 E<> not deadlock and globalTime > 134
 A[] forall(i:R_t) R(i).l4 imply globalTime >= 25 and globalTime <=135

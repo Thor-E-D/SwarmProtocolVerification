@@ -115,7 +115,7 @@ def add_functions(declaration: Declaration, using_global_event_bound: bool, exit
     declaration.add_function_call(generate_function_set_log_entry_for_update)
     declaration.add_function_call(generate_function_find_difference_in_logs)
     declaration.add_function_call(generate_function_find_and_set_difference_in_logs)
-    declaration.add_function_call(generate_function_find_and_set_tiedto)
+    declaration.add_function_call(generate_function_find_tiedto)
     declaration.add_function_call(generate_function_set_propagation_log)
     declaration.add_function_call(generate_function_is_In_branching_conflict)
     declaration.add_function_call(generate_function_consolidate_logs)

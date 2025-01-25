@@ -225,21 +225,21 @@ void findAndSetDifferenceInLogs(logEntryType &amp;oldLog[logSize], logEntryType 
     }
 }"""
 
-def generate_function_find_and_set_tiedto() -> str:
+def generate_function_find_tiedto() -> str:
     return """
-void findAndSetTiedTo(logEntryType &amp;tempLog[logSize]) {
+int findTiedTo(logEntryType currentLogEntry, logEntryType &amp;tempLog[logSize]) {
     int j;
     int i;
     for(i = logSize-1; i &gt;= 0; i--) {
         if (tempLog[i].orderCount != 0) {
             for (j = 0; j&lt;maxAmountOfTied; j++) {
-                if (tempLog[i].eventID == eventsTiedTo[tempLogEntry.eventID][j]  &amp;&amp; tempLog[i].orderCount != tempLogEntry.orderCount) {
-                    tempLogEntry.tiedTo = tempLog[i].orderCount;
-                    return;
+                if (tempLog[i].eventID == eventsTiedTo[currentLogEntry.eventID][j]  &amp;&amp; tempLog[i].orderCount != currentLogEntry.orderCount) {
+                    return tempLog[i].orderCount;
                 }
             }
         }
     }
+    return -1;
 }"""
 
 def generate_function_set_propagation_log() -> str:
@@ -288,7 +288,7 @@ def generate_function_update_log() -> str:
     return """
 void updateLog(logEntryType &amp;tempLog[logSize]) {
     int i = 0;
-    findAndSetTiedTo(tempLog);
+    tempLogEntry.tiedTo = findTiedTo(tempLogEntry, tempLog);
     updateGlobalLog();
     for (i = 0; i &lt; logSize; i++) {
         if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
@@ -414,39 +414,49 @@ bool handleBranchingEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog
 
 def generate_function_handle_event() -> str:
     return """
-bool handleEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int &amp;currentIndex, int &amp;currentLocation, int eventLocationMap[amountOfUniqueEvents][2]) {
+bool handleEvent(logEntryType &amp;currentLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int &amp;currentIndex, int &amp;currentLocation, int eventLocationMap[amountOfUniqueEvents][2]) {
     int i;
 
-    if (eventLocationMap[tmpLogEntry.eventID][0] != currentLocation) {
-        if (eventLocationMap[tmpLogEntry.eventID][0] != -1) { //In subsciptions
-            tmpLogEntry.ignored = true;
+    // Branch tracking
+    if (branchTrackingEnabled) {
+        int shouldTieTo;
+        shouldTieTo = findTiedTo(currentLogEntry, resLog);
+        if (shouldTieTo != currentLogEntry.tiedTo) {
+            currentLogEntry.ignored = true;
+            return true;
+        }
+    }
+
+    if (eventLocationMap[currentLogEntry.eventID][0] != currentLocation) {
+        if (eventLocationMap[currentLogEntry.eventID][0] != -1) { //In subsciptions
+            currentLogEntry.ignored = true;
         }
 
-        if (isBranchingList[tmpLogEntry.eventID]) {
-            return handleBranchingEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
+        if (isBranchingList[currentLogEntry.eventID]) {
+            return handleBranchingEvent(currentLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
         }
-        if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
-            tmpLogEntry.ignored = true;
+        if (isIntInList(discardedDueToCompetionEvents, currentLogEntry.basedOnOrderCount)) {
+            currentLogEntry.ignored = true;
             return false;
         }
 
         return false;
     } else {
-        if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
-            tmpLogEntry.ignored = true;
+        if (isIntInList(discardedDueToCompetionEvents, currentLogEntry.basedOnOrderCount)) {
+            currentLogEntry.ignored = true;
             return false;
         }
         // Even if correct it might still be in competetion
         // Have to check for single loop edge case.
-        if (!isBranchingList[tmpLogEntry.eventID] &amp;&amp; eventLocationMap[tmpLogEntry.eventID][0] != eventLocationMap[tmpLogEntry.eventID][1]) {
+        if (!isBranchingList[currentLogEntry.eventID] &amp;&amp; eventLocationMap[currentLogEntry.eventID][0] != eventLocationMap[currentLogEntry.eventID][1]) {
             for (i = currentIndex - 1; i &gt;= 0; i--) {
-                if (resLog[i].eventID == tmpLogEntry.eventID &amp;&amp; (resLog[i].tiedTo == tmpLogEntry.tiedTo || resLog[i].basedOnOrderCount == tmpLogEntry.basedOnOrderCount)) {
-                    tmpLogEntry.ignored = true;
+                if (resLog[i].eventID == currentLogEntry.eventID &amp;&amp; (resLog[i].tiedTo == currentLogEntry.tiedTo || resLog[i].basedOnOrderCount == currentLogEntry.basedOnOrderCount)) {
+                    currentLogEntry.ignored = true;
                     return false;
                 }
             }
         }
-        currentLocation = eventLocationMap[tmpLogEntry.eventID][1];
+        currentLocation = eventLocationMap[currentLogEntry.eventID][1];
     }
     return false;
 }"""

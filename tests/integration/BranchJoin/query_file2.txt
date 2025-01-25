@@ -1,3 +1,3 @@
 A[] forall(i:O_t) forall(j:R_t) (deadlock and globalLog[logSize - 1].orderCount == 0) imply O(i).l5 and R(j).l5
 A[] exists(i:logSize_t) forall(j:logSize_t) (deadlock and trueGlobalLog[i].eventID == e12_ID and i != j) imply trueGlobalLog[j].eventID != e13_ID
-A[] deadlock imply trueGlobalLog[3].tiedTo == trueGlobalLog[1].orderCount
+E<> deadlock and trueGlobalLog[3].tiedTo != trueGlobalLog[1].orderCount

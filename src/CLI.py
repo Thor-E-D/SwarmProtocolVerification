@@ -136,7 +136,7 @@ def load_state_from_path(path: str):
         "base_path",
         "delay_type",
         "loop_bound",
-        "standard_setting",
+        "branch_tracking",
         "log_size",
         "delay_amount",
         "subsets",
@@ -162,7 +162,7 @@ def load_state_from_path(path: str):
 def load_state_into_model_settings(state_data):
     model_settings = ModelSettings(role_amount=state_data["role_amount"],delay_type=state_data["delay_type"])
     model_settings.loop_bound = state_data["loop_bound"]
-    model_settings.standard_setting = state_data["standard_setting"]
+    model_settings.branch_tracking = state_data["branch_tracking"]
     model_settings.log_size = state_data["log_size"]
     model_settings.delay_amount = state_data["delay_amount"]
 
@@ -388,10 +388,21 @@ def parse_json_dict(key, json_input: str):
     except json.JSONDecodeError as e:
         print(f"Error: Invalid JSON input. {e}")
 
+# For parsing booleans from strings
+def str2bool(value):
+    if isinstance(value, bool):
+        return value
+    if value.lower() in {'yes', 'true', 't', 'y', '1'}:
+        return True
+    elif value.lower() in {'no', 'false', 'f', 'n', '0'}:
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 # For model setting arguments
 def set_arguments(args):
-    if args.standard_setting != None:
-        update_local_state("standard_setting", args.standard_setting)
+    if args.branch_tracking != None:
+        update_local_state("branch_tracking", args.branch_tracking)
 
     if args.log_size != None:
         update_local_state("log_size", args.log_size)
@@ -483,9 +494,9 @@ def create_parser():
     )
 
     argument_parser.add_argument(
-        "-ss", "--standard-setting",
-        type=bool,
-        help="Wether or not to use standard setting default is false",
+        "-bt", "--branch-tracking",
+        type=str2bool,
+        help="Wether or not to use branch tracking default is true",
         required=False
     )
 

@@ -10,6 +10,18 @@ def test_branch_join():
     model_settings.loop_counter = 2
     model_settings.branch_tracking = True
     model_settings.delay_amount = {"O": 5, "R": 5}
+    model_settings.log_size = 10
+
+    base_path = os.path.dirname(os.path.abspath(__file__))
+
+    do_full_test(base_path, model_settings, name_of_query_file)
+
+def test_branch_join_no_branch_tracking():
+    name_of_query_file = "query_file2"
+    model_settings = ModelSettings({"O": 1, "R": 2},{"O": DelayType.EVENTS_EMITTED, "R": DelayType.EVENTS_EMITTED})
+    model_settings.loop_counter = 2
+    model_settings.branch_tracking = False
+    model_settings.delay_amount = {"O": 5, "R": 5}
     model_settings.log_size = 9
 
     base_path = os.path.dirname(os.path.abspath(__file__))
