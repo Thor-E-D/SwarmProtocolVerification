@@ -9,7 +9,7 @@ from DataObjects.ModelSettings import ModelSettings, DelayType
 def test_generated_file():
     model_settings = ModelSettings(None, None)
     model_settings.loop_counter = 2
-    model_settings.standard_setting = True
+    model_settings.branch_tracking = True
     model_settings.delay_amount = None
     model_settings.log_size = None
 

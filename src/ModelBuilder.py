@@ -120,14 +120,12 @@ def add_functions(declaration: Declaration, using_global_event_bound: bool, exit
     declaration.add_function_call(generate_function_is_In_branching_conflict)
     declaration.add_function_call(generate_function_consolidate_logs)
     declaration.add_function_call(generate_function_check_and_fix_branch_competetion)
-    declaration.add_function_call(generate_function_handle_branching_event_standard_setting)
     declaration.add_function_call(generate_function_handle_branching_event)
-    declaration.add_function_call(generate_function_handle_standard_setting)
-    declaration.add_function_call(generate_function_handle_standard_event)
-    declaration.add_function_call(generate_function_handle_own_event)
+    declaration.add_function_call(generate_function_handle_event)
     declaration.add_function_call(generate_function_update_true_global_log)
     declaration.add_function_call(generate_function_update_global_log)
     declaration.add_function_call(generate_function_update_log)
+    declaration.add_function_call(generate_function_update_log_entry)
 
 # Creates the list and variables for keeping track of where the role currently is.
 def create_flow_list(jsonTransfer: JSONTransfer, eventname_to_UID_dict: Dict[str, int]) -> tuple[int, List[List[int]]]:
@@ -237,30 +235,6 @@ def enrich_json(start_exit_path_events: List[EventData], jsonTransfers: List[JSO
         
     return branching_events, all_loop_event_names
 
-# Creates UPPAAL functions for setting what event each event should be based on
-def create_basedOn_functions(jsonTransfers: List[JSONTransfer], name_amount_dict: Dict[str, int], eventnames_dict: Dict[str, str], declaration: Declaration):
-    name_basedOnEvents = {}
-    for jsonTransfer in jsonTransfers:
-        basedOnEvents = {}
-
-        all_events = jsonTransfer.own_events.copy()
-        all_events.extend(jsonTransfer.other_events)
-
-        for current_event in jsonTransfer.own_events:
-            for event in all_events:
-                if event.target == current_event.source:
-                    if eventnames_dict[current_event.event_name] in basedOnEvents:
-                        basedOnEvents[eventnames_dict[current_event.event_name]].append(eventnames_dict[event.event_name])
-                    else:
-                        basedOnEvents[eventnames_dict[current_event.event_name]] = [eventnames_dict[event.event_name]]
-    
-        name_basedOnEvents[jsonTransfer.name] = basedOnEvents
-
-
-    for name in name_amount_dict:
-        declaration.add_function_call(generate_function_update_log_name, name,name_basedOnEvents[name])
-
-
 def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTransfer, model_settings: ModelSettings):
     # We first create the nessesary variable names to be used in UPPAAL.
     eventnames_dict, amount_names, advance_channels, update_channels, reset_channels = calculate_relevant_mappings(jsonTransfers)
@@ -297,7 +271,7 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
 
     declaration = Declaration()
 
-    declaration.add_variable(f"const bool standardSetting = {str(model_settings.standard_setting).lower()};")
+    declaration.add_variable(f"const bool branchTrackingEnabled = {str(model_settings.branch_tracking).lower()};")
     declaration.add_variable(f"const int logSize = {model_settings.log_size};")
     declaration.add_variable("typedef int [0, logSize - 1] logSize_t;")
 
@@ -473,7 +447,6 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
 
     # Functions
     add_functions(declaration, using_global_event_bound, exit_paths != {})
-    create_basedOn_functions(jsonTransfers, name_amount_dict, eventnames_dict, declaration)
 
     # Adding templates comprised of roles and logs for each jsonTransfer we create one of each.
     roles = []

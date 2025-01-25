@@ -11,7 +11,7 @@ def test_warehouse_extended():
 
     model_settings = ModelSettings(name_amount_dict, {"Door": DelayType.EVENTS_SELF_EMITTED, "Forklift": DelayType.EVENTS_SELF_EMITTED, "Transport": DelayType.EVENTS_SELF_EMITTED})
     model_settings.loop_counter = 2
-    model_settings.standard_setting = False
+    model_settings.branch_tracking = True
     model_settings.delay_amount = {"Door": 1, "Forklift": 1, "Transport": 1}
     model_settings.log_size = 16
 
@@ -28,7 +28,7 @@ def test_warehouse_two_transport_two_transport():
 
     model_settings = ModelSettings(name_amount_dict, {"Door": DelayType.EVENTS_SELF_EMITTED, "Forklift": DelayType.EVENTS_SELF_EMITTED, "Transport": DelayType.EVENTS_SELF_EMITTED})
     model_settings.loop_counter = 2
-    model_settings.standard_setting = True
+    model_settings.branch_tracking = True
     model_settings.delay_amount = {"Door": 1, "Forklift": 1, "Transport": 1}
     model_settings.log_size = 25
 
@@ -44,7 +44,7 @@ def test_warehouse_two_transports_time():
 
     model_settings = ModelSettings(name_amount_dict, {"Door": DelayType.EVENTS_EMITTED, "Forklift": DelayType.EVENTS_SELF_EMITTED, "Transport": DelayType.EVENTS_EMITTED})
     model_settings.loop_counter = 2
-    model_settings.standard_setting = True
+    model_settings.branch_tracking = True
     model_settings.delay_amount = {"Door": 3, "Forklift": 1, "Transport": 2}
     model_settings.log_size = 16
 
@@ -60,9 +60,9 @@ def test_warehouse_two_transports_global_emitted():
 
     model_settings = ModelSettings(name_amount_dict, {"Door": DelayType.EVENTS_EMITTED, "Forklift": DelayType.EVENTS_SELF_EMITTED, "Transport": DelayType.EVENTS_EMITTED})
     model_settings.loop_counter = 2
-    model_settings.standard_setting = True
-    model_settings.delay_amount = {"Door": 7, "Forklift": 1, "Transport": 2}
-    model_settings.log_size = 20
+    model_settings.branch_tracking = True
+    model_settings.delay_amount = {"Door": 5, "Forklift": 1, "Transport": 3}
+    model_settings.log_size = 14
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 

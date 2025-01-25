@@ -21,7 +21,7 @@ class ModelSettings:
     role_amount: Dict[str, int] # name of role to amount
     delay_type: Dict[str, DelayType] # name of role to delayType
     loop_bound: int = 2
-    standard_setting: bool = False
+    branch_tracking: bool = True
     log_size: int = 20
     delay_amount: Optional[Dict[str, int]] = None
     time_json_transfer: Optional[TimeJSONTransfer] = None

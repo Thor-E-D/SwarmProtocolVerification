@@ -12,7 +12,7 @@ def test_warehouse():
 
     model_settings = ModelSettings(name_amount_dict, {"Door": DelayType.EVENTS_SELF_EMITTED, "Forklift": DelayType.EVENTS_SELF_EMITTED, "Transport": DelayType.EVENTS_SELF_EMITTED})
     model_settings.loop_counter = 2
-    model_settings.standard_setting = False
+    model_settings.branch_tracking = True
     model_settings.delay_amount = {"Door": 1, "Forklift": 1, "Transport": 1}
     model_settings.log_size = 16
 
@@ -29,7 +29,7 @@ def test_warehouse_two_forklifts():
 
     model_settings = ModelSettings(name_amount_dict, {"Door": DelayType.EVENTS_SELF_EMITTED, "Forklift": DelayType.EVENTS_SELF_EMITTED, "Transport": DelayType.EVENTS_SELF_EMITTED})
     model_settings.loop_counter = 2
-    model_settings.standard_setting = False
+    model_settings.branch_tracking = True
     model_settings.delay_amount = {"Door": 1, "Forklift": 1, "Transport": 1}
     model_settings.log_size = 16
 
@@ -45,7 +45,7 @@ def test_warehouse_two_forklifts_time_overflow():
 
     model_settings = ModelSettings(name_amount_dict, {"Door": DelayType.EVENTS_EMITTED, "Forklift": DelayType.EVENTS_SELF_EMITTED, "Transport": DelayType.EVENTS_SELF_EMITTED})
     model_settings.loop_counter = 2
-    model_settings.standard_setting = True
+    model_settings.branch_tracking = True
     model_settings.delay_amount = {"Door": 2, "Forklift": 1, "Transport": 1}
     model_settings.log_size = 6
 
@@ -61,7 +61,7 @@ def test_warehouse_two_forklifts_time():
 
     model_settings = ModelSettings(name_amount_dict, {"Door": DelayType.EVENTS_EMITTED, "Forklift": DelayType.EVENTS_SELF_EMITTED, "Transport": DelayType.EVENTS_SELF_EMITTED})
     model_settings.loop_counter = 2
-    model_settings.standard_setting = True
+    model_settings.branch_tracking = True
     model_settings.delay_amount = {"Door": 1, "Forklift": 1, "Transport": 1}
     model_settings.log_size = 16
 

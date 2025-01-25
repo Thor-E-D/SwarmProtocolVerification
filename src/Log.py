@@ -169,7 +169,7 @@ resetCount--""",
             source=l_initial,
             target=l_accepting_emitted_1,
             synchronisation=f"{json_transfer.do_update_channel_name}[id]?",
-            assignment=f"""updateLog{json_transfer.name}(currentLog,emittedOrderCounts,log_id_start),
+            assignment=f"""updateLogEntry(currentLog,emittedOrderCounts,log_id_start),
 updatesSincePropagation++,
 newUpdates := true,
 currentSizeOfLog++"""
@@ -417,7 +417,7 @@ eventsToRead := 0"""
                 locations.append(l_forced_prop_3)
 
                 current_transition = self.find_transition(transitions, l_source=l_initial, l_target=l_accepting_emitted_1)
-                current_transition.assignment=f"updateLog{json_transfer.name}(currentLog,emittedOrderCounts,log_id_start),currentSizeOfLog++"
+                current_transition.assignment=f"updateLogEntry(currentLog,emittedOrderCounts,log_id_start),currentSizeOfLog++"
 
                 current_transition = self.find_transition(transitions, l_source=l_accepting_emitted_1, l_target=l_accepting_emitted_2)
                 current_transition.guard = current_transition.guard +  "&& newUpdates"
@@ -603,7 +603,7 @@ eventsToRead := 0"""
             source=waiting_location,
             target=l_accepting_emitted_1,
             synchronisation=f"{json_transfer.do_update_channel_name}[id]?",
-            assignment=f"""updateLog{json_transfer.name}(currentLog,emittedOrderCounts,log_id_start),
+            assignment=f"""updateLogEntry(currentLog,emittedOrderCounts,log_id_start),
                     updatesSincePropagation++,
                     newUpdates := true,
                     currentSizeOfLog++""",
