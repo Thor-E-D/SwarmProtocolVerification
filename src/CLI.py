@@ -42,28 +42,30 @@ def identify_json_files(folder_path: str):
     projection_json_files = set()
     protocol_json_file = None
     time_json_file = None
+    try: 
+        for file_name in os.listdir(folder_path):
+            if file_name.endswith('.json'):
+                file_path = os.path.join(folder_path, file_name)
+                try:
+                    with open(file_path, 'r') as file:
+                        data = json.load(file)
 
-    for file_name in os.listdir(folder_path):
-        if file_name.endswith('.json'):
-            file_path = os.path.join(folder_path, file_name)
-            try:
-                with open(file_path, 'r') as file:
-                    data = json.load(file)
-
-                    # Check for Time File
-                    if ("events" in data or "logs" in data):
-                        time_json_file = file_path
-                    
-                    # Check for Projection JSON
-                    elif "subscriptions" in data:
-                        projection_json_files.add(file_path)
-                    
-                    # Check for SwarmProtocol JSON
-                    elif "initial" in data and "transitions" in data and "subscriptions" not in data:
-                        protocol_json_file = file_path
-                    
-            except json.JSONDecodeError:
-                print(f"Invalid JSON file found: {file_name}")
+                        # Check for Time File
+                        if ("events" in data or "logs" in data):
+                            time_json_file = file_path
+                        
+                        # Check for Projection JSON
+                        elif "subscriptions" in data:
+                            projection_json_files.add(file_path)
+                        
+                        # Check for SwarmProtocol JSON
+                        elif "initial" in data and "transitions" in data and "subscriptions" not in data:
+                            protocol_json_file = file_path
+                        
+                except json.JSONDecodeError:
+                    print(f"Invalid JSON file found: {file_name}")
+    except:
+        print(f"No folder identified at {folder_path}")
     return projection_json_files, protocol_json_file, time_json_file
 
 def get_state_data(key: Any, file_path: str = "") -> Any:
@@ -81,6 +83,7 @@ def get_state_data(key: Any, file_path: str = "") -> Any:
         
     except FileNotFoundError:
         print(f"Error: {file_path} not found.")
+        raise FileNotFoundError
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON: {e}")
     except Exception as e:
@@ -160,7 +163,17 @@ def load_state_from_path(path: str):
 
 
 def load_state_into_model_settings(state_data):
-    model_settings = ModelSettings(role_amount=state_data["role_amount"],delay_type=state_data["delay_type"])
+    new_delay_type = {}
+    current_delay_type = state_data["delay_type"]
+    delay_type_keys = list(DELAY_TYPE_MAPPING.keys())
+
+    for delay_type_single in current_delay_type:
+        if current_delay_type[delay_type_single] in delay_type_keys:
+            new_delay_type[delay_type_single] = DELAY_TYPE_MAPPING[current_delay_type[delay_type_single]]
+        else:
+            new_delay_type[delay_type_single] = current_delay_type[delay_type_single]
+
+    model_settings = ModelSettings(role_amount=state_data["role_amount"],delay_type=new_delay_type)
     model_settings.loop_bound = state_data["loop_bound"]
     model_settings.branch_tracking = state_data["branch_tracking"]
     model_settings.log_size = state_data["log_size"]
@@ -169,74 +182,79 @@ def load_state_into_model_settings(state_data):
     return model_settings
 
 def build_model(args):
-    state_data = None
-    if args.path_to_state == None:
-        state_data = get_state_data("")
-    else:
-        state_data = get_state_data("", args.path_to_state)
 
-    model_settings = load_state_into_model_settings(state_data)
+    try:
+        state_data = None
+        if args.path_to_state == None:
+            state_data = get_state_data("")
+        else:
+            full_path_state = " ".join(args.path_to_state)
+            state_data = get_state_data("", full_path_state)
 
-    if model_settings.role_amount == None:
-        print("No role amount set please set using setArgs -ra")
-        return
-    if model_settings.delay_type == None:
-        print("No delay type set please set using setArgs -dta")
-        return
-    if model_settings.delay_amount == None:
-        print("No delay amount set please set using setArgs -daa")
-        return
+        model_settings = load_state_into_model_settings(state_data)
 
-    path_to_files = None
-    if args.path_to_folder == None:
-        path_to_files = get_state_data("base_path")
-    else:
-        path_to_files = args.path_to_folder
+        if model_settings.role_amount == None:
+            print("No role amount set please set using setArgs -ra")
+            return
+        if model_settings.delay_type == None:
+            print("No delay type set please set using setArgs -dta")
+            return
+        if model_settings.delay_amount == None:
+            print("No delay amount set please set using setArgs -daa")
+            return
 
-    print(f"Attempt to identify relevant json files at local location {path_to_files}")
-    
-    projection_json_files, protocol_json_file, time_json_file = identify_json_files(path_to_files)
+        path_to_files = None
+        if args.path_to_folder == None:
+            path_to_files = state_data["base_path"]
+        else:
+            path_to_files = " ".join(args.path_to_folder)
 
-    if protocol_json_file == None:
-        print("Cannot find protocol JSON aborting attempt")
-        print("Please review the folder path with \"setPath\" and \"showPath\"")
-        return
+        print(f"Attempt to identify relevant json files at local location {path_to_files}")
+        
+        projection_json_files, protocol_json_file, time_json_file = identify_json_files(path_to_files)
 
-    json_transfers = []
-    global_json_transfer = None
-    if len(projection_json_files) == 0:
-        print("No projection files found so auto-generating projections")
-        global_json_transfer, json_transfers = parse_protocol_JSON_file(protocol_json_file)
-    else:
-        global_json_transfer, auto_json_transfers = parse_protocol_JSON_file(protocol_json_file)
+        if protocol_json_file == None:
+            print("Cannot find protocol JSON aborting attempt")
+            print("Please review the folder path with \"setPath\"")
+            return
 
-        name_list = []
-        for auto_json_transfer in auto_json_transfers:
-            name_list.append(auto_json_transfer.name)
+        json_transfers = []
+        global_json_transfer = None
+        if len(projection_json_files) == 0:
+            print("No projection files found so auto-generating projections")
+            global_json_transfer, json_transfers = parse_protocol_JSON_file(protocol_json_file)
+        else:
+            global_json_transfer, auto_json_transfers = parse_protocol_JSON_file(protocol_json_file)
 
-        for projection_json_file in projection_json_files:
-            current_json_transfer = parse_projection_JSON_file(projection_json_file)
-            if current_json_transfer.name in name_list:
-                name_list.remove(current_json_transfer.name)
-                json_transfers.append(current_json_transfer)
-
-        if len(name_list) != 0:
-            print(f"Missing the following projections {name_list} so auto generating them")
+            name_list = []
             for auto_json_transfer in auto_json_transfers:
-                if auto_json_transfer.name in name_list:
-                    json_transfers.append(auto_json_transfer)
+                name_list.append(auto_json_transfer.name)
 
-    time_transfer = None
+            for projection_json_file in projection_json_files:
+                current_json_transfer = parse_projection_JSON_file(projection_json_file)
+                if current_json_transfer.name in name_list:
+                    name_list.remove(current_json_transfer.name)
+                    json_transfers.append(current_json_transfer)
 
-    if time_json_file != None:
-        print("Found a time json file!")
-        time_transfer = parse_time_JSON(time_json_file)
-        model_settings.time_json_transfer = time_transfer
-    else:
-        print("No time file found")
+            if len(name_list) != 0:
+                print(f"Missing the following projections {name_list} so auto generating them")
+                for auto_json_transfer in auto_json_transfers:
+                    if auto_json_transfer.name in name_list:
+                        json_transfers.append(auto_json_transfer)
 
-    currentModel = createModel(json_transfers, global_json_transfer, model_settings)
-    save_xml_to_file(currentModel.to_xml(), "uppaal_model", path_to_files)
+        time_transfer = None
+
+        if time_json_file != None:
+            print("Found a time json file!")
+            time_transfer = parse_time_JSON(time_json_file)
+            model_settings.time_json_transfer = time_transfer
+        else:
+            print("No time file found")
+
+        currentModel = createModel(json_transfers, global_json_transfer, model_settings)
+        save_xml_to_file(currentModel.to_xml(), "uppaal_model", path_to_files)
+    except:
+        print("Failed to build")
 
 def set_verifyta_path(newPath: str):
     # First we format the given path a little
@@ -273,7 +291,7 @@ def get_lines_in_file(file_path: str) -> List[str]:
         print(f"An error occurred: {e}")
         raise
 
-def filter_ouput(file_path_input: str) -> str:
+def filter_output(file_path_input: str) -> str:
     # Define regular expressions for the patterns
     state_pattern = re.compile(r"State:")
     transition_pattern = re.compile(r"Transition:")
@@ -282,6 +300,8 @@ def filter_ouput(file_path_input: str) -> str:
     property_satisfied_pattern = re.compile(r"-- Formula is satisfied.")
     delay_pattern = re.compile(r"Delay: \d+")
     global_time_pattern = re.compile(r"globalTime=\d+")
+
+    sup_result_pattern = re.compile(r"-- Result: \d+")
 
     result = ""
 
@@ -299,6 +319,17 @@ def filter_ouput(file_path_input: str) -> str:
         
         for line in content.splitlines():
             state_match = state_pattern.search(line)
+
+            sup_result_match = sup_result_pattern.search(line)
+            if sup_result_match != None:
+                grouped = sup_result_match.group()
+                result += grouped
+                return result
+            
+            if "-- Result: bounds:" in line:
+                result_bounds = line.partition("bounds: ")[2]
+                result += "Giving the resulting bound: " + result_bounds[:-1]
+                return result
 
             if state_match != None:
                 next_is_state = True
@@ -357,7 +388,7 @@ def verify_model(model_path: str, query_path: str, verifyta_path: str):
             subprocess.run(command, stdout=file, stderr=subprocess.STDOUT, text=True)
         
         # We must filter the output file into a format that the user can understand
-        filtered_output = filter_ouput(file_path)
+        filtered_output = filter_output(file_path)
         print(filtered_output)
 
 # Checks correct format of given information.
@@ -462,7 +493,7 @@ def create_parser():
         "-ps", "--path-to-state",
         type=str,
         nargs='+',
-        help="Path to json files containing state information. Default is currently saved",
+        help="Path to json file containing state information. Default is currently saved",
         required=False
     )
 
