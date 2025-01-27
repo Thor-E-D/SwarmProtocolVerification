@@ -55,9 +55,6 @@ class Role(Template):
     def find_location(self, name: str, locations: List[Location]):
         return next((loc for loc in locations if loc.name == name), None)
     
-    def find_eventname_from_source(self, source: str, events: List[EventData]):
-         return next((event.event_name for event in events if event.source == source), None)
-    
     def find_outgoing_events_from_location(self, source: str, events: List[EventData]):
          return [event.event_name for event in events if event.source == source]
 

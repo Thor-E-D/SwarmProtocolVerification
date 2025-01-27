@@ -130,9 +130,7 @@ class GraphAnalyser:
         
         return None
 
-    def find_tiedto(self, branching_events: list[EventData] = None):
-        if branching_events == None:
-            branching_events = self.find_branching_events()
+    def find_tiedto(self, branching_events: list[EventData]):
 
         def find_tiedto_location(loc: str, current_tied_to_set: Set[EventData]):
             incoming_events = self.incoming[loc]

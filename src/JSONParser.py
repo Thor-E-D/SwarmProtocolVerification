@@ -36,10 +36,6 @@ class Edge:
                 self.source == other.source and 
                 self.target == other.target and
                 self.role == other.role)
-    
-    def __repr__(self):
-        return (f"Edge(name={self.name!r}, source={self.source!r}, "
-                f"target={self.target!r}, role={self.role!r})")
 
 class Graph:
     def __init__(self):
@@ -72,6 +68,14 @@ def build_graph(transitions: List[Dict[str, Any]]) -> Graph:
     for t in transitions:
         edge = Edge(t["label"]["logType"][0], t["source"], t["target"], t["label"]["role"])
         graph.add_edge(edge)
+    return graph
+
+def build_graph_internal(role_own_events_dict: Dict[str, List[EventData]]) -> Graph:
+    graph = Graph()
+    for role in role_own_events_dict:
+        for event in role_own_events_dict[role]:
+            edge = Edge(event.event_name, event.source, event.target, role)
+            graph.add_edge(edge)
     return graph
 
 def generate_projection(graph: Graph, role: str) -> Graph:

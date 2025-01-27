@@ -19,9 +19,9 @@ from JSONParser import parse_time_JSON, parse_projection_JSON_file, parse_protoc
 from ModelBuilder import createModel
 from QueryGenerator import QueryGenerator, generate_log_query
 
+base_path = os.path.dirname(os.path.abspath(__file__))
 state_path = "PermanentState\\state.json" # Hardcoded relative path to local state file
 autoQuery_path = "PermanentState\\autoQueries.txt" # Hardcoded relative path to local state file.
-base_path = os.path.dirname(os.path.abspath(__file__))
 
 str_validity = "validity"
 str_sizebound = "sizebound"
@@ -75,6 +75,13 @@ def identify_json_files(folder_path: str):
         print(f"No folder identified at {folder_path}")
     return projection_json_files, protocol_json_file, time_json_file
 
+def get_verifyta_path(verifyta_path: str) -> str:
+    if verifyta_path == None:
+        verifyta_path = get_state_data("verifyta_path")
+    else:
+        verifyta_path = " ".join(verifyta_path)
+    return verifyta_path
+
 def get_state_data(key: Any, file_path: str = "") -> Any:
     try:
         if file_path == "":
@@ -90,58 +97,39 @@ def get_state_data(key: Any, file_path: str = "") -> Any:
         
     except FileNotFoundError:
         print(f"Error: {file_path} not found.")
-        raise FileNotFoundError
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON: {e}")
-    except Exception as e:
-        print(f"Unexpected error: {e}")
 
 
 def update_local_state(key: Any, value: Any):
-    try:
-        file_path = os.path.join(base_path, state_path)
-        with open(file_path, 'r') as json_file:
-            data = json.load(json_file)
-        
-        if (key == ""):
-            data = value
-        else:
-            data[key] = value
-        
-        with open(file_path, 'w') as json_file:
-            json.dump(data, json_file, indent=4)
-        print(f"Successfully updated {key} in state with {data[key]}")
-    except FileNotFoundError:
-        print(f"Error: {file_path} not found.")
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
-    except Exception as e:
-        print(f"Unexpected error: {e}")
+    file_path = os.path.join(base_path, state_path)
+    with open(file_path, 'r') as json_file:
+        data = json.load(json_file)
+    
+    if (key != ""):
+        data[key] = value
+    
+    with open(file_path, 'w') as json_file:
+        json.dump(data, json_file, indent=4)
+    print(f"Successfully updated {key} in state with {data[key]}")
 
 def write_state_to_path(path: str):
+    file_path = os.path.join(base_path, state_path)
+    # Read the existing data from the file
+    with open(file_path, 'r') as json_file:
+        data = json.load(json_file)
+
     try:
-        file_path = os.path.join(base_path, state_path)
-        # Read the existing data from the file
-        with open(file_path, 'r') as json_file:
-            data = json.load(json_file)
-        
         with open(path, 'w') as json_file:
             json.dump(data, json_file, indent=4)
         print(f"Successfully wrote json to {path}")
     except FileNotFoundError:
-        print(f"Error: {file_path} not found.")
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
-    except Exception as e:
+        print(f"Error: Could not write to {path}. Make sure it ends in a file name")
+    except Exception as e: 
         print(f"Unexpected error: {e}")
 
-def load_state_from_path(path: str):
-    try:
-        file_path = os.path.join(base_path, state_path)
-        with open(path, 'r') as json_file:
-            data = json.load(json_file)
-        
-        json_required_keys = [
+def check_state_data(data: Any):
+    json_required_keys = [
         "verifyta_path",
         "base_path",
         "delay_type",
@@ -153,20 +141,30 @@ def load_state_from_path(path: str):
         "role_amount"
         ]
 
-        for key in json_required_keys:
-            if key not in data:
-                print (f"Fault format missing key {key} in given json")
-                return 
+    for key in json_required_keys:
+        if key not in data:
+            print (f"Fault format missing key {key} in given json")
+            return None
+        
+    return data
+            
+def load_state_from_path(path: str):
+    try:
+        file_path = os.path.join(base_path, state_path)
+        with open(path, 'r') as json_file:
+            data = json.load(json_file)
+    
+        data = check_state_data(data)
+        if data == None:
+            return
 
         with open(file_path, 'w') as json_file:
             json.dump(data, json_file, indent=4)
         print(f"Successfully loaded json into local state")
     except FileNotFoundError:
-        print(f"Error: {file_path} not found.")
+        print(f"Error: {path} not found.")
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON: {e}")
-    except Exception as e:
-        print(f"Unexpected error: {e}")
 
 
 def load_state_into_model_settings(state_data):
@@ -189,7 +187,6 @@ def load_state_into_model_settings(state_data):
     return model_settings
 
 def build_model(args):
-
     try:
         state_data = None
         if args.path_to_state == None:
@@ -198,17 +195,11 @@ def build_model(args):
             full_path_state = " ".join(args.path_to_state)
             state_data = get_state_data("", full_path_state)
 
-        model_settings = load_state_into_model_settings(state_data)
+        state_data = check_state_data(state_data)
+        if state_data == None:
+            return
 
-        if model_settings.role_amount == None:
-            print("No role amount set please set using setArgs -ra")
-            return
-        if model_settings.delay_type == None:
-            print("No delay type set please set using setArgs -dta")
-            return
-        if model_settings.delay_amount == None:
-            print("No delay amount set please set using setArgs -daa")
-            return
+        model_settings = load_state_into_model_settings(state_data)
 
         path_to_files = None
         if args.path_to_folder == None:
@@ -260,8 +251,8 @@ def build_model(args):
 
         currentModel = createModel(json_transfers, global_json_transfer, model_settings)
         save_xml_to_file(currentModel.to_xml(), "uppaal_model", path_to_files)
-    except:
-        print("Failed to build")
+    except Exception as e:
+        print(f"Failed to build with exception {e}")
 
 def set_verifyta_path(newPath: str):
     # First we format the given path a little
@@ -279,10 +270,10 @@ def set_verifyta_path(newPath: str):
         if result.returncode == 0:
             print(f"Tool is present and working at: {newPath}")
             print(f"Version Output: {result.stdout.strip()}")
-            update_local_state("verifyta_path", newPath)
-        else:
-            print(f"Tool found at {newPath} but returned error code: {result.returncode}")
-            print(f"Error Output: {result.stderr.strip()}")
+            if "UPPAAL" not in result.stdout.strip():
+                print("Not a verifyta distribution. Aborting")
+            else:
+                update_local_state("verifyta_path", newPath)
     except Exception as e:
         print(f"Error occurred while verifying the tool: {e}")
 
@@ -295,8 +286,7 @@ def get_lines_in_file(file_path: str) -> List[str]:
         print(f"Error: The file '{file_path}' does not exist.")
         return None
     except Exception as e:
-        print(f"An error occurred: {e}")
-        raise
+        print(f"An error occurred when reading file at {file_path}: {e}")
 
 def filter_output(file_path_input: str) -> str:
     # Define regular expressions for the patterns
@@ -320,7 +310,7 @@ def filter_output(file_path_input: str) -> str:
 
         content = infile.read()
 
-        if "Error " in content or "syntax error:" in content:
+        if "Error " in content or "syntax error:" in content or " [error] " in content:
             print("Error during verification")
             print(content)
             return result
@@ -383,12 +373,11 @@ def filter_output(file_path_input: str) -> str:
     return result
 
 def verify_model(model_path: str, query_path: str, verifyta_path: str):
-    if verifyta_path == None:
-        verifyta_path = get_state_data("verifyta_path")
-    else:
-        verifyta_path = " ".join(verifyta_path)
+    verifyta_path = get_verifyta_path(verifyta_path)
     
     queries = get_lines_in_file(query_path)
+    if queries == None:
+        return
 
     for i in range(len(queries)):
         print(f"Verifying query {i}: {queries[i]}")
@@ -426,7 +415,7 @@ def parse_json_dict(key, json_input: str):
                 update_local_state(key, updates)
             elif key == "delay_type":
                 if (not all(isinstance(k, str) and v in DELAY_TYPE_MAPPING.keys() for k, v in updates.items())):
-                    print("Provided delay amount dictionary must be of the shape {str, Delay Type}")
+                    print("Provided delay type dictionary must be of the shape {str, Delay Type}")
                     return
                 new_delay_type = {}
                 for key_type in updates:
@@ -436,15 +425,13 @@ def parse_json_dict(key, json_input: str):
         print(f"Error: Invalid JSON input. {e}")
 
 def auto_verify_model(model_path: str, base_folder_path: str, type: str, verifyta_path: str):
-    if verifyta_path == None:
-        verifyta_path = get_state_data("verifyta_path")
-    else:
-        verifyta_path = " ".join(verifyta_path)
+    verifyta_path = get_verifyta_path(verifyta_path)
 
     try:
         projection_json_files, protocol_json_file, _ = identify_json_files(base_folder_path)
         query_generator = QueryGenerator(protocol_json_file, projection_json_files)
-    except:
+    except Exception as e:
+        print(f"Failed with exception: {e}")
         return
     
     query_path = os.path.join(base_path, autoQuery_path)
@@ -479,6 +466,7 @@ def auto_verify_model(model_path: str, base_folder_path: str, type: str, verifyt
                 print(f"Recommended log size: {int(match.group(1)) + 1}")
         else:
             print("Model overflow!! Cannot find optimal logsize")
+            print("Set a larger logsize before trying again.")
     
     elif (type == str_timebound):
         role_queries_dict = query_generator.generate_timebound_queries()
@@ -497,10 +485,7 @@ def auto_verify_model(model_path: str, base_folder_path: str, type: str, verifyt
         print ("---------------------------")
 
 def verify_log(model_path: str, log_path: str, verifyta_path: str):
-    if verifyta_path == None:
-        verifyta_path = get_state_data("verifyta_path")
-    else:
-        verifyta_path = " ".join(verifyta_path)
+    verifyta_path = get_verifyta_path(verifyta_path)
     
     log_line = get_lines_in_file(log_path)
     log_list = [event.strip() for event in log_line[0].split(",") if event.strip()]
@@ -518,15 +503,13 @@ def verify_log(model_path: str, log_path: str, verifyta_path: str):
 
 
 # For parsing booleans from strings
-def str2bool(value):
-    if isinstance(value, bool):
-        return value
+def str2bool(value: str) -> bool:
     if value.lower() in {'yes', 'true', 't', 'y', '1'}:
         return True
     elif value.lower() in {'no', 'false', 'f', 'n', '0'}:
         return False
     else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
+        print(f'Boolean value expected. Got {value}')
 
 # For model setting arguments
 def set_arguments(args):
@@ -578,7 +561,7 @@ def create_parser():
 
     subparsers.add_parser("showPath", help="Displays the path to the folder containing relevant json files")
 
-    build_parser = subparsers.add_parser("build", help="build the model")
+    build_parser = subparsers.add_parser("build", help="Build the model")
     build_parser.add_argument(
         "-pf", "--path-to-folder",
         type=str,
@@ -596,7 +579,7 @@ def create_parser():
     )
 
     # For setting arguments for the model
-    argument_parser = subparsers.add_parser("setArgs", help="set the arguments for the build")
+    argument_parser = subparsers.add_parser("setArgs", help="Set the arguments for the build")
     argument_parser.add_argument(
         "-log", "--log-size",
         type=int,
@@ -647,7 +630,7 @@ def create_parser():
 
     subparsers.add_parser("showArgs", help="Displays the current settings for the model")
 
-    load_state_parser = subparsers.add_parser("loadState", help="load state from path")
+    load_state_parser = subparsers.add_parser("loadState", help="Load state from path, overwriting internal state file")
     load_state_parser.add_argument(
         "path",
         type=str,
@@ -655,7 +638,7 @@ def create_parser():
         help="The absolute path to the desired json file",
     )
 
-    write_state_parser = subparsers.add_parser("writeState", help="write state to path")
+    write_state_parser = subparsers.add_parser("writeState", help="Write internal state json file to path")
     write_state_parser.add_argument(
         "path",
         type=str,

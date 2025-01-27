@@ -1,0 +1,1 @@
+A[] Transport(0).l2 imply globalTime <= 75

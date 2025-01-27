@@ -9,9 +9,10 @@ import pytest
 import os
 import subprocess
 import json
-from typing import List, Dict
+from typing import Set
 
 from GraphAnalyser import GraphAnalyser
+from QueryGenerator import QueryGenerator
 from ModelBuilder import createModel
 from DataObjects.ModelSettings import ModelSettings, DelayType
 from JSONParser import Graph, parse_time_JSON, parse_projection_JSON_file, parse_protocol_seperatly, parse_protocol_JSON_file, build_graph
@@ -88,65 +89,16 @@ def get_event_info():
     analyzer = GraphAnalyser(all_events)
     analysis_results = (analyzer.analyse_graph(protocol_json_transfer.initial))
 
-def find_new_location(current_loc, all_sources):    
-    if current_loc in all_sources:
-        return current_loc
-    else:
-        global all_events
-        for event in all_events:
-            if event.source == current_loc:
-                return find_new_location(event.target, all_sources)
-    
-    return None
-
 
 # Auto generates two queries for a given swarm protocol verifying we reach the end and that the log does not overflow.
-def auto_generate_queries(protocol_json_file: str, base_path: str) -> str:
+def auto_generate_queries(protocol_json_file: str, projection_json_files: Set[str], base_path: str) -> str:
+    
+    query_generator = QueryGenerator(protocol_json_file, projection_json_files)
+
     # Add size of log query
-    queries = "A[] globalLog[logSize - 1].orderCount == 0 \n"
-
-    # Add deadlock query
-    with open(protocol_json_file, 'r') as f:
-        data = json.load(f)
-    graph = build_graph(data["transitions"])
-
-    # Find edges with outdegree 0
-    locations = []
-    for edge in graph.edges:
-        current_target = edge.target
-        found_end = True
-        for edge_inner in graph.edges:
-            if current_target == edge_inner.source:
-                found_end = False
-                break
-        if found_end:
-            if current_target[0].isdigit():
-                locations.append("l" + current_target)
-            else:
-                locations.append(current_target)
-
-    index = 'i'
-    map_role_index = {}
-
-    for role in graph.get_role_names():
-        map_role_index[role] = index
-        index = chr(ord(index) + 1)
-
-    deadlock_query = "A[] "
-    for role in map_role_index:
-        deadlock_query += f"forall({map_role_index[role]}: {role}_t) "
-
-    deadlock_query += "(deadlock and globalLog[logSize - 1].orderCount == 0) imply "
-
-    for role in map_role_index:
-        current_index = map_role_index[role]
-        current_role_addition = "("
-        for location in locations:
-            current_role_addition += f"{role}({current_index}).{location} or "
-        current_role_addition = current_role_addition[:-4] + ")"
-        deadlock_query += current_role_addition + " and "
-
-    queries += deadlock_query[:-5]
+    overflow_query = query_generator.generate_overflow_query()
+    queries = overflow_query + "\n"
+    queries += query_generator.generate_end_state_query()
 
     try:
         with open(base_path + "\\example_queries.txt", 'w') as file:
@@ -299,7 +251,7 @@ def do_full_test(base_path: str, model_settings: ModelSettings, name_of_query_fi
     model_path = base_path + "\\example_file.xml"
 
     if name_of_query_file == "":
-        name_of_query_file = auto_generate_queries(protocol_json_file, base_path)
+        name_of_query_file = auto_generate_queries(protocol_json_file, projection_json_files, base_path)
     
     query_string = base_path + f"\\{name_of_query_file}.txt"
 

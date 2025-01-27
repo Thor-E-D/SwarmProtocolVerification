@@ -2,7 +2,7 @@ import json
 from typing import Set, List
 
 from DataObjects.JSONTransfer import JSONTransfer, EventData
-from JSONParser import build_graph, parse_protocol_JSON_file, parse_projection_JSON_file
+from JSONParser import build_graph_internal, parse_protocol_JSON_file, parse_projection_JSON_file
 from Utils import Utils
 
 class QueryGenerator:
@@ -33,14 +33,18 @@ class QueryGenerator:
                     for auto_json_transfer in auto_json_transfers:
                         if auto_json_transfer.name in name_list:
                             json_transfers.append(auto_json_transfer)
-        except:
-            raise FileNotFoundError(f"Could not find protocol json at {protocol_file_path}")
+        except Exception as e:
+            raise e
         
         self.protocol_data = global_json_transfer
         self.projection_data = json_transfers
 
     def generate_end_state_query(self) -> str:
-        graph = build_graph(self.protocol_data["transitions"])
+        graph_data = {}
+        for projection_transfer in self.projection_data:
+            graph_data[projection_transfer.name] = projection_transfer.own_events
+
+        graph = build_graph_internal(graph_data)
 
         # Find edges with outdegree 0
         locations = []
@@ -81,7 +85,7 @@ class QueryGenerator:
         return deadlock_query[:-5]
     
     def generate_overflow_query(self) -> str:
-        role = self.protocol_data["transitions"][0]["label"]["role"]
+        role = self.projection_data[0].name
         return (f"A[] not {role}_log(0).overflow")
     
     def generate_sizebound_query(self) -> str:
