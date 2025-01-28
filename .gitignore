@@ -14,3 +14,8 @@ __pycache__/
 .coverage
 *.xml
 src/PermanentState/trace.txt
+tests/integration/GeneratedTests/Protocols/4_max_5_roles_max_10_commands/example_queries.txt
+
+tests/integration/GeneratedTests/Protocols/5_max_5_roles_max_5_commands/example_queries.txt
+
+tests/integration/GeneratedTest/Protocols/5_max_5_roles_max_5_commands/example_queries.txt

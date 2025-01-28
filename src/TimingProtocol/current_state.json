@@ -1,0 +1,23 @@
+{
+    "verifyta_path": "",
+    "base_path": "",
+    "delay_type": {
+        "Door": "E",
+        "Forklift": "E",
+        "Transport": "E"
+    },
+    "loop_bound": 1,
+    "branch_tracking": true,
+    "log_size": 500,
+    "delay_amount": {
+        "Door": 1,
+        "Forklift": 2,
+        "Transport": 2
+    },
+    "subsets": "SubsetA",
+    "role_amount": {
+        "Door": 1,
+        "Forklift": 2,
+        "Transport": 2
+    }
+}

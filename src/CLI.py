@@ -192,7 +192,7 @@ def build_model(args):
         if args.path_to_state == None:
             state_data = get_state_data("")
         else:
-            full_path_state = " ".join(args.path_to_state)
+            full_path_state = (args.path_to_state)
             state_data = get_state_data("", full_path_state)
 
         state_data = check_state_data(state_data)
@@ -205,9 +205,7 @@ def build_model(args):
         if args.path_to_folder == None:
             path_to_files = state_data["base_path"]
         else:
-            path_to_files = " ".join(args.path_to_folder)
-
-        print(f"Attempt to identify relevant json files at local location {path_to_files}")
+            path_to_files = (args.path_to_folder)
         
         projection_json_files, protocol_json_file, time_json_file = identify_json_files(path_to_files)
 
@@ -246,8 +244,6 @@ def build_model(args):
             print("Found a time json file!")
             time_transfer = parse_time_JSON(time_json_file)
             model_settings.time_json_transfer = time_transfer
-        else:
-            print("No time file found")
 
         currentModel = createModel(json_transfers, global_json_transfer, model_settings)
         save_xml_to_file(currentModel.to_xml(), "uppaal_model", path_to_files)
@@ -388,11 +384,11 @@ def verify_query(model_path, query_path, verifyta_path, index):
     command = [verifyta_path, model_path, query_path, "--query-index", f"{index}","--diagnostic", "0"]
     file_path = os.path.join(base_path, state_path[:-11], "trace.txt")
 
-        # Run the command and write the output directly to the file
+    # Run the command and write the output directly to the file
     with open(file_path, "w") as file:
         subprocess.run(command, stdout=file, stderr=subprocess.STDOUT, text=True)
-        
-        # We must filter the output file into a format that the user can understand
+    
+    # We must filter the output file into a format that the user can understand
     filtered_output = filter_output(file_path)
     return filtered_output
 

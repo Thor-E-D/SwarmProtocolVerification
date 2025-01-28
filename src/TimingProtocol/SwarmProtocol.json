@@ -1,0 +1,50 @@
+{
+    "initial": "l0",
+    "transitions": [
+        {
+            "label": {
+                "cmd": "Open",
+                "logType": ["Open"],
+                "role": "Door"
+            },
+            "source": "l0",
+            "target": "l1"
+        },
+        {
+            "label": {
+                "cmd": "Request",
+                "logType": ["Request"],
+                "role": "Transport"
+            },
+            "source": "l1",
+            "target": "l2"
+        },
+        {
+            "label": {
+                "cmd": "Get",
+                "logType": ["Get"],
+                "role": "Forklift"
+            },
+            "source": "l2",
+            "target": "l3"
+        },
+        {
+            "label": {
+                "cmd": "Deliver",
+                "logType": ["Deliver"],
+                "role": "Transport"
+            },
+            "source": "l3",
+            "target": "l1"
+        },
+        {
+            "label": {
+                "cmd": "Close",
+                "logType": ["Close"],
+                "role": "Door"
+            },
+            "source": "l1",
+            "target": "l4"
+        }
+    ]
+}
