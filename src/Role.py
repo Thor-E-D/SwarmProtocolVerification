@@ -113,7 +113,7 @@ class Role(Template):
                 target=lsource,
                 assignment= Utils.remove_last_two_chars(time_assignment_addition),
                 guard=f"currentEventResetID == {Utils.get_eventtype_UID(event.event_name)}",
-                synchronisation=f"{jsonTransfer.reset_channel_name}[id]?"
+                synchronisation=f"{jsonTransfer.backtrack_channel_name}[id]?"
                 ))
 
             # Advance event this when we read this event in log
@@ -158,15 +158,15 @@ class Role(Template):
 
                         # Add disabeling part to invariant
                         if (lsource.invariant != None):
-                            lsource.invariant += f" || {loop_counter_name}[id] == {loop_bound} || loopCountMap[{Utils.get_eventtype_UID(event.event_name)}] == {loop_bound}"
+                            lsource.invariant += f" || {loop_counter_name}[id] == 1 || loopCountMap[{Utils.get_eventtype_UID(event.event_name)}] == {loop_bound}"
                         else:
-                            lsource.invariant = f"{loop_counter_name}[id] == {loop_bound} || loopCountMap[{Utils.get_eventtype_UID(event.event_name)}] == {loop_bound}"
+                            lsource.invariant = f"{loop_counter_name}[id] == 1 || loopCountMap[{Utils.get_eventtype_UID(event.event_name)}] == {loop_bound}"
 
                         transitions.append(Transition(
                         id=Utils.get_next_id(),
                         source=lsource,
                         target=ltarget,
-                        guard=time_guard_addition + f"{loop_counter_name}[id] < {loop_bound} && loopCountMap[{Utils.get_eventtype_UID(event.event_name)}] < {loop_bound}" + exit_path_guard_addition,
+                        guard=time_guard_addition + f"{loop_counter_name}[id] < 1 && loopCountMap[{Utils.get_eventtype_UID(event.event_name)}] < {loop_bound}" + exit_path_guard_addition,
                         synchronisation=f"{jsonTransfer.do_update_channel_name}[id]!",
                         assignment=time_assignment_addition + f"""setLogEntryForUpdate(
         {Utils.get_eventtype_UID(event.event_name)},id,
