@@ -38,7 +38,7 @@ class JSONTransfer:
 
     # Channels names to ensure no discreptancy in names
     do_update_channel_name: Optional[str] = None
-    reset_channel_name: Optional[str] = None
+    backtrack_channel_name: Optional[str] = None
     advance_channel_names: Optional[Dict[str, str]] = None
 
     # Additional information need locally in templates

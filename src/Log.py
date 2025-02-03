@@ -136,7 +136,7 @@ backTracking := true"""
             target=l_backtracking_1,
             assignment="""discardedEventIDs[resetCount - 1] = -1,
 resetCount--""",
-            synchronisation=f"{json_transfer.reset_channel_name}[id]!",
+            synchronisation=f"{json_transfer.backtrack_channel_name}[id]!",
             nails = [(-978, 136)]
         ))
 

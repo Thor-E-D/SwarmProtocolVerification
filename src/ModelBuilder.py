@@ -76,7 +76,7 @@ def calculate_relevant_mappings(jsonTransfers: List[JSONTransfer]):
     amount_names = {} # Maps role name to typedef name. 
     advance_channels = {} # Maps role name to advance channel.
     update_channels = {} # Maps role name to update channel.
-    reset_channels = {} # Maps role name to reset channel
+    backtrack_channels = {} # Maps role name to reset channel
 
     for jsonTransfer in jsonTransfers:
         current_advance_channel_names = []
@@ -91,14 +91,14 @@ def calculate_relevant_mappings(jsonTransfers: List[JSONTransfer]):
         advance_channels[jsonTransfer.name] = current_advance_channel_names
         jsonTransfer.do_update_channel_name = f"do_log_update_{jsonTransfer.name}"
         update_channels[jsonTransfer.name] = (f"do_log_update_{jsonTransfer.name}")
-        jsonTransfer.reset_channel_name = f"reset_{jsonTransfer.name}"
-        reset_channels[jsonTransfer.name] = (f"reset_{jsonTransfer.name}")
+        jsonTransfer.backtrack_channel_name = f"backtrack_{jsonTransfer.name}"
+        backtrack_channels[jsonTransfer.name] = (f"backtrack_{jsonTransfer.name}")
 
         amount_names[jsonTransfer.name] = f"{jsonTransfer.name}_t"
 
-    return eventnames_dict, amount_names, advance_channels, update_channels, reset_channels
+    return eventnames_dict, amount_names, advance_channels, update_channels, backtrack_channels
 
-def add_functions(declaration: Declaration, using_global_event_bound: bool, exit_paths_exist: bool):
+def add_functions(declaration: Declaration, using_global_event_bound: bool, all_eventname_loopcounter: Dict[str, str], exit_paths_exist: bool):
     # Ordering is important as some functions depend on others.
     if exit_paths_exist:
         declaration.add_function_call(generate_function_update_exit_path_guards)
@@ -122,7 +122,7 @@ def add_functions(declaration: Declaration, using_global_event_bound: bool, exit
     declaration.add_function_call(generate_function_check_and_fix_branch_competetion)
     declaration.add_function_call(generate_function_handle_branching_event)
     declaration.add_function_call(generate_function_handle_event)
-    declaration.add_function_call(generate_function_update_true_global_log)
+    declaration.add_function_call(generate_function_update_true_global_log, all_eventname_loopcounter)
     declaration.add_function_call(generate_function_update_global_log)
     declaration.add_function_call(generate_function_update_log)
     declaration.add_function_call(generate_function_update_log_entry)
@@ -237,7 +237,7 @@ def enrich_json(start_exit_path_events: List[EventData], jsonTransfers: List[JSO
 
 def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTransfer, model_settings: ModelSettings):
     # We first create the nessesary variable names to be used in UPPAAL.
-    eventnames_dict, amount_names, advance_channels, update_channels, reset_channels = calculate_relevant_mappings(jsonTransfers)
+    eventnames_dict, amount_names, advance_channels, update_channels, backtrack_channels = calculate_relevant_mappings(jsonTransfers)
     name_amount_dict = model_settings.role_amount
 
     # Get all exit events for enriching JSONs
@@ -285,6 +285,7 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
 } logEntryType;""")
     declaration.add_variable("int eventOrderCounter = 1;")
     declaration.add_variable("logEntryType tempLogEntry;")
+    declaration.add_variable("int currentLogEntryEmitterID = -1;")
     declaration.add_variable("logEntryType propagationLog[logSize];")
     declaration.add_variable("logEntryType globalLog[logSize];")
     declaration.add_variable("int globalLogIndex = 0;")
@@ -422,7 +423,7 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     for name in name_amount_dict:
         currentAmount = amount_names[name]
         declaration.add_channel(Channel(urgent=False, type=currentAmount, name=update_channels[name]))
-        declaration.add_channel(Channel(urgent=False, type=currentAmount, name=reset_channels[name]))
+        declaration.add_channel(Channel(urgent=False, type=currentAmount, name=backtrack_channels[name]))
         list_of_advance_channels = advance_channels[name]
         for advance_channel in list_of_advance_channels:
             declaration.add_channel(Channel(urgent=False, broadcast=True, type=currentAmount, name=advance_channel))
@@ -445,11 +446,26 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
         declaration.add_channel(Channel(urgent=False, broadcast=True, name="attempt_propagation"))
         declaration.add_channel(Channel(urgent=False, broadcast=True, name="force_propagate"))
 
+    # Adding role templates first as we need the loop counters they generated for a global function
+    roles = []
+    names_roles_dict = {}
+    all_eventname_loopcounter = {}
+
+    for jsonTransfer in jsonTransfers:
+        role = None
+        if model_settings.time_json_transfer == None:
+            role = Role(amount_names[jsonTransfer.name] + " id", jsonTransfer, model_settings.loop_bound, [])
+        else:
+            role = Role(amount_names[jsonTransfer.name] + " id", jsonTransfer, model_settings.loop_bound, model_settings.time_json_transfer.event_time_data)
+        roles.append(role)
+        names_roles_dict[jsonTransfer.name] = role
+
+        all_eventname_loopcounter.update(role.get_evetname_loopcounter())
+
     # Functions
-    add_functions(declaration, using_global_event_bound, exit_paths != {})
+    add_functions(declaration, using_global_event_bound, all_eventname_loopcounter, exit_paths != {})
 
     # Adding templates comprised of roles and logs for each jsonTransfer we create one of each.
-    roles = []
     logs = []
     all_start_loop_events = set()
 
@@ -461,15 +477,8 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
             # Need to keep DelayType.NOTHING as flag for log construction
             declaration.add_variable(f"int maxUpdatesSincePropagation_{jsonTransfer.name} = 0;")
 
-        role = None
-        if model_settings.time_json_transfer == None:
-            role = Role(amount_names[jsonTransfer.name] + " id", jsonTransfer, model_settings.loop_bound, [])
-        else:
-            role = Role(amount_names[jsonTransfer.name] + " id", jsonTransfer, model_settings.loop_bound, model_settings.time_json_transfer.event_time_data)
-        roles.append(role)
-
         # Adding loopcounter to global decleration
-        current_evetname_loopcounter = role.get_evetname_loopcounter()
+        current_evetname_loopcounter = names_roles_dict[jsonTransfer.name].get_evetname_loopcounter()
         for eventname in current_evetname_loopcounter:
             current_loopcounter_string = (f"int {current_evetname_loopcounter[eventname]}[{name_amount_dict[jsonTransfer.name]}] = {{")
             for i in range (name_amount_dict[jsonTransfer.name]):

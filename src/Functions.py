@@ -249,8 +249,8 @@ void setPropagationLog(logEntryType tempLog[logSize]) {
 }
 """
 
-def generate_function_update_true_global_log() -> str:
-    return """
+def generate_function_update_true_global_log(all_eventname_loopcounter: Dict[str,str]) -> str:
+    result = """
 void updateTrueGlobalLog() {
     logEntryType tmpLogEntry = tempLogEntry;
     bool inCompetetion = false;
@@ -268,11 +268,20 @@ void updateTrueGlobalLog() {
         trueCurrentIndex--;
     } else {
         if (loopCountMap[tmpLogEntry.eventID] != -1) {
-            loopCountMap[tmpLogEntry.eventID]++;
-        }
+            loopCountMap[tmpLogEntry.eventID]++;"""
+    
+    for eventname in all_eventname_loopcounter:
+        result += f"""
+            if (tmpLogEntry.eventID == {eventname}) {{
+                {all_eventname_loopcounter[eventname]}[currentLogEntryEmitterID] = 0;
+            }}"""
+
+    result += """}
         trueGlobalLog[trueCurrentIndex] = tmpLogEntry;
     }
 }"""
+
+    return result
 
 
 def generate_function_update_global_log() -> str:
@@ -468,6 +477,7 @@ def generate_function_update_log_entry() -> str:
 void updateLogEntry(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize], int log_id_start) {{    
     addIntToList(emittedOrderCounts, tempLogEntry.orderCount);
     // We check if basedemitterID set to -2 as this is a flag for unknown
+    currentLogEntryEmitterID = tempLogEntry.emitterID;
     tempLogEntry.emitterID = tempLogEntry.emitterID + log_id_start;
     if (tempLogEntry.basedOnOrderCount == -2) {{
         int i = 0;
