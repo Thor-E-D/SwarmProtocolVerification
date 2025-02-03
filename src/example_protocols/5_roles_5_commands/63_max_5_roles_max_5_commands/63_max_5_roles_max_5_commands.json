@@ -1,0 +1,1 @@
+{"initial":"601","transitions":[{"label":{"cmd":"R599_cmd_0","logType":["R599_e_0"],"role":"R599"},"source":"601","target":"602"},{"label":{"cmd":"R600_cmd_0","logType":["R600_e_0"],"role":"R600"},"source":"602","target":"603"}]}

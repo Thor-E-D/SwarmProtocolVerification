@@ -1,0 +1,1 @@
+{"initial":"366","transitions":[{"label":{"cmd":"R365_cmd_0","logType":["R365_e_0"],"role":"R365"},"source":"366","target":"367"},{"label":{"cmd":"R365_cmd_2","logType":["R365_e_2"],"role":"R365"},"source":"367","target":"368"},{"label":{"cmd":"R365_cmd_1","logType":["R365_e_1"],"role":"R365"},"source":"368","target":"369"}]}

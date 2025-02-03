@@ -6,7 +6,7 @@
         "Forklift": "E",
         "Transport": "E"
     },
-    "loop_bound": 1,
+    "loop_bound": 2,
     "branch_tracking": true,
     "log_size": 10,
     "delay_amount": {

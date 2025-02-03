@@ -1,0 +1,1 @@
+{"initial":"219","transitions":[{"label":{"cmd":"R218_cmd_1","logType":["R218_e_1"],"role":"R218"},"source":"219","target":"220"},{"label":{"cmd":"R218_cmd_0","logType":["R218_e_0"],"role":"R218"},"source":"220","target":"221"}]}

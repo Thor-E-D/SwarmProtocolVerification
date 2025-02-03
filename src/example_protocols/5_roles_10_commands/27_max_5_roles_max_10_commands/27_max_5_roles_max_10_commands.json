@@ -1,0 +1,1 @@
+{"initial":"397","transitions":[{"label":{"cmd":"R396_cmd_0","logType":["R396_e_0"],"role":"R396"},"source":"397","target":"398"},{"label":{"cmd":"R396_cmd_1","logType":["R396_e_1"],"role":"R396"},"source":"398","target":"399"}]}

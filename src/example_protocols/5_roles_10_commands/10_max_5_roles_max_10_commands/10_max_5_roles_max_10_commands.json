@@ -1,0 +1,1 @@
+{"initial":"131","transitions":[{"label":{"cmd":"R130_cmd_2","logType":["R130_e_2"],"role":"R130"},"source":"131","target":"132"},{"label":{"cmd":"R130_cmd_0","logType":["R130_e_0"],"role":"R130"},"source":"132","target":"133"},{"label":{"cmd":"R130_cmd_1","logType":["R130_e_1"],"role":"R130"},"source":"133","target":"134"}]}

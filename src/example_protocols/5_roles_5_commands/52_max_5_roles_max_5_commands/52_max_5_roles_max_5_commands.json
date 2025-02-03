@@ -1,0 +1,1 @@
+{"initial":"506","transitions":[{"label":{"cmd":"R505_cmd_0","logType":["R505_e_0"],"role":"R505"},"source":"506","target":"507"},{"label":{"cmd":"R505_cmd_1","logType":["R505_e_1"],"role":"R505"},"source":"507","target":"508"}]}

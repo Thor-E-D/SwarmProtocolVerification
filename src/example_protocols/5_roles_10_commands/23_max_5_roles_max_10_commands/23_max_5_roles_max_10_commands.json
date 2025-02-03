@@ -1,0 +1,1 @@
+{"initial":"355","transitions":[{"label":{"cmd":"R354_cmd_2","logType":["R354_e_2"],"role":"R354"},"source":"355","target":"355"},{"label":{"cmd":"R354_cmd_0","logType":["R354_e_0"],"role":"R354"},"source":"355","target":"356"},{"label":{"cmd":"R354_cmd_1","logType":["R354_e_1"],"role":"R354"},"source":"356","target":"357"}]}

@@ -1,0 +1,1 @@
+{"initial":"938","transitions":[{"label":{"cmd":"R937_cmd_2","logType":["R937_e_2"],"role":"R937"},"source":"938","target":"938"},{"label":{"cmd":"R937_cmd_1","logType":["R937_e_1"],"role":"R937"},"source":"938","target":"939"},{"label":{"cmd":"R937_cmd_0","logType":["R937_e_0"],"role":"R937"},"source":"939","target":"940"}]}

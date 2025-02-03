@@ -5,8 +5,9 @@ Every variable can be changed by the user through the CLI
 """
 
 from typing import Dict, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum
+import json
 
 from .TimeJSONTransfer import TimeJSONTransfer
 
@@ -26,3 +27,12 @@ class ModelSettings:
     delay_amount: Optional[Dict[str, int]] = None
     time_json_transfer: Optional[TimeJSONTransfer] = None
     subsets: Optional[str] = None #TODO make this xD
+
+    def to_dict(self):
+        """Convert to dict while properly handling Enums"""
+        def custom_serializer(obj):
+            if isinstance(obj, Enum):
+                return obj.name  # Convert Enum to string
+            return obj
+
+        return {k: custom_serializer(v) for k, v in asdict(self).items()}

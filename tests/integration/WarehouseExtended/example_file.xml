@@ -1,27 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.6//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_6.dtd'>
 <nta><declaration>
-const bool standardSetting = false;
-const int NUMBER_OF_Door = 1;
-typedef int[0,NUMBER_OF_Door-1] Door_t;
-const int NUMBER_OF_Forklift = 2;
-typedef int[0,NUMBER_OF_Forklift-1] Forklift_t;
-const int NUMBER_OF_Transport = 2;
-typedef int[0,NUMBER_OF_Transport-1] Transport_t;
-int amountOfLogs = NUMBER_OF_Door + NUMBER_OF_Forklift + NUMBER_OF_Transport;
-int currentLogToPropagate;
-int amountOfPropagation = 0;
-const int Request_ID = 0;
-const int Close_ID = 1;
-const int Deliver_ID = 2;
-const int Open_ID = 3;
-const int Get_ID = 4;
-const int amountOfUniqueEvents = 5;
-const int outerSizeBranchingList = 1;
-const int innerSizeBranchingList = 2;
-const int branchingList[outerSizeBranchingList][innerSizeBranchingList] ={{1, 0}};
-const int isBranchingList[amountOfUniqueEvents] = {true, true, false, false, false};
-const int isInBranchingPartion[amountOfUniqueEvents] = {0, 0, -1, -1, -1};
+const bool branchTrackingEnabled = true;
+const int logSize = 15;
+typedef int [0, logSize - 1] logSize_t;
 typedef struct {
     int eventID;
     int emitterID;
@@ -30,34 +12,81 @@ typedef struct {
     int tiedTo;
     bool ignored;
 } logEntryType;
-int maxUpdatesSincePropagation = 1;
-const int maxAmountOfTied = 1;
-const int eventsTiedTo[amountOfUniqueEvents][maxAmountOfTied] = {{Request_ID}, {Request_ID}, {Request_ID}, {-1}, {Request_ID}};
-const int logSize = 20;
 int eventOrderCounter = 1;
 logEntryType tempLogEntry;
 logEntryType propagationLog[logSize];
 logEntryType globalLog[logSize];
-int loop_counter4 = 0;
+int globalLogIndex = 0;
+logEntryType trueGlobalLog[logSize];
+int trueDiscardedEvents[logSize];
+int trueDiscardedDueToCompetionEvents[logSize];
+int trueCurrentIndex = -1;
+int currentEventResetID = -1;
+const int NUMBER_OF_Door = 1;
+typedef int[0,NUMBER_OF_Door-1] Door_t;
+const int NUMBER_OF_Forklift = 1;
+typedef int[0,NUMBER_OF_Forklift-1] Forklift_t;
+const int NUMBER_OF_Transport = 2;
+typedef int[0,NUMBER_OF_Transport-1] Transport_t;
+const int amountOfLogs = NUMBER_OF_Door + NUMBER_OF_Forklift + NUMBER_OF_Transport;
+int currentLogToPropagate;
+int amountOfPropagation = 0;
+const int Request_ID = 0;
+const int Close_ID = 1;
+const int Get_ID = 2;
+const int Deliver_ID = 3;
+const int Open_ID = 4;
+const int amountOfUniqueEvents = 5;
+const int maxAmountOfTied = 1;
+const int eventsTiedTo[amountOfUniqueEvents][maxAmountOfTied] = {{Request_ID}, {Request_ID}, {Request_ID}, {Request_ID}, {-1}};
+const int outerSizeBranchingList = 1;
+const int innerSizeBranchingList = 2;
+const int branchingList[outerSizeBranchingList][innerSizeBranchingList] ={{0, 1}};
+const int isBranchingList[amountOfUniqueEvents] = {true, true, false, false, false};
+const int isInBranchingPartion[amountOfUniqueEvents] = {0, 0, -1, -1, -1};
+int globalCurrentLocation = 0;
+const int globalEventLocationMap[amountOfUniqueEvents][2] = {{1, 3}, {1, 2}, {3, 4}, {4, 1}, {0, 1}};
+const int isInLoop[amountOfUniqueEvents] = {true, false, true, true, false};
+int forcedPropagationCounter = 0;
+bool forcedToPropagate[amountOfLogs] = {false, false, false, false};
+bool anyForcedToPropagate = false;
+int maxUpdatesSincePropagation_Transport = 3;
+int loop_counter20[2] = {0, 0};
+int maxUpdatesSincePropagation_Forklift = 1;
+int maxUpdatesSincePropagation_Door = 5;
+int loopCountMap[amountOfUniqueEvents] = {0 ,-1 ,-1 ,-1 ,-1};
 urgent broadcast chan propagate_log;
-urgent chan do_log_update_Door[Door_t];
-urgent chan reset_Door[Door_t];
-urgent broadcast chan advance_Door_Request[Door_t];
-urgent broadcast chan advance_Door_Close[Door_t];
-urgent broadcast chan advance_Door_Deliver[Door_t];
-urgent broadcast chan advance_Door_Open[Door_t];
-urgent chan do_log_update_Forklift[Forklift_t];
-urgent chan reset_Forklift[Forklift_t];
-urgent broadcast chan advance_Forklift_Request[Forklift_t];
-urgent broadcast chan advance_Forklift_Close[Forklift_t];
-urgent broadcast chan advance_Forklift_Get[Forklift_t];
-urgent chan do_log_update_Transport[Transport_t];
-urgent chan reset_Transport[Transport_t];
-urgent broadcast chan advance_Transport_Request[Transport_t];
-urgent broadcast chan advance_Transport_Close[Transport_t];
-urgent broadcast chan advance_Transport_Get[Transport_t];
-urgent broadcast chan advance_Transport_Deliver[Transport_t];
-urgent broadcast chan advance_Transport_Open[Transport_t];
+broadcast chan chan_overflow;
+chan do_log_update_Door[Door_t];
+chan reset_Door[Door_t];
+broadcast chan advance_Door_Request[Door_t];
+broadcast chan advance_Door_Close[Door_t];
+broadcast chan advance_Door_Deliver[Door_t];
+broadcast chan advance_Door_Open[Door_t];
+chan do_log_update_Forklift[Forklift_t];
+chan reset_Forklift[Forklift_t];
+broadcast chan advance_Forklift_Request[Forklift_t];
+broadcast chan advance_Forklift_Close[Forklift_t];
+broadcast chan advance_Forklift_Get[Forklift_t];
+chan do_log_update_Transport[Transport_t];
+chan reset_Transport[Transport_t];
+broadcast chan advance_Transport_Request[Transport_t];
+broadcast chan advance_Transport_Close[Transport_t];
+broadcast chan advance_Transport_Get[Transport_t];
+broadcast chan advance_Transport_Deliver[Transport_t];
+broadcast chan advance_Transport_Open[Transport_t];
+broadcast chan abandon_propagation;
+broadcast chan attempt_propagation;
+broadcast chan force_propagate;
+
+void calculateAnyForcedToPropagate() {
+    int i = 0;
+    bool tempAnyForcedToPropagate = false;
+    for (i = 0; i &lt; amountOfLogs; i++) {
+        tempAnyForcedToPropagate = tempAnyForcedToPropagate || forcedToPropagate[i];
+    }
+    anyForcedToPropagate = tempAnyForcedToPropagate;
+}
 
 bool isInSubsciptions(int tmpList[amountOfUniqueEvents], int possibleEntry) {
     int i = 0;
@@ -83,6 +112,28 @@ bool isIntInList(int tmpList[logSize], int possibleEntry) {
     return false;
 }
 
+
+bool isOrderCountInLog(logEntryType &amp;tempLog[logSize], int possibleEntry) {
+    int i = 0;
+    for (i = 0; i &lt; logSize; i++) {
+        if (tempLog[i].orderCount == possibleEntry) {
+            return true;
+        } else if (tempLog[i].orderCount == 0) {
+            return false;
+        }
+    }
+    return false;
+}
+
+logEntryType getEntryFromOrderCount(int orderCount) {
+    int i = 0;
+    for (i = 0; i &lt; logSize; i++) {
+        if (globalLog[i].orderCount == orderCount) {
+            return globalLog[i];
+        }
+    }
+    return globalLog[logSize-1];
+}
 
 void addIntToList(int &amp;tmpList[logSize], int newEntry) {
     int i = 0;
@@ -111,7 +162,7 @@ void setNextLogToPropagate() {
         amountOfPropagation++;
     } else {
         // reset
-        amountOfPropagation = -1;
+        amountOfPropagation = 0;
     }
 }
 
@@ -133,92 +184,71 @@ void setLogEntryForUpdate(int eventID, int emitterID, int basedOnOrderCount, boo
 }
 
 
-void findAndSetTiedTo(logEntryType &amp;tempLog[logSize]) {
-    int k;
+void findDifferenceInLogs(logEntryType &amp;oldLog[logSize], logEntryType &amp;newLog[logSize], bool &amp;didLogChange) {
+    int i;
+    for (i = 0; i &lt; logSize; i++) {
+        if (oldLog[i].orderCount != newLog[i].orderCount) {
+            didLogChange = true;
+            return;
+        } else if (oldLog[i].orderCount == 0) {
+            return;
+        }
+    }
+}
+
+void findAndSetDifferenceInLogs(logEntryType &amp;oldLog[logSize], logEntryType &amp;newLog[logSize], int &amp;logDifferenceEventIDs[logSize], int &amp;resetCount, int &amp;eventsToRead) {
+    int i;
+    int resetList[logSize] = logDifferenceEventIDs; // To reset logDifferenceEventIDs
+    bool foundDifference = false;
+
+    for (i = 0; i &lt; logSize; i++) {
+        if (oldLog[i].orderCount != newLog[i].orderCount) {
+            if (oldLog[i].orderCount == 0) {
+                eventsToRead++;
+                foundDifference = true;
+            } else if (newLog[i].orderCount == 0) {
+                logDifferenceEventIDs[resetCount] = oldLog[i].eventID;
+                resetCount++;
+                foundDifference = true;
+            } else if (oldLog[i].eventID != newLog[i].eventID) {
+                logDifferenceEventIDs[resetCount] = oldLog[i].eventID;
+                eventsToRead++;
+                resetCount++;
+                foundDifference = true;
+            } else if (foundDifference) {
+                foundDifference = false;
+                logDifferenceEventIDs = resetList;
+                eventsToRead = 0;
+                resetCount = 0;
+            }
+        } else if (oldLog[i].orderCount == 0 &amp;&amp; newLog[i].orderCount == 0) {
+            return;
+        } else if (foundDifference) { //We found a difference previously but have now found the same event in both logs again so we do not need to backtrack
+            foundDifference = false;
+            logDifferenceEventIDs = resetList;
+            eventsToRead = 0;
+            resetCount = 0;
+        }
+    }
+}
+
+int findTiedTo(logEntryType currentLogEntry, logEntryType &amp;tempLog[logSize]) {
     int j;
     int i;
     for(i = logSize-1; i &gt;= 0; i--) {
         if (tempLog[i].orderCount != 0) {
             for (j = 0; j&lt;maxAmountOfTied; j++) {
-                if (tempLog[i].eventID == eventsTiedTo[tempLogEntry.eventID][j] &amp;&amp; tempLog[i].tiedTo != -1) {
-                    tempLogEntry.tiedTo = tempLog[i].orderCount;
-                    return;
+                if (tempLog[i].eventID == eventsTiedTo[currentLogEntry.eventID][j]  &amp;&amp; tempLog[i].orderCount != currentLogEntry.orderCount) {
+                    return tempLog[i].orderCount;
                 }
             }
         }
     }
-    for(i = logSize-1; i &gt;= 0; i--) {
-        if (tempLog[i].orderCount != 0) {
-            if (tempLog[i].emitterID == tempLogEntry.emitterID) {
-                for (j = 0; j&lt;maxAmountOfTied; j++) {
-                    for (k = 0; k&lt;maxAmountOfTied; k++) {
-                        if (eventsTiedTo[tempLogEntry.eventID][j] == eventsTiedTo[tempLog[i].eventID][k] &amp;&amp; tempLog[i].tiedTo != -1) {
-                            tempLogEntry.tiedTo = tempLog[i].tiedTo;
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    for(i = logSize-1; i &gt;= 0; i--) {
-        if (tempLog[i].orderCount != 0) {
-            for (j = 0; j&lt;maxAmountOfTied; j++) {
-                if (tempLog[i].eventID == eventsTiedTo[tempLogEntry.eventID][j]) {
-                    tempLogEntry.tiedTo = tempLog[i].orderCount;
-                    return;
-                }
-            }
-        }
-    }  
+    return -1;
 }
 
 void setPropagationLog(logEntryType tempLog[logSize]) {
     propagationLog = tempLog;
-}
-
-
-void updateGlobalLog() {
-    int i;
-    logEntryType resLog[logSize];
-    int count = 0;
-    bool addedEntry = false;
-
-    for (i = 0; i &lt; (logSize); i++) {
-        if (globalLog[count].orderCount == 0) {
-            if (addedEntry) {
-                resLog[i] = globalLog[count];
-                globalLog = resLog;
-                return;
-            }
-            resLog[i] = tempLogEntry;
-            globalLog = resLog;
-            return;
-        }
-        else if (globalLog[count].orderCount &gt; tempLogEntry.orderCount) {
-            resLog[i] = tempLogEntry;
-            count = count - 1;
-            addedEntry = true;
-        } else {
-            resLog[i] = globalLog[count];
-        }
-        count = count + 1;
-    }
-    globalLog = resLog;
-}
-
-void updateLog(logEntryType &amp;tempLog[logSize]) {
-    int i = 0;
-    findAndSetTiedTo(tempLog);
-    updateGlobalLog();
-    for (i = 0; i &lt; logSize; i++) {
-        if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
-            tempLog[i] = tempLogEntry; // Update log
-            return;
-        }
-    }
-    return;
-    // If we reach here log is full and we are in trouble
 }
 
 
@@ -232,12 +262,72 @@ bool isInBranchingConflict(int partition, int eventID) {
     return false;
 }
 
-bool handleBranchingEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int currentIndex) {
+void consolidateLogs(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], logEntryType correctBranchEvent, int &amp;currentIndex, int &amp;currentLocation, int eventLocationMap[amountOfUniqueEvents][2]) {
+    // move from discardedDueToCompetionEvents to discardedEvents and all basedOnEvents must be added to resLog.
+    int i;
+    int basedOnList[logSize];
+    // First we find the other competing events and sort them correctly
+    for (i = 0; i &lt; logSize; i++) {
+        if (discardedDueToCompetionEvents[i] != 0) {
+            // get the actual event
+            logEntryType currentEvent = getEntryFromOrderCount(discardedDueToCompetionEvents[i]);
+            if (isIntInList(basedOnList, currentEvent.basedOnOrderCount)) {
+                resLog[currentIndex] = currentEvent;
+                addIntToList(basedOnList, currentEvent.orderCount);
+                discardedDueToCompetionEvents[i] = 0;
+                currentIndex++;
+                if (eventLocationMap[currentEvent.eventID][0] == currentLocation) {
+                    currentLocation = eventLocationMap[currentEvent.eventID][1];
+                }
+            } else if (isBranchingList[currentEvent.eventID]) {
+                if (isInBranchingConflict(isInBranchingPartion[currentEvent.eventID], correctBranchEvent.eventID) &amp;&amp; correctBranchEvent.basedOnOrderCount == currentEvent.basedOnOrderCount &amp;&amp; correctBranchEvent.tiedTo == currentEvent.tiedTo) {
+                    if (isIntInList(trueDiscardedEvents, currentEvent.orderCount)) {
+                        addIntToList(discardedEvents, currentEvent.orderCount);
+                        addIntToList(basedOnList, currentEvent.orderCount);
+                        discardedDueToCompetionEvents[i] = 0;
+                    }
+                }
+            }
+        } 
+        if (discardedEvents[i] != 0) {
+            logEntryType currentEvent = getEntryFromOrderCount(discardedEvents[i]);
+            if (isBranchingList[currentEvent.eventID]) {
+                if (isInBranchingConflict(isInBranchingPartion[currentEvent.eventID], correctBranchEvent.eventID) &amp;&amp; correctBranchEvent.basedOnOrderCount == currentEvent.basedOnOrderCount &amp;&amp; correctBranchEvent.tiedTo == currentEvent.tiedTo) {
+                    if (isIntInList(trueDiscardedDueToCompetionEvents, currentEvent.orderCount)) {
+                        addIntToList(discardedDueToCompetionEvents, currentEvent.orderCount);
+                        discardedEvents[i] = 0;
+                    }
+                }
+            }
+        } 
+        if (discardedDueToCompetionEvents[i] != 0 &amp;&amp; discardedDueToCompetionEvents[i] != 0) {
+            i = logSize;
+        }
+    }
+}
+
+void checkAndFixBranchCompetetion(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int &amp;currentIndex, int &amp;currentLocation, int eventLocationMap[amountOfUniqueEvents][2]) {
+    int i;
+    // we know we are going to return true to in competetion
+    // Check if we have witnessed the correct event
+    for (i = 0; i &lt; logSize; i++) {
+        if (trueGlobalLog[i].orderCount != 0) {
+            if (isInBranchingConflict(isInBranchingPartion[tmpLogEntry.eventID], trueGlobalLog[i].eventID) &amp;&amp; trueGlobalLog[i].basedOnOrderCount == tmpLogEntry.basedOnOrderCount &amp;&amp; trueGlobalLog[i].tiedTo == tmpLogEntry.tiedTo) {
+                if (isOrderCountInLog(resLog, trueGlobalLog[i].eventID)) {
+                    // Consolidate
+                    consolidateLogs(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, trueGlobalLog[i], currentIndex, currentLocation, eventLocationMap);
+                }
+            }
+        }
+    }
+}
+
+bool handleBranchingEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int &amp;currentIndex, int &amp;currentLocation, int eventLocationMap[amountOfUniqueEvents][2]) {
     int j;
     if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
         tmpLogEntry.ignored = true;
-    } 
-    //Need to check if looping cause the we would accept it if is basedOn is in discardedEvents
+    }
+    //Need to check if looping cause then we would accept it if is basedOn is in discardedEvents
     if (isIntInList(discardedEvents, tmpLogEntry.tiedTo)) {
         int tiedToEventID = getEventIDfromOrderCount(tmpLogEntry.tiedTo);
         if (isInBranchingPartion[tmpLogEntry.eventID] != isInBranchingPartion[tiedToEventID]) {
@@ -245,159 +335,128 @@ bool handleBranchingEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog
         }
     }
     
-    for (j = currentIndex; j &gt;= 0; j--) {
-        if (resLog[j].tiedTo == tmpLogEntry.tiedTo &amp;&amp; tmpLogEntry.basedOnOrderCount == resLog[j].basedOnOrderCount) {
-            if(isInBranchingConflict(isInBranchingPartion[tmpLogEntry.eventID], resLog[j].eventID)) {
-                if (!isIntInList(discardedEvents, resLog[j].orderCount)) {
-                    tmpLogEntry.ignored = true; //competetion
-                    return true;
+    for (j = currentIndex - 1; j &gt;= 0; j--) {
+        // Occours when we are merging two logs and a new event is in the same branchpartition as one already accepted in the result of the merged log.
+        // If this happens we have to check if we need to move some discarded events around
+        if(isInBranchingConflict(isInBranchingPartion[tmpLogEntry.eventID], resLog[j].eventID)) {
+            if (!isIntInList(discardedEvents, resLog[j].orderCount)) {
+                if (tmpLogEntry.eventID == resLog[j].eventID) { //Same one so does not need to ignore branch
+                    tmpLogEntry.ignored = true;
+                    return false;
                 }
+                // if in competetion we have to check if correct
+                checkAndFixBranchCompetetion(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
+                tmpLogEntry.ignored = true;
+                return true;
             }
         }
     }
     return false;
 }
 
-bool handle_standard_setting(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int currentIndex) {
+bool handleEvent(logEntryType &amp;currentLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int &amp;currentIndex, int &amp;currentLocation, int eventLocationMap[amountOfUniqueEvents][2]) {
     int i;
-    if (isBranchingList[tmpLogEntry.eventID]) {
-        return handleBranchingEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
-    }
-    if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
-        tmpLogEntry.ignored = true;
-        return false;
-    }
-    for (i = currentIndex; i &gt;=0; i--) {
-        if (resLog[i].eventID == tmpLogEntry.eventID &amp;&amp; resLog[i].tiedTo == tmpLogEntry.tiedTo) {
-            tmpLogEntry.ignored = true;
-            return false;
-        }
-    }
-    return false;
-}
 
-bool handleStandardEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int currentIndex) {
-    int i;
-    if (standardSetting) {
-        return handle_standard_setting(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
-    }
-    if (isBranchingList[tmpLogEntry.eventID]) {
-        return handleBranchingEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
-    }
-    if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount) || isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
-        tmpLogEntry.ignored = true;
-        return false;
-    }
-    for (i = currentIndex; i &gt;= 0; i--) {
-        if (resLog[i].eventID == tmpLogEntry.eventID &amp;&amp; resLog[i].tiedTo == tmpLogEntry.tiedTo) {
-            tmpLogEntry.ignored = true; //competetion
+    // Branch tracking
+    if (branchTrackingEnabled) {
+        int shouldTieTo;
+        shouldTieTo = findTiedTo(currentLogEntry, resLog);
+        if (shouldTieTo != currentLogEntry.tiedTo) {
+            currentLogEntry.ignored = true;
             return true;
         }
     }
+
+    if (eventLocationMap[currentLogEntry.eventID][0] != currentLocation) {
+        if (eventLocationMap[currentLogEntry.eventID][0] != -1) { //In subsciptions
+            currentLogEntry.ignored = true;
+        }
+
+        if (isBranchingList[currentLogEntry.eventID]) {
+            return handleBranchingEvent(currentLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
+        }
+        if (isIntInList(discardedDueToCompetionEvents, currentLogEntry.basedOnOrderCount)) {
+            currentLogEntry.ignored = true;
+            return false;
+        }
+
+        return false;
+    } else {
+        if (isIntInList(discardedDueToCompetionEvents, currentLogEntry.basedOnOrderCount)) {
+            currentLogEntry.ignored = true;
+            return false;
+        }
+        // Even if correct it might still be in competetion
+        // Have to check for single loop edge case.
+        if (!isBranchingList[currentLogEntry.eventID] &amp;&amp; eventLocationMap[currentLogEntry.eventID][0] != eventLocationMap[currentLogEntry.eventID][1]) {
+            for (i = currentIndex - 1; i &gt;= 0; i--) {
+                if (resLog[i].eventID == currentLogEntry.eventID &amp;&amp; (resLog[i].tiedTo == currentLogEntry.tiedTo || resLog[i].basedOnOrderCount == currentLogEntry.basedOnOrderCount)) {
+                    currentLogEntry.ignored = true;
+                    return false;
+                }
+            }
+        }
+        currentLocation = eventLocationMap[currentLogEntry.eventID][1];
+    }
     return false;
 }
 
-bool handleOwnEvent(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;discardedEvents[logSize], int &amp;discardedDueToCompetionEvents[logSize], int currentIndex, int id, bool &amp;olderEntryIgnored) {
-    int j;
+void updateTrueGlobalLog() {
+    logEntryType tmpLogEntry = tempLogEntry;
     bool inCompetetion = false;
-    if (standardSetting) {
-        return handle_standard_setting(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
-    }
-    if (tmpLogEntry.emitterID == id &amp;&amp; isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
-        tmpLogEntry.ignored = true; //competetion
-        return true;
-    }
-    inCompetetion = handleStandardEvent(tmpLogEntry,resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
-    if (tmpLogEntry.emitterID != id) {
-        tmpLogEntry.ignored = true;
-        // Check if we have already tied into this so an event we emitted that is tied to the same thing
-        for (j = currentIndex; j &gt;= 0; j--) {
-            if (resLog[j].emitterID == id &amp;&amp; resLog[j].eventID == tmpLogEntry.eventID &amp;&amp; resLog[j].tiedTo == tmpLogEntry.tiedTo) {
-                olderEntryIgnored = false;
-                return inCompetetion;
-                }
+    inCompetetion = handleEvent(tmpLogEntry, trueGlobalLog, trueDiscardedEvents, trueDiscardedDueToCompetionEvents, trueCurrentIndex, globalCurrentLocation, globalEventLocationMap);
+    if (tmpLogEntry.ignored == true) {
+        if(inCompetetion) {
+            addIntToList(trueDiscardedDueToCompetionEvents, tmpLogEntry.orderCount);
+        } else if (isIntInList(trueDiscardedEvents, tmpLogEntry.basedOnOrderCount)) {
+            addIntToList(trueDiscardedEvents, tmpLogEntry.orderCount);
+        } else if (isIntInList(trueDiscardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
+            addIntToList(trueDiscardedDueToCompetionEvents, tmpLogEntry.orderCount);
+        } else {
+            addIntToList(trueDiscardedEvents, tmpLogEntry.orderCount);
         }
-        for (j = currentIndex; j &gt;= 0; j--) {
-            if (resLog[j].tiedTo != -1 &amp;&amp; resLog[j].tiedTo == tmpLogEntry.tiedTo || tmpLogEntry.tiedTo == resLog[j].orderCount) {
-                resLog[j].ignored = true;
-                olderEntryIgnored = true;
-            }
+        trueCurrentIndex--;
+    } else {
+        if (loopCountMap[tmpLogEntry.eventID] != -1) {
+            loopCountMap[tmpLogEntry.eventID]++;
         }
+        trueGlobalLog[trueCurrentIndex] = tmpLogEntry;
     }
-    return inCompetetion;
 }
 
+void updateGlobalLog() {
+    globalLog[globalLogIndex] = tempLogEntry;
+    globalLogIndex++;
+    trueCurrentIndex++;
+    updateTrueGlobalLog();
+}
 
-void updateLogDoor(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize], int log_id_start) {    
-    addIntToList(emittedOrderCounts, tempLogEntry.orderCount);
-    // We check if basedemitterID set to -2 as this is a flag for unknown
-    tempLogEntry.emitterID = tempLogEntry.emitterID + log_id_start;
-    if (tempLogEntry.basedOnOrderCount == -2) {
-        int i = 0;
-        for (i = logSize-1; i &gt;= 0; i--) {
-            if (tempLog[i].orderCount == 0) {
-            } else { 
-                if (tempLogEntry.eventID == Close_ID) {
-                    if (tempLog[i].eventID == Open_ID || tempLog[i].eventID == Deliver_ID) {
-                        tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
-                        updateLog(tempLog);
-                        return;
-                    }
-                }
-            }
+void updateLog(logEntryType &amp;tempLog[logSize]) {
+    int i = 0;
+    tempLogEntry.tiedTo = findTiedTo(tempLogEntry, tempLog);
+    updateGlobalLog();
+    for (i = 0; i &lt; logSize; i++) {
+        if (tempLog[i].orderCount == 0) { // Log entry is unused since orderCount can never be 0
+            tempLog[i] = tempLogEntry; // Update log
+            return;
         }
     }
-    tempLogEntry.basedOnOrderCount = -1;
-    updateLog(tempLog);
     return;
+    // If we reach here log is full and we are in trouble
 }
 
-void updateLogForklift(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize], int log_id_start) {    
+
+void updateLogEntry(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize], int log_id_start) {    
     addIntToList(emittedOrderCounts, tempLogEntry.orderCount);
     // We check if basedemitterID set to -2 as this is a flag for unknown
     tempLogEntry.emitterID = tempLogEntry.emitterID + log_id_start;
     if (tempLogEntry.basedOnOrderCount == -2) {
         int i = 0;
         for (i = logSize-1; i &gt;= 0; i--) {
-            if (tempLog[i].orderCount == 0) {
-            } else { 
-                if (tempLogEntry.eventID == Get_ID) {
-                    if (tempLog[i].eventID == Request_ID) {
-                        tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
-                        updateLog(tempLog);
-                        return;
-                    }
-                }
-            }
-        }
-    }
-    tempLogEntry.basedOnOrderCount = -1;
-    updateLog(tempLog);
-    return;
-}
-
-void updateLogTransport(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCounts[logSize], int log_id_start) {    
-    addIntToList(emittedOrderCounts, tempLogEntry.orderCount);
-    // We check if basedemitterID set to -2 as this is a flag for unknown
-    tempLogEntry.emitterID = tempLogEntry.emitterID + log_id_start;
-    if (tempLogEntry.basedOnOrderCount == -2) {
-        int i = 0;
-        for (i = logSize-1; i &gt;= 0; i--) {
-            if (tempLog[i].orderCount == 0) {
-            } else { 
-                if (tempLogEntry.eventID == Request_ID) {
-                    if (tempLog[i].eventID == Deliver_ID || tempLog[i].eventID == Open_ID) {
-                        tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
-                        updateLog(tempLog);
-                        return;
-                    }
-                } else if (tempLogEntry.eventID == Deliver_ID) {
-                    if (tempLog[i].eventID == Get_ID) {
-                        tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
-                        updateLog(tempLog);
-                        return;
-                    }
-                }
+            if (tempLog[i].orderCount != 0) { 
+                tempLogEntry.basedOnOrderCount = tempLog[i].orderCount;
+                updateLog(tempLog);
+                return;
             }
         }
     }
@@ -406,393 +465,74 @@ void updateLogTransport(logEntryType &amp;tempLog[logSize], int &amp;emittedOrde
     return;
 }
 </declaration><template>
-	<name>Door</name>
-	<parameter>Door_t id</parameter>
+	<name>Transport</name>
+	<parameter>Transport_t id</parameter>
 <declaration>
 </declaration>
-<location id="id456" x="359" y="885"><name x="361" y="887">l4</name><urgent /></location>
-<location id="id457" x="241" y="147"><name x="243" y="149">l2</name><urgent /></location>
-<location id="id458" x="359" y="639"><name x="361" y="641">l0</name><urgent /></location>
-<location id="id459" x="187" y="393"><name x="189" y="395">l1</name><urgent /></location>
-	<init ref="id458"/>
-<transition id="id460"><source ref="id456" /><target ref="id458" /><label kind="synchronisation" x="359" y="747">reset_Door[id]?</label><nail x="359" y="762" /></transition>
-<transition id="id461"><source ref="id457" /><target ref="id458" /><label kind="synchronisation" x="318" y="10">reset_Door[id]?</label><nail x="318" y="25" /></transition>
-<transition id="id462"><source ref="id458" /><target ref="id458" /><label kind="synchronisation" x="359" y="624">reset_Door[id]?</label></transition>
-<transition id="id463"><source ref="id459" /><target ref="id458" /><label kind="synchronisation" x="377" y="255">reset_Door[id]?</label><nail x="377" y="270" /></transition>
-<transition id="id464"><source ref="id458" /><target ref="id459" /><label kind="synchronisation" x="309" y="501">advance_Door_Open[id]?</label><nail x="309" y="516" /></transition>
-<transition id="id465"><source ref="id458" /><target ref="id459" /><label kind="synchronisation" x="206" y="501">do_log_update_Door[id]!</label><label kind="assignment" x="206" y="486">setLogEntryForUpdate(
-        Open_ID,id,
-        -2,false)</label><nail x="206" y="516" /></transition>
-<transition id="id466"><source ref="id459" /><target ref="id456" /><label kind="synchronisation" x="37" y="255">advance_Door_Close[id]?</label><nail x="37" y="270" /></transition>
-<transition id="id467"><source ref="id459" /><target ref="id456" /><label kind="synchronisation" x="583" y="255">do_log_update_Door[id]!</label><label kind="assignment" x="583" y="240">setLogEntryForUpdate(
-        Close_ID,id,
-        -2,false)</label><nail x="583" y="270" /></transition>
-<transition id="id468"><source ref="id459" /><target ref="id457" /><label kind="synchronisation" x="226" y="255">advance_Door_Request[id]?</label><nail x="226" y="270" /></transition>
-<transition id="id469"><source ref="id457" /><target ref="id459" /><label kind="synchronisation" x="202" y="10">advance_Door_Deliver[id]?</label><nail x="202" y="25" /></transition>
+<location id="id3194" x="776" y="666"><name x="778" y="668">l3</name><urgent /></location>
+<location id="id3195" x="40" y="147"><name x="42" y="149">l0</name></location>
+<location id="id3196" x="362" y="147"><name x="364" y="149">l4</name></location>
+<location id="id3197" x="486" y="393"><name x="488" y="395">l1</name><urgent /></location>
+<location id="id3198" x="731" y="147"><name x="733" y="149">l2</name></location>
+	<init ref="id3195"/>
+<transition id="id3199"><source ref="id3198" /><target ref="id3197" /><label kind="guard" x="646" y="25">currentEventResetID == Request_ID</label><label kind="synchronisation" x="646" y="10">reset_Transport[id]?</label><nail x="646" y="25" /></transition>
+<transition id="id3200"><source ref="id3197" /><target ref="id3198" /><label kind="synchronisation" x="553" y="255">advance_Transport_Request[id]?</label><nail x="553" y="270" /></transition>
+<transition id="id3201"><source ref="id3197" /><target ref="id3198" /><label kind="guard" x="664" y="270">loop_counter20[id] &lt; 2 &amp;&amp; loopCountMap[Request_ID] &lt; 2</label><label kind="synchronisation" x="664" y="255">do_log_update_Transport[id]!</label><label kind="assignment" x="664" y="240">setLogEntryForUpdate(
+        Request_ID,id,
+        -2, false), loop_counter20[id]++</label><nail x="664" y="270" /></transition>
+<transition id="id3202"><source ref="id3197" /><target ref="id3194" /><label kind="guard" x="774" y="270">currentEventResetID == Deliver_ID</label><label kind="synchronisation" x="774" y="255">reset_Transport[id]?</label><nail x="774" y="270" /></transition>
+<transition id="id3203"><source ref="id3194" /><target ref="id3197" /><label kind="synchronisation" x="664" y="528">advance_Transport_Deliver[id]?</label><nail x="664" y="543" /></transition>
+<transition id="id3204"><source ref="id3194" /><target ref="id3197" /><label kind="synchronisation" x="539" y="528">do_log_update_Transport[id]!</label><label kind="assignment" x="539" y="513">setLogEntryForUpdate(
+        Deliver_ID,id,
+        -2, false)</label><nail x="539" y="543" /></transition>
+<transition id="id3205"><source ref="id3194" /><target ref="id3198" /><label kind="guard" x="908" y="468">currentEventResetID == Get_ID</label><label kind="synchronisation" x="908" y="453">reset_Transport[id]?</label><nail x="908" y="468" /></transition>
+<transition id="id3206"><source ref="id3198" /><target ref="id3194" /><label kind="synchronisation" x="815" y="10">advance_Transport_Get[id]?</label><nail x="815" y="25" /></transition>
+<transition id="id3207"><source ref="id3197" /><target ref="id3195" /><label kind="guard" x="40" y="270">currentEventResetID == Open_ID</label><label kind="synchronisation" x="40" y="255">reset_Transport[id]?</label><nail x="40" y="270" /></transition>
+<transition id="id3208"><source ref="id3195" /><target ref="id3197" /><label kind="synchronisation" x="99" y="10">advance_Transport_Open[id]?</label><nail x="99" y="25" /></transition>
+<transition id="id3209"><source ref="id3196" /><target ref="id3197" /><label kind="guard" x="300" y="25">currentEventResetID == Close_ID</label><label kind="synchronisation" x="300" y="10">reset_Transport[id]?</label><nail x="300" y="25" /></transition>
+<transition id="id3210"><source ref="id3197" /><target ref="id3196" /><label kind="synchronisation" x="381" y="255">advance_Transport_Close[id]?</label><nail x="381" y="270" /></transition>
 </template><template>
 	<name>Forklift</name>
 	<parameter>Forklift_t id</parameter>
 <declaration>
 </declaration>
-<location id="id492" x="483" y="639"><name x="485" y="641">l4</name><urgent /></location>
-<location id="id493" x="150" y="147"><name x="152" y="149">l2</name><urgent /></location>
-<location id="id494" x="325" y="393"><name x="327" y="395">l1</name><urgent /></location>
-	<init ref="id494"/>
-<transition id="id495"><source ref="id492" /><target ref="id494" /><label kind="synchronisation" x="430" y="501">reset_Forklift[id]?</label><nail x="430" y="516" /></transition>
-<transition id="id496"><source ref="id493" /><target ref="id494" /><label kind="synchronisation" x="37" y="10">reset_Forklift[id]?</label><nail x="37" y="25" /></transition>
-<transition id="id497"><source ref="id494" /><target ref="id494" /><label kind="synchronisation" x="325" y="378">reset_Forklift[id]?</label></transition>
-<transition id="id498"><source ref="id493" /><target ref="id494" /><label kind="synchronisation" x="152" y="10">advance_Forklift_Get[id]?</label><nail x="152" y="25" /></transition>
-<transition id="id499"><source ref="id493" /><target ref="id494" /><label kind="synchronisation" x="334" y="10">do_log_update_Forklift[id]!</label><label kind="assignment" x="334" y="-5">setLogEntryForUpdate(
+<location id="id3260" x="511" y="639"><name x="513" y="641">l4</name></location>
+<location id="id3261" x="316" y="393"><name x="318" y="395">l1</name></location>
+<location id="id3262" x="222" y="147"><name x="224" y="149">l2</name><urgent /></location>
+	<init ref="id3261"/>
+<transition id="id3263"><source ref="id3261" /><target ref="id3262" /><label kind="guard" x="204" y="270">currentEventResetID == Get_ID</label><label kind="synchronisation" x="204" y="255">reset_Forklift[id]?</label><nail x="204" y="270" /></transition>
+<transition id="id3264"><source ref="id3262" /><target ref="id3261" /><label kind="synchronisation" x="152" y="10">advance_Forklift_Get[id]?</label><nail x="152" y="25" /></transition>
+<transition id="id3265"><source ref="id3262" /><target ref="id3261" /><label kind="synchronisation" x="383" y="10">do_log_update_Forklift[id]!</label><label kind="assignment" x="383" y="-5">setLogEntryForUpdate(
         Get_ID,id,
-        -2,false)</label><nail x="334" y="25" /></transition>
-<transition id="id500"><source ref="id494" /><target ref="id493" /><label kind="synchronisation" x="177" y="255">advance_Forklift_Request[id]?</label><nail x="177" y="270" /></transition>
-<transition id="id501"><source ref="id494" /><target ref="id492" /><label kind="synchronisation" x="501" y="255">advance_Forklift_Close[id]?</label><nail x="501" y="270" /></transition>
+        -2, false)</label><nail x="383" y="25" /></transition>
+<transition id="id3266"><source ref="id3262" /><target ref="id3261" /><label kind="guard" x="41" y="25">currentEventResetID == Request_ID</label><label kind="synchronisation" x="41" y="10">reset_Forklift[id]?</label><nail x="41" y="25" /></transition>
+<transition id="id3267"><source ref="id3261" /><target ref="id3262" /><label kind="synchronisation" x="316" y="255">advance_Forklift_Request[id]?</label><nail x="316" y="270" /></transition>
+<transition id="id3268"><source ref="id3260" /><target ref="id3261" /><label kind="guard" x="454" y="516">currentEventResetID == Close_ID</label><label kind="synchronisation" x="454" y="501">reset_Forklift[id]?</label><nail x="454" y="516" /></transition>
+<transition id="id3269"><source ref="id3261" /><target ref="id3260" /><label kind="synchronisation" x="537" y="255">advance_Forklift_Close[id]?</label><nail x="537" y="270" /></transition>
 </template><template>
-	<name>Transport</name>
-	<parameter>Transport_t id</parameter>
-<declaration>
-</declaration>
-<location id="id523" x="465" y="939"><name x="467" y="941">l3</name><urgent /></location>
-<location id="id524" x="252" y="666"><name x="254" y="668">l0</name><urgent /></location>
-<location id="id525" x="416" y="393"><name x="418" y="395">l1</name><urgent /></location>
-<location id="id526" x="131" y="147"><name x="133" y="149">l4</name><urgent /></location>
-<location id="id527" x="461" y="147"><name x="463" y="149">l2</name><urgent /></location>
-	<init ref="id524"/>
-<transition id="id528"><source ref="id523" /><target ref="id524" /><label kind="synchronisation" x="305" y="801">reset_Transport[id]?</label><nail x="305" y="816" /></transition>
-<transition id="id529"><source ref="id524" /><target ref="id524" /><label kind="synchronisation" x="252" y="651">reset_Transport[id]?</label></transition>
-<transition id="id530"><source ref="id525" /><target ref="id524" /><label kind="synchronisation" x="76" y="255">reset_Transport[id]?</label><nail x="76" y="270" /></transition>
-<transition id="id531"><source ref="id526" /><target ref="id524" /><label kind="synchronisation" x="86" y="10">reset_Transport[id]?</label><nail x="86" y="25" /></transition>
-<transition id="id532"><source ref="id527" /><target ref="id524" /><label kind="synchronisation" x="262" y="10">reset_Transport[id]?</label><nail x="262" y="25" /></transition>
-<transition id="id533"><source ref="id525" /><target ref="id527" /><label kind="synchronisation" x="426" y="255">advance_Transport_Request[id]?</label><nail x="426" y="270" /></transition>
-<transition id="id534"><source ref="id525" /><target ref="id527" /><label kind="guard" x="529" y="270">loop_counter4 &lt; 2</label><label kind="synchronisation" x="529" y="255">do_log_update_Transport[id]!</label><label kind="assignment" x="529" y="240">setLogEntryForUpdate(
-        Request_ID,id,
-        -2,false), loop_counter4++</label><nail x="529" y="270" /></transition>
-<transition id="id535"><source ref="id523" /><target ref="id525" /><label kind="synchronisation" x="525" y="726">advance_Transport_Deliver[id]?</label><nail x="525" y="741" /></transition>
-<transition id="id536"><source ref="id523" /><target ref="id525" /><label kind="synchronisation" x="418" y="576">do_log_update_Transport[id]!</label><label kind="assignment" x="418" y="561">setLogEntryForUpdate(
-        Deliver_ID,id,
-        -2,false)</label><nail x="418" y="591" /></transition>
-<transition id="id537"><source ref="id527" /><target ref="id523" /><label kind="synchronisation" x="569" y="10">advance_Transport_Get[id]?</label><nail x="569" y="25" /></transition>
-<transition id="id538"><source ref="id524" /><target ref="id525" /><label kind="synchronisation" x="329" y="501">advance_Transport_Open[id]?</label><nail x="329" y="516" /></transition>
-<transition id="id539"><source ref="id525" /><target ref="id526" /><label kind="synchronisation" x="176" y="255">advance_Transport_Close[id]?</label><nail x="176" y="270" /></transition>
-</template><template>
-	<name>Door_log</name>
+	<name>Door</name>
 	<parameter>Door_t id</parameter>
 <declaration>
-logEntryType currentLog[logSize];
-int updatesSincePropagation = 0;
-bool newUpdates = false;
-int counter = 0;
-int log_id_start = 0;
-int emittedOrderCounts[logSize];
-int discardedEvents[logSize];
-int discardedDueToCompetionEvents[logSize];
-bool olderEntryIgnored = false;
-bool inCompetetion = false;
-int subscriptions[amountOfUniqueEvents] = {Request_ID, Close_ID, Deliver_ID, Open_ID, -1};
-
-logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
-    // We first find the event Type
-    int currentEventType = tmpLogEntry.eventID;
-    if (currentEventType == Request_ID) {
-        inCompetetion = handleStandardEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
-    } else if (currentEventType == Deliver_ID) {
-        inCompetetion = handleStandardEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
-    } else if (currentEventType == Open_ID) {
-        inCompetetion = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, id + log_id_start, olderEntryIgnored);
-    } else if (currentEventType == Close_ID) {
-        inCompetetion = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, id + log_id_start, olderEntryIgnored);
-    } else {
-        inCompetetion = handleStandardEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
-    }
-    return tmpLogEntry;
-}
-
-
-void mergePropagationLog() {
-    int currentLogCounter = 0;
-    int propagatedLogCounter = 0;
-
-    logEntryType resLog[logSize];
-
-    logEntryType currentLogEntry;
-    logEntryType propagatedLogEntry;
-    logEntryType tmpLogEntry;
-
-    bool currentLogDone = false;
-    bool propagatedLogDone = false;
-
-    int i;
-    for (i = 0; i &lt; (logSize * 2); i++) {
-        currentLogEntry = currentLog[currentLogCounter];
-        propagatedLogEntry = propagationLog[propagatedLogCounter];
-        
-        // TODO if one is done then we can simply append the rest
-        if (currentLogEntry.orderCount == 0) {
-            currentLogDone = true;
-        }
-        if (propagatedLogEntry.orderCount == 0) {
-            propagatedLogDone = true;
-        }
-
-        // If both are done we are done.
-        if (currentLogDone &amp;&amp; propagatedLogDone) {
-            currentLog = resLog; 
-            return;
-        }
-        
-        // If one entry is invalid then we have to choose the other one
-        if (currentLogDone) {
-            propagatedLogCounter++;
-            tmpLogEntry = propagatedLogEntry;
-        } else if (propagatedLogDone) {
-            currentLogCounter++;
-            tmpLogEntry = currentLogEntry;
-        } else if (propagatedLogEntry.orderCount == currentLogEntry.orderCount) { //They are the same event we use one but skip both
-            propagatedLogCounter++;
-            currentLogCounter++;
-            tmpLogEntry = currentLogEntry;
-        } else if (currentLogEntry.orderCount &gt; propagatedLogEntry.orderCount) { // Both entries are valid we can now figure out which one is first
-            propagatedLogCounter++;
-            tmpLogEntry = propagatedLogEntry;
-        } else {
-            currentLogCounter++;
-            tmpLogEntry = currentLogEntry;
-        }
-        
-        // If it was already ignored we don't have to add it else we have to handle it
-        if (isIntInList(discardedEvents, tmpLogEntry.orderCount) || isIntInList(discardedDueToCompetionEvents, tmpLogEntry.orderCount)) {
-            i--;
-        } else {
-            tmpLogEntry = handleLogEntry(tmpLogEntry,resLog,i-1);
-            if (olderEntryIgnored) {
-                int j;
-                int h = 0;
-                logEntryType tmpLog[logSize];
-                for(j = 0; j &lt; logSize; j++) {
-                    if (resLog[j].orderCount == 0) {
-                        j = logSize;
-                    } else if (!resLog[j].ignored) {
-                        tmpLog[h] = resLog[j];
-                        h++;
-                    } else {
-                        i--;
-                        addIntToList(discardedEvents, resLog[j].orderCount);
-                    }
-                }
-                resLog = tmpLog;
-                olderEntryIgnored = false;
-            }
-        if (tmpLogEntry.ignored) {
-                // Value should be discarded
-                i--;
-                if(inCompetetion) {
-                    addIntToList(discardedDueToCompetionEvents, tmpLogEntry.orderCount);
-                    inCompetetion = false;
-                } else if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
-                    addIntToList(discardedEvents, tmpLogEntry.orderCount);
-                } else if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
-                    addIntToList(discardedDueToCompetionEvents, tmpLogEntry.orderCount);
-                } else {
-                    addIntToList(discardedEvents, tmpLogEntry.orderCount);
-                }
-            } else {
-                resLog[i] = tmpLogEntry;
-            }
-
-        }
-    }
-}
-
 </declaration>
-<location id="id470" x="-204" y="-238"><committed /></location>
-<location id="id471" x="-748" y="-136"><committed /></location>
-<location id="id472" x="-204" y="-136" />
-<location id="id473" x="229" y="-127"><committed /></location>
-<location id="id474" x="-612" y="34"><committed /></location>
-<location id="id475" x="25" y="76"><committed /></location>
-<location id="id476" x="-561" y="153"><committed /></location>
-	<init ref="id472"/>
-<transition id="id477"><source ref="id472" /><target ref="id470" /><label kind="guard" x="-136" y="-187">newUpdates</label><label kind="assignment" x="-136" y="-217">currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
-updatesSincePropagation := 0,
-newUpdates := false,
-setPropagationLog(currentLog)</label><nail x="-136" y="-187" /></transition>
-<transition id="id478"><source ref="id470" /><target ref="id472" /><label kind="synchronisation" x="-272" y="-210">propagate_log!</label><nail x="-272" y="-195" /></transition>
-<transition id="id479"><source ref="id472" /><target ref="id473" /><label kind="synchronisation" x="0" y="-66">do_log_update_Door[id]?</label><label kind="assignment" x="0" y="-81">updateLogDoor(currentLog,emittedOrderCounts,log_id_start),
-updatesSincePropagation++,
-newUpdates := true</label><nail x="0" y="-51" /></transition>
-<transition id="id480"><source ref="id473" /><target ref="id472" /><label kind="guard" x="12" y="-132">!(updatesSincePropagation &gt; maxUpdatesSincePropagation)</label></transition>
-<transition id="id481"><source ref="id473" /><target ref="id475" /><label kind="guard" x="127" y="-26">updatesSincePropagation &gt; maxUpdatesSincePropagation</label><label kind="assignment" x="127" y="-56">currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
-updatesSincePropagation := 0,
-newUpdates := false</label></transition>
-<transition id="id482"><source ref="id475" /><target ref="id472" /><label kind="synchronisation" x="-90" y="-45">propagate_log!</label><label kind="assignment" x="-90" y="-60">setPropagationLog(currentLog)</label></transition>
-<transition id="id483"><source ref="id472" /><target ref="id471" /><label kind="guard" x="-476" y="-136">currentLogToPropagate == log_id_start + id</label><label kind="synchronisation" x="-476" y="-151">propagate_log?</label><label kind="assignment" x="-476" y="-166">mergePropagationLog()</label></transition>
-<transition id="id484"><source ref="id471" /><target ref="id474" /><label kind="synchronisation" x="-680" y="-66">reset_Door[id]!</label><label kind="assignment" x="-680" y="-81">counter := 0,
-setNextLogToPropagate()</label></transition>
-<transition id="id485"><source ref="id474" /><target ref="id472" /><label kind="guard" x="-408" y="-51">currentLog[counter].orderCount == 0</label><label kind="synchronisation" x="-408" y="-66">propagate_log!</label></transition>
-<transition id="id486"><source ref="id474" /><target ref="id476" /><label kind="guard" x="-587" y="93">currentLog[counter].orderCount != 0</label></transition>
-<transition id="id487"><source ref="id476" /><target ref="id474" /><label kind="guard" x="-612" y="204">currentLog[counter].eventID == Request_ID</label><label kind="synchronisation" x="-612" y="189">advance_Door_Request[id]!</label><label kind="assignment" x="-612" y="174">counter++</label><nail x="-578" y="204" /><nail x="-646" y="204" /></transition>
-<transition id="id488"><source ref="id476" /><target ref="id474" /><label kind="guard" x="-646" y="238">currentLog[counter].eventID == Close_ID</label><label kind="synchronisation" x="-646" y="223">advance_Door_Close[id]!</label><label kind="assignment" x="-646" y="208">counter++</label><nail x="-612" y="238" /><nail x="-680" y="238" /></transition>
-<transition id="id489"><source ref="id476" /><target ref="id474" /><label kind="guard" x="-680" y="272">currentLog[counter].eventID == Deliver_ID</label><label kind="synchronisation" x="-680" y="257">advance_Door_Deliver[id]!</label><label kind="assignment" x="-680" y="242">counter++</label><nail x="-646" y="272" /><nail x="-714" y="272" /></transition>
-<transition id="id490"><source ref="id476" /><target ref="id474" /><label kind="guard" x="-714" y="306">currentLog[counter].eventID == Open_ID</label><label kind="synchronisation" x="-714" y="291">advance_Door_Open[id]!</label><label kind="assignment" x="-714" y="276">counter++</label><nail x="-680" y="306" /><nail x="-748" y="306" /></transition>
-<transition id="id491"><source ref="id476" /><target ref="id474" /><label kind="guard" x="-748" y="340">!isInSubsciptions(subscriptions, currentLog[counter].eventID)</label><label kind="assignment" x="-748" y="310">counter++</label><nail x="-714" y="340" /><nail x="-782" y="340" /></transition>
-</template><template>
-	<name>Forklift_log</name>
-	<parameter>Forklift_t id</parameter>
-<declaration>
-logEntryType currentLog[logSize];
-int updatesSincePropagation = 0;
-bool newUpdates = false;
-int counter = 0;
-int log_id_start = 1;
-int emittedOrderCounts[logSize];
-int discardedEvents[logSize];
-int discardedDueToCompetionEvents[logSize];
-bool olderEntryIgnored = false;
-bool inCompetetion = false;
-int subscriptions[amountOfUniqueEvents] = {Request_ID, Close_ID, Get_ID, -1, -1};
-
-logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
-    // We first find the event Type
-    int currentEventType = tmpLogEntry.eventID;
-    if (currentEventType == Request_ID) {
-        inCompetetion = handleStandardEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
-    } else if (currentEventType == Close_ID) {
-        inCompetetion = handleStandardEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
-    } else if (currentEventType == Get_ID) {
-        inCompetetion = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, id + log_id_start, olderEntryIgnored);
-    } else {
-        inCompetetion = handleStandardEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
-    }
-    return tmpLogEntry;
-}
-
-
-void mergePropagationLog() {
-    int currentLogCounter = 0;
-    int propagatedLogCounter = 0;
-
-    logEntryType resLog[logSize];
-
-    logEntryType currentLogEntry;
-    logEntryType propagatedLogEntry;
-    logEntryType tmpLogEntry;
-
-    bool currentLogDone = false;
-    bool propagatedLogDone = false;
-
-    int i;
-    for (i = 0; i &lt; (logSize * 2); i++) {
-        currentLogEntry = currentLog[currentLogCounter];
-        propagatedLogEntry = propagationLog[propagatedLogCounter];
-        
-        // TODO if one is done then we can simply append the rest
-        if (currentLogEntry.orderCount == 0) {
-            currentLogDone = true;
-        }
-        if (propagatedLogEntry.orderCount == 0) {
-            propagatedLogDone = true;
-        }
-
-        // If both are done we are done.
-        if (currentLogDone &amp;&amp; propagatedLogDone) {
-            currentLog = resLog; 
-            return;
-        }
-        
-        // If one entry is invalid then we have to choose the other one
-        if (currentLogDone) {
-            propagatedLogCounter++;
-            tmpLogEntry = propagatedLogEntry;
-        } else if (propagatedLogDone) {
-            currentLogCounter++;
-            tmpLogEntry = currentLogEntry;
-        } else if (propagatedLogEntry.orderCount == currentLogEntry.orderCount) { //They are the same event we use one but skip both
-            propagatedLogCounter++;
-            currentLogCounter++;
-            tmpLogEntry = currentLogEntry;
-        } else if (currentLogEntry.orderCount &gt; propagatedLogEntry.orderCount) { // Both entries are valid we can now figure out which one is first
-            propagatedLogCounter++;
-            tmpLogEntry = propagatedLogEntry;
-        } else {
-            currentLogCounter++;
-            tmpLogEntry = currentLogEntry;
-        }
-        
-        // If it was already ignored we don't have to add it else we have to handle it
-        if (isIntInList(discardedEvents, tmpLogEntry.orderCount) || isIntInList(discardedDueToCompetionEvents, tmpLogEntry.orderCount)) {
-            i--;
-        } else {
-            tmpLogEntry = handleLogEntry(tmpLogEntry,resLog,i-1);
-            if (olderEntryIgnored) {
-                int j;
-                int h = 0;
-                logEntryType tmpLog[logSize];
-                for(j = 0; j &lt; logSize; j++) {
-                    if (resLog[j].orderCount == 0) {
-                        j = logSize;
-                    } else if (!resLog[j].ignored) {
-                        tmpLog[h] = resLog[j];
-                        h++;
-                    } else {
-                        i--;
-                        addIntToList(discardedEvents, resLog[j].orderCount);
-                    }
-                }
-                resLog = tmpLog;
-                olderEntryIgnored = false;
-            }
-        if (tmpLogEntry.ignored) {
-                // Value should be discarded
-                i--;
-                if(inCompetetion) {
-                    addIntToList(discardedDueToCompetionEvents, tmpLogEntry.orderCount);
-                    inCompetetion = false;
-                } else if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
-                    addIntToList(discardedEvents, tmpLogEntry.orderCount);
-                } else if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
-                    addIntToList(discardedDueToCompetionEvents, tmpLogEntry.orderCount);
-                } else {
-                    addIntToList(discardedEvents, tmpLogEntry.orderCount);
-                }
-            } else {
-                resLog[i] = tmpLogEntry;
-            }
-
-        }
-    }
-}
-
-</declaration>
-<location id="id502" x="-204" y="-238"><committed /></location>
-<location id="id503" x="-748" y="-136"><committed /></location>
-<location id="id504" x="-204" y="-136" />
-<location id="id505" x="229" y="-127"><committed /></location>
-<location id="id506" x="-612" y="34"><committed /></location>
-<location id="id507" x="25" y="76"><committed /></location>
-<location id="id508" x="-561" y="153"><committed /></location>
-	<init ref="id504"/>
-<transition id="id509"><source ref="id504" /><target ref="id502" /><label kind="guard" x="-136" y="-187">newUpdates</label><label kind="assignment" x="-136" y="-217">currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
-updatesSincePropagation := 0,
-newUpdates := false,
-setPropagationLog(currentLog)</label><nail x="-136" y="-187" /></transition>
-<transition id="id510"><source ref="id502" /><target ref="id504" /><label kind="synchronisation" x="-272" y="-210">propagate_log!</label><nail x="-272" y="-195" /></transition>
-<transition id="id511"><source ref="id504" /><target ref="id505" /><label kind="synchronisation" x="0" y="-66">do_log_update_Forklift[id]?</label><label kind="assignment" x="0" y="-81">updateLogForklift(currentLog,emittedOrderCounts,log_id_start),
-updatesSincePropagation++,
-newUpdates := true</label><nail x="0" y="-51" /></transition>
-<transition id="id512"><source ref="id505" /><target ref="id504" /><label kind="guard" x="12" y="-132">!(updatesSincePropagation &gt; maxUpdatesSincePropagation)</label></transition>
-<transition id="id513"><source ref="id505" /><target ref="id507" /><label kind="guard" x="127" y="-26">updatesSincePropagation &gt; maxUpdatesSincePropagation</label><label kind="assignment" x="127" y="-56">currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
-updatesSincePropagation := 0,
-newUpdates := false</label></transition>
-<transition id="id514"><source ref="id507" /><target ref="id504" /><label kind="synchronisation" x="-90" y="-45">propagate_log!</label><label kind="assignment" x="-90" y="-60">setPropagationLog(currentLog)</label></transition>
-<transition id="id515"><source ref="id504" /><target ref="id503" /><label kind="guard" x="-476" y="-136">currentLogToPropagate == log_id_start + id</label><label kind="synchronisation" x="-476" y="-151">propagate_log?</label><label kind="assignment" x="-476" y="-166">mergePropagationLog()</label></transition>
-<transition id="id516"><source ref="id503" /><target ref="id506" /><label kind="synchronisation" x="-680" y="-66">reset_Forklift[id]!</label><label kind="assignment" x="-680" y="-81">counter := 0,
-setNextLogToPropagate()</label></transition>
-<transition id="id517"><source ref="id506" /><target ref="id504" /><label kind="guard" x="-408" y="-51">currentLog[counter].orderCount == 0</label><label kind="synchronisation" x="-408" y="-66">propagate_log!</label></transition>
-<transition id="id518"><source ref="id506" /><target ref="id508" /><label kind="guard" x="-587" y="93">currentLog[counter].orderCount != 0</label></transition>
-<transition id="id519"><source ref="id508" /><target ref="id506" /><label kind="guard" x="-612" y="204">currentLog[counter].eventID == Request_ID</label><label kind="synchronisation" x="-612" y="189">advance_Forklift_Request[id]!</label><label kind="assignment" x="-612" y="174">counter++</label><nail x="-578" y="204" /><nail x="-646" y="204" /></transition>
-<transition id="id520"><source ref="id508" /><target ref="id506" /><label kind="guard" x="-646" y="238">currentLog[counter].eventID == Close_ID</label><label kind="synchronisation" x="-646" y="223">advance_Forklift_Close[id]!</label><label kind="assignment" x="-646" y="208">counter++</label><nail x="-612" y="238" /><nail x="-680" y="238" /></transition>
-<transition id="id521"><source ref="id508" /><target ref="id506" /><label kind="guard" x="-680" y="272">currentLog[counter].eventID == Get_ID</label><label kind="synchronisation" x="-680" y="257">advance_Forklift_Get[id]!</label><label kind="assignment" x="-680" y="242">counter++</label><nail x="-646" y="272" /><nail x="-714" y="272" /></transition>
-<transition id="id522"><source ref="id508" /><target ref="id506" /><label kind="guard" x="-714" y="306">!isInSubsciptions(subscriptions, currentLog[counter].eventID)</label><label kind="assignment" x="-714" y="276">counter++</label><nail x="-680" y="306" /><nail x="-748" y="306" /></transition>
+<location id="id3309" x="611" y="639"><name x="613" y="641">l0</name><urgent /></location>
+<location id="id3310" x="144" y="147"><name x="146" y="149">l4</name></location>
+<location id="id3311" x="494" y="393"><name x="496" y="395">l1</name><urgent /></location>
+<location id="id3312" x="546" y="147"><name x="548" y="149">l2</name></location>
+	<init ref="id3309"/>
+<transition id="id3313"><source ref="id3311" /><target ref="id3309" /><label kind="guard" x="832" y="270">currentEventResetID == Open_ID</label><label kind="synchronisation" x="832" y="255">reset_Door[id]?</label><nail x="832" y="270" /></transition>
+<transition id="id3314"><source ref="id3309" /><target ref="id3311" /><label kind="synchronisation" x="611" y="501">advance_Door_Open[id]?</label><nail x="611" y="516" /></transition>
+<transition id="id3315"><source ref="id3309" /><target ref="id3311" /><label kind="synchronisation" x="500" y="501">do_log_update_Door[id]!</label><label kind="assignment" x="500" y="486">setLogEntryForUpdate(
+        Open_ID,id,
+        -2, false)</label><nail x="500" y="516" /></transition>
+<transition id="id3316"><source ref="id3310" /><target ref="id3311" /><label kind="guard" x="212" y="25">currentEventResetID == Close_ID</label><label kind="synchronisation" x="212" y="10">reset_Door[id]?</label><nail x="212" y="25" /></transition>
+<transition id="id3317"><source ref="id3311" /><target ref="id3310" /><label kind="synchronisation" x="151" y="255">advance_Door_Close[id]?</label><nail x="151" y="270" /></transition>
+<transition id="id3318"><source ref="id3311" /><target ref="id3310" /><label kind="synchronisation" x="40" y="255">do_log_update_Door[id]!</label><label kind="assignment" x="40" y="240">setLogEntryForUpdate(
+        Close_ID,id,
+        -2, false)</label><nail x="40" y="270" /></transition>
+<transition id="id3319"><source ref="id3312" /><target ref="id3311" /><label kind="guard" x="418" y="25">currentEventResetID == Request_ID</label><label kind="synchronisation" x="418" y="10">reset_Door[id]?</label><nail x="418" y="25" /></transition>
+<transition id="id3320"><source ref="id3311" /><target ref="id3312" /><label kind="synchronisation" x="607" y="255">advance_Door_Request[id]?</label><nail x="607" y="270" /></transition>
+<transition id="id3321"><source ref="id3311" /><target ref="id3312" /><label kind="guard" x="494" y="270">currentEventResetID == Deliver_ID</label><label kind="synchronisation" x="494" y="255">reset_Door[id]?</label><nail x="494" y="270" /></transition>
+<transition id="id3322"><source ref="id3312" /><target ref="id3311" /><label kind="synchronisation" x="662" y="10">advance_Door_Deliver[id]?</label><nail x="662" y="25" /></transition>
 </template><template>
 	<name>Transport_log</name>
 	<parameter>Transport_t id</parameter>
@@ -801,29 +541,38 @@ logEntryType currentLog[logSize];
 int updatesSincePropagation = 0;
 bool newUpdates = false;
 int counter = 0;
-int log_id_start = 3;
+int log_id_start = 0 + NUMBER_OF_Door + NUMBER_OF_Forklift;
 int emittedOrderCounts[logSize];
 int discardedEvents[logSize];
 int discardedDueToCompetionEvents[logSize];
 bool olderEntryIgnored = false;
 bool inCompetetion = false;
+bool backTracking = false;
+bool didLogChange = false;
+int currentSizeOfLog = 0;
+int discardedEventIDs[logSize] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+int resetCount = 0;
+int eventsToRead = 0;
 int subscriptions[amountOfUniqueEvents] = {Request_ID, Close_ID, Get_ID, Deliver_ID, Open_ID};
+int initialLocation = 3;
+int currentLocation = 3;
+const int eventLocationMap[amountOfUniqueEvents][2] = {{0, 1}, {0, 4}, {1, 2}, {2, 0}, {3, 0}};
 
-logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[logSize], int currentIndex) {
+logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;currentIndex) {
     // We first find the event Type
     int currentEventType = tmpLogEntry.eventID;
     if (currentEventType == Get_ID) {
-        inCompetetion = handleStandardEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
+        inCompetetion = handleEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
     } else if (currentEventType == Open_ID) {
-        inCompetetion = handleStandardEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
+        inCompetetion = handleEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
     } else if (currentEventType == Close_ID) {
-        inCompetetion = handleStandardEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
+        inCompetetion = handleEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
     } else if (currentEventType == Request_ID) {
-        inCompetetion = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, id + log_id_start, olderEntryIgnored);
+        inCompetetion = handleEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
     } else if (currentEventType == Deliver_ID) {
-        inCompetetion = handleOwnEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, id + log_id_start, olderEntryIgnored);
+        inCompetetion = handleEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
     } else {
-        inCompetetion = handleStandardEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex);
+        tmpLogEntry.ignored = true;
     }
     return tmpLogEntry;
 }
@@ -841,8 +590,10 @@ void mergePropagationLog() {
 
     bool currentLogDone = false;
     bool propagatedLogDone = false;
+    bool newEventConsidered = false;
 
     int i;
+    currentLocation = initialLocation;
     for (i = 0; i &lt; (logSize * 2); i++) {
         currentLogEntry = currentLog[currentLogCounter];
         propagatedLogEntry = propagationLog[propagatedLogCounter];
@@ -857,7 +608,18 @@ void mergePropagationLog() {
 
         // If both are done we are done.
         if (currentLogDone &amp;&amp; propagatedLogDone) {
-            currentLog = resLog; 
+            if (currentSizeOfLog != i) {
+                currentSizeOfLog = i;
+                didLogChange = true;
+            } else {
+                findDifferenceInLogs(currentLog, resLog, didLogChange);
+            }
+
+            if (didLogChange) {
+                findAndSetDifferenceInLogs(currentLog, resLog, discardedEventIDs, resetCount, eventsToRead);
+            }
+
+            currentLog = resLog;
             return;
         }
         
@@ -865,6 +627,7 @@ void mergePropagationLog() {
         if (currentLogDone) {
             propagatedLogCounter++;
             tmpLogEntry = propagatedLogEntry;
+            newEventConsidered = true;
         } else if (propagatedLogDone) {
             currentLogCounter++;
             tmpLogEntry = currentLogEntry;
@@ -875,16 +638,24 @@ void mergePropagationLog() {
         } else if (currentLogEntry.orderCount &gt; propagatedLogEntry.orderCount) { // Both entries are valid we can now figure out which one is first
             propagatedLogCounter++;
             tmpLogEntry = propagatedLogEntry;
+            newEventConsidered = true;
         } else {
             currentLogCounter++;
             tmpLogEntry = currentLogEntry;
         }
         
         // If it was already ignored we don't have to add it else we have to handle it
-        if (isIntInList(discardedEvents, tmpLogEntry.orderCount) || isIntInList(discardedDueToCompetionEvents, tmpLogEntry.orderCount)) {
+        if (isIntInList(discardedEvents, tmpLogEntry.orderCount) || isIntInList(discardedDueToCompetionEvents, tmpLogEntry.orderCount) || isOrderCountInLog(resLog,tmpLogEntry.orderCount)) {
             i--;
+        } else if (!newEventConsidered) {
+            currentLocation = eventLocationMap[tmpLogEntry.eventID][1];
+            resLog[i] = tmpLogEntry;
         } else {
-            tmpLogEntry = handleLogEntry(tmpLogEntry,resLog,i-1);
+            int priorIndex = i;
+            tmpLogEntry = handleLogEntry(tmpLogEntry,resLog,i);
+            if (i != priorIndex) {
+                newUpdates = true;
+            }
             if (olderEntryIgnored) {
                 int j;
                 int h = 0;
@@ -907,7 +678,7 @@ void mergePropagationLog() {
                 // Value should be discarded
                 i--;                
                 if (tmpLogEntry.eventID == Request_ID &amp;&amp; tmpLogEntry.emitterID == id + log_id_start) {
-                    loop_counter4 = loop_counter4 - 1;
+                    loop_counter20[id] = loop_counter20[id] - 1;
                 }
                 if(inCompetetion) {
                     addIntToList(discardedDueToCompetionEvents, tmpLogEntry.orderCount);
@@ -928,39 +699,561 @@ void mergePropagationLog() {
 }
 
 </declaration>
-<location id="id540" x="-204" y="-238"><committed /></location>
-<location id="id541" x="-748" y="-136"><committed /></location>
-<location id="id542" x="-204" y="-136" />
-<location id="id543" x="229" y="-127"><committed /></location>
-<location id="id544" x="-612" y="34"><committed /></location>
-<location id="id545" x="25" y="76"><committed /></location>
-<location id="id546" x="-561" y="153"><committed /></location>
-	<init ref="id542"/>
-<transition id="id547"><source ref="id542" /><target ref="id540" /><label kind="guard" x="-136" y="-187">newUpdates</label><label kind="assignment" x="-136" y="-217">currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+<location id="id3211" x="-204" y="-298"><name x="-202" y="-296">l_prop1</name><committed /></location>
+<location id="id3212" x="-748" y="-136"><name x="-746" y="-134">merge_log</name><committed /></location>
+<location id="id3213" x="-204" y="-136"><name x="-202" y="-134">initial</name></location>
+<location id="id3214" x="8" y="-76"><name x="10" y="-74">accepting_emitted_1</name><committed /></location>
+<location id="id3215" x="238" y="-136"><name x="240" y="-134">accepting_emitted_2</name><committed /></location>
+<location id="id3216" x="-612" y="34"><name x="-610" y="36">updating_role_1</name><committed /></location>
+<location id="id3217" x="238" y="68"><name x="240" y="70">l_prop2</name><committed /></location>
+<location id="id3218" x="-561" y="153"><name x="-559" y="155">updating_role_2</name><committed /></location>
+<location id="id3219" x="-977" y="34"><name x="-975" y="36">backtracking_1</name><committed /></location>
+<location id="id3220" x="-1079" y="136"><name x="-1077" y="138">backtracking_2</name><committed /></location>
+<location id="id3221" x="-204" y="214"><name x="-202" y="216">overflow</name><committed /></location>
+<location id="id3246" x="17" y="178"><name x="19" y="180">forced_prop_1</name><committed /></location>
+<location id="id3247" x="-204" y="68"><name x="-202" y="70">forced_prop_2</name><committed /></location>
+<location id="id3252" x="297" y="-289"><name x="299" y="-287">forced_prop_3</name><committed /></location>
+	<init ref="id3213"/>
+<transition id="id3222"><source ref="id3213" /><target ref="id3211" /><label kind="guard" x="-76" y="-242">newUpdates</label><label kind="assignment" x="-76" y="-272">currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
 updatesSincePropagation := 0,
 newUpdates := false,
-setPropagationLog(currentLog)</label><nail x="-136" y="-187" /></transition>
-<transition id="id548"><source ref="id540" /><target ref="id542" /><label kind="synchronisation" x="-272" y="-210">propagate_log!</label><nail x="-272" y="-195" /></transition>
-<transition id="id549"><source ref="id542" /><target ref="id543" /><label kind="synchronisation" x="0" y="-66">do_log_update_Transport[id]?</label><label kind="assignment" x="0" y="-81">updateLogTransport(currentLog,emittedOrderCounts,log_id_start),
-updatesSincePropagation++,
-newUpdates := true</label><nail x="0" y="-51" /></transition>
-<transition id="id550"><source ref="id543" /><target ref="id542" /><label kind="guard" x="12" y="-132">!(updatesSincePropagation &gt; maxUpdatesSincePropagation)</label></transition>
-<transition id="id551"><source ref="id543" /><target ref="id545" /><label kind="guard" x="127" y="-26">updatesSincePropagation &gt; maxUpdatesSincePropagation</label><label kind="assignment" x="127" y="-56">currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+setPropagationLog(currentLog)</label><nail x="-76" y="-221" /><nail x="-76" y="-263" /></transition>
+<transition id="id3223"><source ref="id3212" /><target ref="id3219" /><label kind="guard" x="-863" y="-51">didLogChange &amp;&amp; resetCount != 0</label><label kind="assignment" x="-863" y="-81">counter := currentSizeOfLog - eventsToRead,
+setNextLogToPropagate(),
+backTracking := true</label></transition>
+<transition id="id3224"><source ref="id3219" /><target ref="id3220" /><label kind="guard" x="-1079" y="34">resetCount != 0</label><label kind="assignment" x="-1079" y="4">currentEventResetID = discardedEventIDs[resetCount - 1]</label><nail x="-1079" y="34" /></transition>
+<transition id="id3225"><source ref="id3220" /><target ref="id3219" /><label kind="synchronisation" x="-978" y="121">reset_Transport[id]!</label><label kind="assignment" x="-978" y="106">discardedEventIDs[resetCount - 1] = -1,
+resetCount--</label><nail x="-978" y="136" /></transition>
+<transition id="id3226"><source ref="id3220" /><target ref="id3219" /><label kind="guard" x="-1028" y="85">!isInSubsciptions(subscriptions, currentEventResetID)</label><label kind="assignment" x="-1028" y="55">discardedEventIDs[resetCount - 1] = -1,
+resetCount--</label></transition>
+<transition id="id3227"><source ref="id3219" /><target ref="id3216" /><label kind="guard" x="-795" y="34">resetCount == 0</label></transition>
+<transition id="id3228"><source ref="id3211" /><target ref="id3213" /><label kind="synchronisation" x="-347" y="-270">propagate_log!</label><nail x="-347" y="-255" /></transition>
+<transition id="id3229"><source ref="id3213" /><target ref="id3214" /><label kind="synchronisation" x="-98" y="-121">do_log_update_Transport[id]?</label><label kind="assignment" x="-98" y="-136">updateLogEntry(currentLog,emittedOrderCounts,log_id_start),currentSizeOfLog++</label></transition>
+<transition id="id3230"><source ref="id3214" /><target ref="id3215" /><label kind="guard" x="123" y="-106">globalLogIndex != logSize&amp;&amp; newUpdates</label></transition>
+<transition id="id3231"><source ref="id3215" /><target ref="id3213" /><label kind="guard" x="17" y="-136">(updatesSincePropagation + maxUpdatesSincePropagation_Transport &gt; globalLogIndex)</label><label kind="synchronisation" x="17" y="-151">force_propagate!</label></transition>
+<transition id="id3232"><source ref="id3215" /><target ref="id3217" /><label kind="guard" x="238" y="-34">!(updatesSincePropagation + maxUpdatesSincePropagation_Transport &gt; globalLogIndex)</label><label kind="assignment" x="238" y="-64">currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
 updatesSincePropagation := 0,
 newUpdates := false</label></transition>
-<transition id="id552"><source ref="id545" /><target ref="id542" /><label kind="synchronisation" x="-90" y="-45">propagate_log!</label><label kind="assignment" x="-90" y="-60">setPropagationLog(currentLog)</label></transition>
-<transition id="id553"><source ref="id542" /><target ref="id541" /><label kind="guard" x="-476" y="-136">currentLogToPropagate == log_id_start + id</label><label kind="synchronisation" x="-476" y="-151">propagate_log?</label><label kind="assignment" x="-476" y="-166">mergePropagationLog()</label></transition>
-<transition id="id554"><source ref="id541" /><target ref="id544" /><label kind="synchronisation" x="-680" y="-66">reset_Transport[id]!</label><label kind="assignment" x="-680" y="-81">counter := 0,
+<transition id="id3233"><source ref="id3217" /><target ref="id3246" /><label kind="synchronisation" x="127" y="108">propagate_log!</label><label kind="assignment" x="127" y="93">setPropagationLog(currentLog)</label></transition>
+<transition id="id3234"><source ref="id3213" /><target ref="id3212" /><label kind="guard" x="-476" y="-136">currentLogToPropagate == log_id_start + id</label><label kind="synchronisation" x="-476" y="-151">propagate_log?</label><label kind="assignment" x="-476" y="-166">mergePropagationLog()</label></transition>
+<transition id="id3235"><source ref="id3212" /><target ref="id3216" /><label kind="guard" x="-680" y="-51">!didLogChange || resetCount == 0</label><label kind="assignment" x="-680" y="-81">counter := currentSizeOfLog - eventsToRead,
 setNextLogToPropagate()</label></transition>
-<transition id="id555"><source ref="id544" /><target ref="id542" /><label kind="guard" x="-408" y="-51">currentLog[counter].orderCount == 0</label><label kind="synchronisation" x="-408" y="-66">propagate_log!</label></transition>
-<transition id="id556"><source ref="id544" /><target ref="id546" /><label kind="guard" x="-587" y="93">currentLog[counter].orderCount != 0</label></transition>
-<transition id="id557"><source ref="id546" /><target ref="id544" /><label kind="guard" x="-612" y="204">currentLog[counter].eventID == Request_ID</label><label kind="synchronisation" x="-612" y="189">advance_Transport_Request[id]!</label><label kind="assignment" x="-612" y="174">counter++</label><nail x="-578" y="204" /><nail x="-646" y="204" /></transition>
-<transition id="id558"><source ref="id546" /><target ref="id544" /><label kind="guard" x="-646" y="238">currentLog[counter].eventID == Close_ID</label><label kind="synchronisation" x="-646" y="223">advance_Transport_Close[id]!</label><label kind="assignment" x="-646" y="208">counter++</label><nail x="-612" y="238" /><nail x="-680" y="238" /></transition>
-<transition id="id559"><source ref="id546" /><target ref="id544" /><label kind="guard" x="-680" y="272">currentLog[counter].eventID == Get_ID</label><label kind="synchronisation" x="-680" y="257">advance_Transport_Get[id]!</label><label kind="assignment" x="-680" y="242">counter++</label><nail x="-646" y="272" /><nail x="-714" y="272" /></transition>
-<transition id="id560"><source ref="id546" /><target ref="id544" /><label kind="guard" x="-714" y="306">currentLog[counter].eventID == Deliver_ID</label><label kind="synchronisation" x="-714" y="291">advance_Transport_Deliver[id]!</label><label kind="assignment" x="-714" y="276">counter++</label><nail x="-680" y="306" /><nail x="-748" y="306" /></transition>
-<transition id="id561"><source ref="id546" /><target ref="id544" /><label kind="guard" x="-748" y="340">currentLog[counter].eventID == Open_ID</label><label kind="synchronisation" x="-748" y="325">advance_Transport_Open[id]!</label><label kind="assignment" x="-748" y="310">counter++</label><nail x="-714" y="340" /><nail x="-782" y="340" /></transition>
-<transition id="id562"><source ref="id546" /><target ref="id544" /><label kind="guard" x="-782" y="374">!isInSubsciptions(subscriptions, currentLog[counter].eventID)</label><label kind="assignment" x="-782" y="344">counter++</label><nail x="-748" y="374" /><nail x="-816" y="374" /></transition>
+<transition id="id3236"><source ref="id3216" /><target ref="id3213" /><label kind="guard" x="-408" y="-51">currentLog[counter].orderCount == 0 &amp;&amp; !anyForcedToPropagate</label><label kind="synchronisation" x="-408" y="-66">propagate_log!</label><label kind="assignment" x="-408" y="-81">didLogChange := false,
+backTracking := false,
+eventsToRead := 0</label></transition>
+<transition id="id3237"><source ref="id3216" /><target ref="id3218" /><label kind="guard" x="-587" y="93">currentLog[counter].orderCount != 0</label></transition>
+<transition id="id3238"><source ref="id3218" /><target ref="id3216" /><label kind="guard" x="-612" y="204">currentLog[counter].eventID == Request_ID</label><label kind="synchronisation" x="-612" y="189">advance_Transport_Request[id]!</label><label kind="assignment" x="-612" y="174">counter++</label><nail x="-578" y="204" /><nail x="-646" y="204" /></transition>
+<transition id="id3239"><source ref="id3218" /><target ref="id3216" /><label kind="guard" x="-646" y="238">currentLog[counter].eventID == Close_ID</label><label kind="synchronisation" x="-646" y="223">advance_Transport_Close[id]!</label><label kind="assignment" x="-646" y="208">counter++</label><nail x="-612" y="238" /><nail x="-680" y="238" /></transition>
+<transition id="id3240"><source ref="id3218" /><target ref="id3216" /><label kind="guard" x="-680" y="272">currentLog[counter].eventID == Get_ID</label><label kind="synchronisation" x="-680" y="257">advance_Transport_Get[id]!</label><label kind="assignment" x="-680" y="242">counter++</label><nail x="-646" y="272" /><nail x="-714" y="272" /></transition>
+<transition id="id3241"><source ref="id3218" /><target ref="id3216" /><label kind="guard" x="-714" y="306">currentLog[counter].eventID == Deliver_ID</label><label kind="synchronisation" x="-714" y="291">advance_Transport_Deliver[id]!</label><label kind="assignment" x="-714" y="276">counter++</label><nail x="-680" y="306" /><nail x="-748" y="306" /></transition>
+<transition id="id3242"><source ref="id3218" /><target ref="id3216" /><label kind="guard" x="-748" y="340">currentLog[counter].eventID == Open_ID</label><label kind="synchronisation" x="-748" y="325">advance_Transport_Open[id]!</label><label kind="assignment" x="-748" y="310">counter++</label><nail x="-714" y="340" /><nail x="-782" y="340" /></transition>
+<transition id="id3243"><source ref="id3218" /><target ref="id3216" /><label kind="guard" x="-782" y="374">!isInSubsciptions(subscriptions, currentLog[counter].eventID)</label><label kind="assignment" x="-782" y="344">counter++</label><nail x="-748" y="374" /><nail x="-816" y="374" /></transition>
+<transition id="id3244"><source ref="id3214" /><target ref="id3221" /><label kind="guard" x="-98" y="69">globalLogIndex == logSize</label><label kind="synchronisation" x="-98" y="54">chan_overflow!</label></transition>
+<transition id="id3245"><source ref="id3213" /><target ref="id3221" /><label kind="synchronisation" x="-204" y="24">chan_overflow?</label></transition>
+<transition id="id3248"><source ref="id3216" /><target ref="id3213" /><label kind="guard" x="-272" y="90">currentLog[counter].orderCount == 0 &amp;&amp;
+                anyForcedToPropagate &amp;&amp;
+                currentLogToPropagate == log_id_start + id &amp;&amp; 
+                !forcedToPropagate[id + log_id_start]</label><label kind="synchronisation" x="-272" y="75">attempt_propagation!</label><label kind="assignment" x="-272" y="60">didLogChange := false,
+                backTracking := false,
+                eventsToRead := 0</label><nail x="-340" y="170" /><nail x="-238" y="170" /><nail x="-238" y="-68" /></transition>
+<transition id="id3249"><source ref="id3216" /><target ref="id3213" /><label kind="guard" x="-442" y="-102">currentLog[counter].orderCount == 0 &amp;&amp;
+                anyForcedToPropagate &amp;&amp;
+                currentLogToPropagate != log_id_start + id</label><label kind="synchronisation" x="-442" y="-117">propagate_log!</label><label kind="assignment" x="-442" y="-132">didLogChange := false,
+                backTracking := false,
+                eventsToRead := 0</label><nail x="-612" y="-102" /><nail x="-272" y="-102" /></transition>
+<transition id="id3250"><source ref="id3246" /><target ref="id3247" /><label kind="guard" x="-94" y="123">(currentLogToPropagate + 1) % amountOfLogs == log_id_start + id
+                &amp;&amp; amountOfPropagation == 0</label><label kind="synchronisation" x="-94" y="108">propagate_log?</label></transition>
+<transition id="id3251"><source ref="id3247" /><target ref="id3213" /><label kind="synchronisation" x="-204" y="-49">force_propagate!</label></transition>
+<transition id="id3253"><source ref="id3214" /><target ref="id3215" /><label kind="guard" x="89" y="0">globalLogIndex != logSize &amp;&amp; !newUpdates</label><label kind="assignment" x="89" y="-30">updatesSincePropagation := globalLogIndex,
+                    newUpdates := true</label><nail x="8" y="34" /><nail x="170" y="-34" /></transition>
+<transition id="id3254"><source ref="id3216" /><target ref="id3252" /><label kind="guard" x="215" y="85">currentLog[counter].orderCount == 0 &amp;&amp;
+                    anyForcedToPropagate &amp;&amp;
+                    currentLogToPropagate == log_id_start + id &amp;&amp; 
+                    forcedToPropagate[id + log_id_start]</label><label kind="synchronisation" x="215" y="70">attempt_propagation!</label><label kind="assignment" x="215" y="55">didLogChange := false,
+                    backTracking := false,
+                    eventsToRead := 0</label><nail x="-238" y="272" /><nail x="442" y="272" /><nail x="442" y="-289" /></transition>
+<transition id="id3255"><source ref="id3213" /><target ref="id3252" /><label kind="guard" x="46" y="-213">newUpdates &amp;&amp; !(updatesSincePropagation + maxUpdatesSincePropagation_Transport &gt; globalLogIndex)</label><label kind="synchronisation" x="46" y="-228">force_propagate?</label><label kind="assignment" x="46" y="-243">forcedToPropagate[id + log_id_start] := true</label></transition>
+<transition id="id3256"><source ref="id3213" /><target ref="id3252" /><label kind="guard" x="238" y="-204">forcedToPropagate[id + log_id_start]</label><label kind="synchronisation" x="238" y="-219">attempt_propagation?</label><nail x="238" y="-204" /></transition>
+<transition id="id3257"><source ref="id3252" /><target ref="id3213" /><label kind="synchronisation" x="306" y="-185">abandon_propagation?</label><nail x="306" y="-170" /></transition>
+<transition id="id3258"><source ref="id3252" /><target ref="id3252" /><label kind="guard" x="297" y="-289">!(forcedToPropagate[forcedPropagationCounter])</label><label kind="assignment" x="297" y="-319">forcedPropagationCounter++</label></transition>
+<transition id="id3259"><source ref="id3252" /><target ref="id3211" /><label kind="guard" x="46" y="-294">(forcedToPropagate[forcedPropagationCounter]) &amp;&amp;
+                    forcedPropagationCounter == (id + log_id_start)</label><label kind="synchronisation" x="46" y="-309">abandon_propagation!</label><label kind="assignment" x="46" y="-324">forcedToPropagate[forcedPropagationCounter] := false,
+                    forcedPropagationCounter := 0,
+                    calculateAnyForcedToPropagate(),
+                    currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+                    updatesSincePropagation := 0,
+                    newUpdates := false,
+                    setPropagationLog(currentLog)</label></transition>
+</template><template>
+	<name>Forklift_log</name>
+	<parameter>Forklift_t id</parameter>
+<declaration>
+logEntryType currentLog[logSize];
+int updatesSincePropagation = 0;
+bool newUpdates = false;
+int counter = 0;
+int log_id_start = 0 + NUMBER_OF_Door;
+int emittedOrderCounts[logSize];
+int discardedEvents[logSize];
+int discardedDueToCompetionEvents[logSize];
+bool olderEntryIgnored = false;
+bool inCompetetion = false;
+bool backTracking = false;
+bool didLogChange = false;
+int currentSizeOfLog = 0;
+int discardedEventIDs[logSize] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+int resetCount = 0;
+int eventsToRead = 0;
+int subscriptions[amountOfUniqueEvents] = {Request_ID, Close_ID, Get_ID, -1, -1};
+int initialLocation = 1;
+int currentLocation = 1;
+const int eventLocationMap[amountOfUniqueEvents][2] = {{1, 0}, {1, 2}, {0, 1}, {-1, -1}, {-1, -1}};
+
+logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;currentIndex) {
+    // We first find the event Type
+    int currentEventType = tmpLogEntry.eventID;
+    if (currentEventType == Request_ID) {
+        inCompetetion = handleEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
+    } else if (currentEventType == Close_ID) {
+        inCompetetion = handleEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
+    } else if (currentEventType == Get_ID) {
+        inCompetetion = handleEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
+    } else {
+        tmpLogEntry.ignored = true;
+    }
+    return tmpLogEntry;
+}
+
+
+void mergePropagationLog() {
+    int currentLogCounter = 0;
+    int propagatedLogCounter = 0;
+
+    logEntryType resLog[logSize];
+
+    logEntryType currentLogEntry;
+    logEntryType propagatedLogEntry;
+    logEntryType tmpLogEntry;
+
+    bool currentLogDone = false;
+    bool propagatedLogDone = false;
+    bool newEventConsidered = false;
+
+    int i;
+    currentLocation = initialLocation;
+    for (i = 0; i &lt; (logSize * 2); i++) {
+        currentLogEntry = currentLog[currentLogCounter];
+        propagatedLogEntry = propagationLog[propagatedLogCounter];
+        
+        // TODO if one is done then we can simply append the rest
+        if (currentLogEntry.orderCount == 0) {
+            currentLogDone = true;
+        }
+        if (propagatedLogEntry.orderCount == 0) {
+            propagatedLogDone = true;
+        }
+
+        // If both are done we are done.
+        if (currentLogDone &amp;&amp; propagatedLogDone) {
+            if (currentSizeOfLog != i) {
+                currentSizeOfLog = i;
+                didLogChange = true;
+            } else {
+                findDifferenceInLogs(currentLog, resLog, didLogChange);
+            }
+
+            if (didLogChange) {
+                findAndSetDifferenceInLogs(currentLog, resLog, discardedEventIDs, resetCount, eventsToRead);
+            }
+
+            currentLog = resLog;
+            return;
+        }
+        
+        // If one entry is invalid then we have to choose the other one
+        if (currentLogDone) {
+            propagatedLogCounter++;
+            tmpLogEntry = propagatedLogEntry;
+            newEventConsidered = true;
+        } else if (propagatedLogDone) {
+            currentLogCounter++;
+            tmpLogEntry = currentLogEntry;
+        } else if (propagatedLogEntry.orderCount == currentLogEntry.orderCount) { //They are the same event we use one but skip both
+            propagatedLogCounter++;
+            currentLogCounter++;
+            tmpLogEntry = currentLogEntry;
+        } else if (currentLogEntry.orderCount &gt; propagatedLogEntry.orderCount) { // Both entries are valid we can now figure out which one is first
+            propagatedLogCounter++;
+            tmpLogEntry = propagatedLogEntry;
+            newEventConsidered = true;
+        } else {
+            currentLogCounter++;
+            tmpLogEntry = currentLogEntry;
+        }
+        
+        // If it was already ignored we don't have to add it else we have to handle it
+        if (isIntInList(discardedEvents, tmpLogEntry.orderCount) || isIntInList(discardedDueToCompetionEvents, tmpLogEntry.orderCount) || isOrderCountInLog(resLog,tmpLogEntry.orderCount)) {
+            i--;
+        } else if (!newEventConsidered) {
+            currentLocation = eventLocationMap[tmpLogEntry.eventID][1];
+            resLog[i] = tmpLogEntry;
+        } else {
+            int priorIndex = i;
+            tmpLogEntry = handleLogEntry(tmpLogEntry,resLog,i);
+            if (i != priorIndex) {
+                newUpdates = true;
+            }
+            if (olderEntryIgnored) {
+                int j;
+                int h = 0;
+                logEntryType tmpLog[logSize];
+                for(j = 0; j &lt; logSize; j++) {
+                    if (resLog[j].orderCount == 0) {
+                        j = logSize;
+                    } else if (!resLog[j].ignored) {
+                        tmpLog[h] = resLog[j];
+                        h++;
+                    } else {
+                        i--;
+                        addIntToList(discardedEvents, resLog[j].orderCount);
+                    }
+                }
+                resLog = tmpLog;
+                olderEntryIgnored = false;
+            }
+        if (tmpLogEntry.ignored) {
+                // Value should be discarded
+                i--;
+                if(inCompetetion) {
+                    addIntToList(discardedDueToCompetionEvents, tmpLogEntry.orderCount);
+                    inCompetetion = false;
+                } else if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
+                    addIntToList(discardedEvents, tmpLogEntry.orderCount);
+                } else if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
+                    addIntToList(discardedDueToCompetionEvents, tmpLogEntry.orderCount);
+                } else {
+                    addIntToList(discardedEvents, tmpLogEntry.orderCount);
+                }
+            } else {
+                resLog[i] = tmpLogEntry;
+            }
+
+        }
+    }
+}
+
+</declaration>
+<location id="id3270" x="-204" y="-298"><name x="-202" y="-296">l_prop1</name><committed /></location>
+<location id="id3271" x="-748" y="-136"><name x="-746" y="-134">merge_log</name><committed /></location>
+<location id="id3272" x="-204" y="-136"><name x="-202" y="-134">initial</name></location>
+<location id="id3273" x="8" y="-76"><name x="10" y="-74">accepting_emitted_1</name><committed /></location>
+<location id="id3274" x="238" y="-136"><name x="240" y="-134">accepting_emitted_2</name><committed /></location>
+<location id="id3275" x="-612" y="34"><name x="-610" y="36">updating_role_1</name><committed /></location>
+<location id="id3276" x="238" y="68"><name x="240" y="70">l_prop2</name><committed /></location>
+<location id="id3277" x="-561" y="153"><name x="-559" y="155">updating_role_2</name><committed /></location>
+<location id="id3278" x="-977" y="34"><name x="-975" y="36">backtracking_1</name><committed /></location>
+<location id="id3279" x="-1079" y="136"><name x="-1077" y="138">backtracking_2</name><committed /></location>
+<location id="id3280" x="-204" y="214"><name x="-202" y="216">overflow</name><committed /></location>
+<location id="id3303" x="17" y="178"><name x="19" y="180">forced_prop_1</name><committed /></location>
+<location id="id3304" x="-204" y="68"><name x="-202" y="70">forced_prop_2</name><committed /></location>
+	<init ref="id3272"/>
+<transition id="id3281"><source ref="id3272" /><target ref="id3270" /><label kind="guard" x="-76" y="-242">newUpdates</label><label kind="assignment" x="-76" y="-272">currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+updatesSincePropagation := 0,
+newUpdates := false,
+setPropagationLog(currentLog)</label><nail x="-76" y="-221" /><nail x="-76" y="-263" /></transition>
+<transition id="id3282"><source ref="id3271" /><target ref="id3278" /><label kind="guard" x="-863" y="-51">didLogChange &amp;&amp; resetCount != 0</label><label kind="assignment" x="-863" y="-81">counter := currentSizeOfLog - eventsToRead,
+setNextLogToPropagate(),
+backTracking := true</label></transition>
+<transition id="id3283"><source ref="id3278" /><target ref="id3279" /><label kind="guard" x="-1079" y="34">resetCount != 0</label><label kind="assignment" x="-1079" y="4">currentEventResetID = discardedEventIDs[resetCount - 1]</label><nail x="-1079" y="34" /></transition>
+<transition id="id3284"><source ref="id3279" /><target ref="id3278" /><label kind="synchronisation" x="-978" y="121">reset_Forklift[id]!</label><label kind="assignment" x="-978" y="106">discardedEventIDs[resetCount - 1] = -1,
+resetCount--</label><nail x="-978" y="136" /></transition>
+<transition id="id3285"><source ref="id3279" /><target ref="id3278" /><label kind="guard" x="-1028" y="85">!isInSubsciptions(subscriptions, currentEventResetID)</label><label kind="assignment" x="-1028" y="55">discardedEventIDs[resetCount - 1] = -1,
+resetCount--</label></transition>
+<transition id="id3286"><source ref="id3278" /><target ref="id3275" /><label kind="guard" x="-795" y="34">resetCount == 0</label></transition>
+<transition id="id3287"><source ref="id3270" /><target ref="id3272" /><label kind="synchronisation" x="-347" y="-270">propagate_log!</label><nail x="-347" y="-255" /></transition>
+<transition id="id3288"><source ref="id3272" /><target ref="id3273" /><label kind="synchronisation" x="-98" y="-121">do_log_update_Forklift[id]?</label><label kind="assignment" x="-98" y="-136">updateLogEntry(currentLog,emittedOrderCounts,log_id_start),
+updatesSincePropagation++,
+newUpdates := true,
+currentSizeOfLog++</label></transition>
+<transition id="id3289"><source ref="id3273" /><target ref="id3274" /><label kind="guard" x="123" y="-106">globalLogIndex != logSize</label></transition>
+<transition id="id3290"><source ref="id3274" /><target ref="id3272" /><label kind="guard" x="17" y="-136">!(updatesSincePropagation &gt; maxUpdatesSincePropagation_Forklift)</label><label kind="synchronisation" x="17" y="-151">force_propagate!</label></transition>
+<transition id="id3291"><source ref="id3274" /><target ref="id3276" /><label kind="guard" x="238" y="-34">updatesSincePropagation &gt; maxUpdatesSincePropagation_Forklift</label><label kind="assignment" x="238" y="-64">currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+updatesSincePropagation := 0,
+newUpdates := false</label></transition>
+<transition id="id3292"><source ref="id3276" /><target ref="id3303" /><label kind="synchronisation" x="127" y="108">propagate_log!</label><label kind="assignment" x="127" y="93">setPropagationLog(currentLog)</label></transition>
+<transition id="id3293"><source ref="id3272" /><target ref="id3271" /><label kind="guard" x="-476" y="-136">currentLogToPropagate == log_id_start + id</label><label kind="synchronisation" x="-476" y="-151">propagate_log?</label><label kind="assignment" x="-476" y="-166">mergePropagationLog()</label></transition>
+<transition id="id3294"><source ref="id3271" /><target ref="id3275" /><label kind="guard" x="-680" y="-51">!didLogChange || resetCount == 0</label><label kind="assignment" x="-680" y="-81">counter := currentSizeOfLog - eventsToRead,
+setNextLogToPropagate()</label></transition>
+<transition id="id3295"><source ref="id3275" /><target ref="id3272" /><label kind="guard" x="-408" y="-51">currentLog[counter].orderCount == 0 &amp;&amp; !anyForcedToPropagate</label><label kind="synchronisation" x="-408" y="-66">propagate_log!</label><label kind="assignment" x="-408" y="-81">didLogChange := false,
+backTracking := false,
+eventsToRead := 0</label></transition>
+<transition id="id3296"><source ref="id3275" /><target ref="id3277" /><label kind="guard" x="-587" y="93">currentLog[counter].orderCount != 0</label></transition>
+<transition id="id3297"><source ref="id3277" /><target ref="id3275" /><label kind="guard" x="-612" y="204">currentLog[counter].eventID == Request_ID</label><label kind="synchronisation" x="-612" y="189">advance_Forklift_Request[id]!</label><label kind="assignment" x="-612" y="174">counter++</label><nail x="-578" y="204" /><nail x="-646" y="204" /></transition>
+<transition id="id3298"><source ref="id3277" /><target ref="id3275" /><label kind="guard" x="-646" y="238">currentLog[counter].eventID == Close_ID</label><label kind="synchronisation" x="-646" y="223">advance_Forklift_Close[id]!</label><label kind="assignment" x="-646" y="208">counter++</label><nail x="-612" y="238" /><nail x="-680" y="238" /></transition>
+<transition id="id3299"><source ref="id3277" /><target ref="id3275" /><label kind="guard" x="-680" y="272">currentLog[counter].eventID == Get_ID</label><label kind="synchronisation" x="-680" y="257">advance_Forklift_Get[id]!</label><label kind="assignment" x="-680" y="242">counter++</label><nail x="-646" y="272" /><nail x="-714" y="272" /></transition>
+<transition id="id3300"><source ref="id3277" /><target ref="id3275" /><label kind="guard" x="-714" y="306">!isInSubsciptions(subscriptions, currentLog[counter].eventID)</label><label kind="assignment" x="-714" y="276">counter++</label><nail x="-680" y="306" /><nail x="-748" y="306" /></transition>
+<transition id="id3301"><source ref="id3273" /><target ref="id3280" /><label kind="guard" x="-98" y="69">globalLogIndex == logSize</label><label kind="synchronisation" x="-98" y="54">chan_overflow!</label></transition>
+<transition id="id3302"><source ref="id3272" /><target ref="id3280" /><label kind="synchronisation" x="-204" y="24">chan_overflow?</label></transition>
+<transition id="id3305"><source ref="id3275" /><target ref="id3272" /><label kind="guard" x="-272" y="90">currentLog[counter].orderCount == 0 &amp;&amp;
+                anyForcedToPropagate &amp;&amp;
+                currentLogToPropagate == log_id_start + id &amp;&amp; 
+                !forcedToPropagate[id + log_id_start]</label><label kind="synchronisation" x="-272" y="75">attempt_propagation!</label><label kind="assignment" x="-272" y="60">didLogChange := false,
+                backTracking := false,
+                eventsToRead := 0</label><nail x="-340" y="170" /><nail x="-238" y="170" /><nail x="-238" y="-68" /></transition>
+<transition id="id3306"><source ref="id3275" /><target ref="id3272" /><label kind="guard" x="-442" y="-102">currentLog[counter].orderCount == 0 &amp;&amp;
+                anyForcedToPropagate &amp;&amp;
+                currentLogToPropagate != log_id_start + id</label><label kind="synchronisation" x="-442" y="-117">propagate_log!</label><label kind="assignment" x="-442" y="-132">didLogChange := false,
+                backTracking := false,
+                eventsToRead := 0</label><nail x="-612" y="-102" /><nail x="-272" y="-102" /></transition>
+<transition id="id3307"><source ref="id3303" /><target ref="id3304" /><label kind="guard" x="-94" y="123">(currentLogToPropagate + 1) % amountOfLogs == log_id_start + id
+                &amp;&amp; amountOfPropagation == 0</label><label kind="synchronisation" x="-94" y="108">propagate_log?</label></transition>
+<transition id="id3308"><source ref="id3304" /><target ref="id3272" /><label kind="synchronisation" x="-204" y="-49">force_propagate!</label></transition>
+</template><template>
+	<name>Door_log</name>
+	<parameter>Door_t id</parameter>
+<declaration>
+logEntryType currentLog[logSize];
+int updatesSincePropagation = 0;
+bool newUpdates = false;
+int counter = 0;
+int log_id_start = 0;
+int emittedOrderCounts[logSize];
+int discardedEvents[logSize];
+int discardedDueToCompetionEvents[logSize];
+bool olderEntryIgnored = false;
+bool inCompetetion = false;
+bool backTracking = false;
+bool didLogChange = false;
+int currentSizeOfLog = 0;
+int discardedEventIDs[logSize] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+int resetCount = 0;
+int eventsToRead = 0;
+int subscriptions[amountOfUniqueEvents] = {Request_ID, Close_ID, Deliver_ID, Open_ID, -1};
+int initialLocation = 0;
+int currentLocation = 0;
+const int eventLocationMap[amountOfUniqueEvents][2] = {{1, 3}, {1, 2}, {-1, -1}, {3, 1}, {0, 1}};
+
+logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;currentIndex) {
+    // We first find the event Type
+    int currentEventType = tmpLogEntry.eventID;
+    if (currentEventType == Request_ID) {
+        inCompetetion = handleEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
+    } else if (currentEventType == Deliver_ID) {
+        inCompetetion = handleEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
+    } else if (currentEventType == Open_ID) {
+        inCompetetion = handleEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
+    } else if (currentEventType == Close_ID) {
+        inCompetetion = handleEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
+    } else {
+        tmpLogEntry.ignored = true;
+    }
+    return tmpLogEntry;
+}
+
+
+void mergePropagationLog() {
+    int currentLogCounter = 0;
+    int propagatedLogCounter = 0;
+
+    logEntryType resLog[logSize];
+
+    logEntryType currentLogEntry;
+    logEntryType propagatedLogEntry;
+    logEntryType tmpLogEntry;
+
+    bool currentLogDone = false;
+    bool propagatedLogDone = false;
+    bool newEventConsidered = false;
+
+    int i;
+    currentLocation = initialLocation;
+    for (i = 0; i &lt; (logSize * 2); i++) {
+        currentLogEntry = currentLog[currentLogCounter];
+        propagatedLogEntry = propagationLog[propagatedLogCounter];
+        
+        // TODO if one is done then we can simply append the rest
+        if (currentLogEntry.orderCount == 0) {
+            currentLogDone = true;
+        }
+        if (propagatedLogEntry.orderCount == 0) {
+            propagatedLogDone = true;
+        }
+
+        // If both are done we are done.
+        if (currentLogDone &amp;&amp; propagatedLogDone) {
+            if (currentSizeOfLog != i) {
+                currentSizeOfLog = i;
+                didLogChange = true;
+            } else {
+                findDifferenceInLogs(currentLog, resLog, didLogChange);
+            }
+
+            if (didLogChange) {
+                findAndSetDifferenceInLogs(currentLog, resLog, discardedEventIDs, resetCount, eventsToRead);
+            }
+
+            currentLog = resLog;
+            return;
+        }
+        
+        // If one entry is invalid then we have to choose the other one
+        if (currentLogDone) {
+            propagatedLogCounter++;
+            tmpLogEntry = propagatedLogEntry;
+            newEventConsidered = true;
+        } else if (propagatedLogDone) {
+            currentLogCounter++;
+            tmpLogEntry = currentLogEntry;
+        } else if (propagatedLogEntry.orderCount == currentLogEntry.orderCount) { //They are the same event we use one but skip both
+            propagatedLogCounter++;
+            currentLogCounter++;
+            tmpLogEntry = currentLogEntry;
+        } else if (currentLogEntry.orderCount &gt; propagatedLogEntry.orderCount) { // Both entries are valid we can now figure out which one is first
+            propagatedLogCounter++;
+            tmpLogEntry = propagatedLogEntry;
+            newEventConsidered = true;
+        } else {
+            currentLogCounter++;
+            tmpLogEntry = currentLogEntry;
+        }
+        
+        // If it was already ignored we don't have to add it else we have to handle it
+        if (isIntInList(discardedEvents, tmpLogEntry.orderCount) || isIntInList(discardedDueToCompetionEvents, tmpLogEntry.orderCount) || isOrderCountInLog(resLog,tmpLogEntry.orderCount)) {
+            i--;
+        } else if (!newEventConsidered) {
+            currentLocation = eventLocationMap[tmpLogEntry.eventID][1];
+            resLog[i] = tmpLogEntry;
+        } else {
+            int priorIndex = i;
+            tmpLogEntry = handleLogEntry(tmpLogEntry,resLog,i);
+            if (i != priorIndex) {
+                newUpdates = true;
+            }
+            if (olderEntryIgnored) {
+                int j;
+                int h = 0;
+                logEntryType tmpLog[logSize];
+                for(j = 0; j &lt; logSize; j++) {
+                    if (resLog[j].orderCount == 0) {
+                        j = logSize;
+                    } else if (!resLog[j].ignored) {
+                        tmpLog[h] = resLog[j];
+                        h++;
+                    } else {
+                        i--;
+                        addIntToList(discardedEvents, resLog[j].orderCount);
+                    }
+                }
+                resLog = tmpLog;
+                olderEntryIgnored = false;
+            }
+        if (tmpLogEntry.ignored) {
+                // Value should be discarded
+                i--;
+                if(inCompetetion) {
+                    addIntToList(discardedDueToCompetionEvents, tmpLogEntry.orderCount);
+                    inCompetetion = false;
+                } else if (isIntInList(discardedEvents, tmpLogEntry.basedOnOrderCount)) {
+                    addIntToList(discardedEvents, tmpLogEntry.orderCount);
+                } else if (isIntInList(discardedDueToCompetionEvents, tmpLogEntry.basedOnOrderCount)) {
+                    addIntToList(discardedDueToCompetionEvents, tmpLogEntry.orderCount);
+                } else {
+                    addIntToList(discardedEvents, tmpLogEntry.orderCount);
+                }
+            } else {
+                resLog[i] = tmpLogEntry;
+            }
+
+        }
+    }
+}
+
+</declaration>
+<location id="id3323" x="-204" y="-298"><name x="-202" y="-296">l_prop1</name><committed /></location>
+<location id="id3324" x="-748" y="-136"><name x="-746" y="-134">merge_log</name><committed /></location>
+<location id="id3325" x="-204" y="-136"><name x="-202" y="-134">initial</name></location>
+<location id="id3326" x="8" y="-76"><name x="10" y="-74">accepting_emitted_1</name><committed /></location>
+<location id="id3327" x="238" y="-136"><name x="240" y="-134">accepting_emitted_2</name><committed /></location>
+<location id="id3328" x="-612" y="34"><name x="-610" y="36">updating_role_1</name><committed /></location>
+<location id="id3329" x="238" y="68"><name x="240" y="70">l_prop2</name><committed /></location>
+<location id="id3330" x="-561" y="153"><name x="-559" y="155">updating_role_2</name><committed /></location>
+<location id="id3331" x="-977" y="34"><name x="-975" y="36">backtracking_1</name><committed /></location>
+<location id="id3332" x="-1079" y="136"><name x="-1077" y="138">backtracking_2</name><committed /></location>
+<location id="id3333" x="-204" y="214"><name x="-202" y="216">overflow</name><committed /></location>
+<location id="id3357" x="17" y="178"><name x="19" y="180">forced_prop_1</name><committed /></location>
+<location id="id3358" x="-204" y="68"><name x="-202" y="70">forced_prop_2</name><committed /></location>
+<location id="id3363" x="297" y="-289"><name x="299" y="-287">forced_prop_3</name><committed /></location>
+	<init ref="id3325"/>
+<transition id="id3334"><source ref="id3325" /><target ref="id3323" /><label kind="guard" x="-76" y="-242">newUpdates</label><label kind="assignment" x="-76" y="-272">currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+updatesSincePropagation := 0,
+newUpdates := false,
+setPropagationLog(currentLog)</label><nail x="-76" y="-221" /><nail x="-76" y="-263" /></transition>
+<transition id="id3335"><source ref="id3324" /><target ref="id3331" /><label kind="guard" x="-863" y="-51">didLogChange &amp;&amp; resetCount != 0</label><label kind="assignment" x="-863" y="-81">counter := currentSizeOfLog - eventsToRead,
+setNextLogToPropagate(),
+backTracking := true</label></transition>
+<transition id="id3336"><source ref="id3331" /><target ref="id3332" /><label kind="guard" x="-1079" y="34">resetCount != 0</label><label kind="assignment" x="-1079" y="4">currentEventResetID = discardedEventIDs[resetCount - 1]</label><nail x="-1079" y="34" /></transition>
+<transition id="id3337"><source ref="id3332" /><target ref="id3331" /><label kind="synchronisation" x="-978" y="121">reset_Door[id]!</label><label kind="assignment" x="-978" y="106">discardedEventIDs[resetCount - 1] = -1,
+resetCount--</label><nail x="-978" y="136" /></transition>
+<transition id="id3338"><source ref="id3332" /><target ref="id3331" /><label kind="guard" x="-1028" y="85">!isInSubsciptions(subscriptions, currentEventResetID)</label><label kind="assignment" x="-1028" y="55">discardedEventIDs[resetCount - 1] = -1,
+resetCount--</label></transition>
+<transition id="id3339"><source ref="id3331" /><target ref="id3328" /><label kind="guard" x="-795" y="34">resetCount == 0</label></transition>
+<transition id="id3340"><source ref="id3323" /><target ref="id3325" /><label kind="synchronisation" x="-347" y="-270">propagate_log!</label><nail x="-347" y="-255" /></transition>
+<transition id="id3341"><source ref="id3325" /><target ref="id3326" /><label kind="synchronisation" x="-98" y="-121">do_log_update_Door[id]?</label><label kind="assignment" x="-98" y="-136">updateLogEntry(currentLog,emittedOrderCounts,log_id_start),currentSizeOfLog++</label></transition>
+<transition id="id3342"><source ref="id3326" /><target ref="id3327" /><label kind="guard" x="123" y="-106">globalLogIndex != logSize&amp;&amp; newUpdates</label></transition>
+<transition id="id3343"><source ref="id3327" /><target ref="id3325" /><label kind="guard" x="17" y="-136">(updatesSincePropagation + maxUpdatesSincePropagation_Door &gt; globalLogIndex)</label><label kind="synchronisation" x="17" y="-151">force_propagate!</label></transition>
+<transition id="id3344"><source ref="id3327" /><target ref="id3329" /><label kind="guard" x="238" y="-34">!(updatesSincePropagation + maxUpdatesSincePropagation_Door &gt; globalLogIndex)</label><label kind="assignment" x="238" y="-64">currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+updatesSincePropagation := 0,
+newUpdates := false</label></transition>
+<transition id="id3345"><source ref="id3329" /><target ref="id3357" /><label kind="synchronisation" x="127" y="108">propagate_log!</label><label kind="assignment" x="127" y="93">setPropagationLog(currentLog)</label></transition>
+<transition id="id3346"><source ref="id3325" /><target ref="id3324" /><label kind="guard" x="-476" y="-136">currentLogToPropagate == log_id_start + id</label><label kind="synchronisation" x="-476" y="-151">propagate_log?</label><label kind="assignment" x="-476" y="-166">mergePropagationLog()</label></transition>
+<transition id="id3347"><source ref="id3324" /><target ref="id3328" /><label kind="guard" x="-680" y="-51">!didLogChange || resetCount == 0</label><label kind="assignment" x="-680" y="-81">counter := currentSizeOfLog - eventsToRead,
+setNextLogToPropagate()</label></transition>
+<transition id="id3348"><source ref="id3328" /><target ref="id3325" /><label kind="guard" x="-408" y="-51">currentLog[counter].orderCount == 0 &amp;&amp; !anyForcedToPropagate</label><label kind="synchronisation" x="-408" y="-66">propagate_log!</label><label kind="assignment" x="-408" y="-81">didLogChange := false,
+backTracking := false,
+eventsToRead := 0</label></transition>
+<transition id="id3349"><source ref="id3328" /><target ref="id3330" /><label kind="guard" x="-587" y="93">currentLog[counter].orderCount != 0</label></transition>
+<transition id="id3350"><source ref="id3330" /><target ref="id3328" /><label kind="guard" x="-612" y="204">currentLog[counter].eventID == Request_ID</label><label kind="synchronisation" x="-612" y="189">advance_Door_Request[id]!</label><label kind="assignment" x="-612" y="174">counter++</label><nail x="-578" y="204" /><nail x="-646" y="204" /></transition>
+<transition id="id3351"><source ref="id3330" /><target ref="id3328" /><label kind="guard" x="-646" y="238">currentLog[counter].eventID == Close_ID</label><label kind="synchronisation" x="-646" y="223">advance_Door_Close[id]!</label><label kind="assignment" x="-646" y="208">counter++</label><nail x="-612" y="238" /><nail x="-680" y="238" /></transition>
+<transition id="id3352"><source ref="id3330" /><target ref="id3328" /><label kind="guard" x="-680" y="272">currentLog[counter].eventID == Deliver_ID</label><label kind="synchronisation" x="-680" y="257">advance_Door_Deliver[id]!</label><label kind="assignment" x="-680" y="242">counter++</label><nail x="-646" y="272" /><nail x="-714" y="272" /></transition>
+<transition id="id3353"><source ref="id3330" /><target ref="id3328" /><label kind="guard" x="-714" y="306">currentLog[counter].eventID == Open_ID</label><label kind="synchronisation" x="-714" y="291">advance_Door_Open[id]!</label><label kind="assignment" x="-714" y="276">counter++</label><nail x="-680" y="306" /><nail x="-748" y="306" /></transition>
+<transition id="id3354"><source ref="id3330" /><target ref="id3328" /><label kind="guard" x="-748" y="340">!isInSubsciptions(subscriptions, currentLog[counter].eventID)</label><label kind="assignment" x="-748" y="310">counter++</label><nail x="-714" y="340" /><nail x="-782" y="340" /></transition>
+<transition id="id3355"><source ref="id3326" /><target ref="id3333" /><label kind="guard" x="-98" y="69">globalLogIndex == logSize</label><label kind="synchronisation" x="-98" y="54">chan_overflow!</label></transition>
+<transition id="id3356"><source ref="id3325" /><target ref="id3333" /><label kind="synchronisation" x="-204" y="24">chan_overflow?</label></transition>
+<transition id="id3359"><source ref="id3328" /><target ref="id3325" /><label kind="guard" x="-272" y="90">currentLog[counter].orderCount == 0 &amp;&amp;
+                anyForcedToPropagate &amp;&amp;
+                currentLogToPropagate == log_id_start + id &amp;&amp; 
+                !forcedToPropagate[id + log_id_start]</label><label kind="synchronisation" x="-272" y="75">attempt_propagation!</label><label kind="assignment" x="-272" y="60">didLogChange := false,
+                backTracking := false,
+                eventsToRead := 0</label><nail x="-340" y="170" /><nail x="-238" y="170" /><nail x="-238" y="-68" /></transition>
+<transition id="id3360"><source ref="id3328" /><target ref="id3325" /><label kind="guard" x="-442" y="-102">currentLog[counter].orderCount == 0 &amp;&amp;
+                anyForcedToPropagate &amp;&amp;
+                currentLogToPropagate != log_id_start + id</label><label kind="synchronisation" x="-442" y="-117">propagate_log!</label><label kind="assignment" x="-442" y="-132">didLogChange := false,
+                backTracking := false,
+                eventsToRead := 0</label><nail x="-612" y="-102" /><nail x="-272" y="-102" /></transition>
+<transition id="id3361"><source ref="id3357" /><target ref="id3358" /><label kind="guard" x="-94" y="123">(currentLogToPropagate + 1) % amountOfLogs == log_id_start + id
+                &amp;&amp; amountOfPropagation == 0</label><label kind="synchronisation" x="-94" y="108">propagate_log?</label></transition>
+<transition id="id3362"><source ref="id3358" /><target ref="id3325" /><label kind="synchronisation" x="-204" y="-49">force_propagate!</label></transition>
+<transition id="id3364"><source ref="id3326" /><target ref="id3327" /><label kind="guard" x="89" y="0">globalLogIndex != logSize &amp;&amp; !newUpdates</label><label kind="assignment" x="89" y="-30">updatesSincePropagation := globalLogIndex,
+                    newUpdates := true</label><nail x="8" y="34" /><nail x="170" y="-34" /></transition>
+<transition id="id3365"><source ref="id3328" /><target ref="id3363" /><label kind="guard" x="215" y="85">currentLog[counter].orderCount == 0 &amp;&amp;
+                    anyForcedToPropagate &amp;&amp;
+                    currentLogToPropagate == log_id_start + id &amp;&amp; 
+                    forcedToPropagate[id + log_id_start]</label><label kind="synchronisation" x="215" y="70">attempt_propagation!</label><label kind="assignment" x="215" y="55">didLogChange := false,
+                    backTracking := false,
+                    eventsToRead := 0</label><nail x="-238" y="272" /><nail x="442" y="272" /><nail x="442" y="-289" /></transition>
+<transition id="id3366"><source ref="id3325" /><target ref="id3363" /><label kind="guard" x="46" y="-213">newUpdates &amp;&amp; !(updatesSincePropagation + maxUpdatesSincePropagation_Door &gt; globalLogIndex)</label><label kind="synchronisation" x="46" y="-228">force_propagate?</label><label kind="assignment" x="46" y="-243">forcedToPropagate[id + log_id_start] := true</label></transition>
+<transition id="id3367"><source ref="id3325" /><target ref="id3363" /><label kind="guard" x="238" y="-204">forcedToPropagate[id + log_id_start]</label><label kind="synchronisation" x="238" y="-219">attempt_propagation?</label><nail x="238" y="-204" /></transition>
+<transition id="id3368"><source ref="id3363" /><target ref="id3325" /><label kind="synchronisation" x="306" y="-185">abandon_propagation?</label><nail x="306" y="-170" /></transition>
+<transition id="id3369"><source ref="id3363" /><target ref="id3363" /><label kind="guard" x="297" y="-289">!(forcedToPropagate[forcedPropagationCounter])</label><label kind="assignment" x="297" y="-319">forcedPropagationCounter++</label></transition>
+<transition id="id3370"><source ref="id3363" /><target ref="id3323" /><label kind="guard" x="46" y="-294">(forcedToPropagate[forcedPropagationCounter]) &amp;&amp;
+                    forcedPropagationCounter == (id + log_id_start)</label><label kind="synchronisation" x="46" y="-309">abandon_propagation!</label><label kind="assignment" x="46" y="-324">forcedToPropagate[forcedPropagationCounter] := false,
+                    forcedPropagationCounter := 0,
+                    calculateAnyForcedToPropagate(),
+                    currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+                    updatesSincePropagation := 0,
+                    newUpdates := false,
+                    setPropagationLog(currentLog)</label></transition>
 </template><system>// Place template instantiations here.
-// List one or more processes to be composed into a system.
-system Door, Door_log, Forklift, Forklift_log, Transport, Transport_log;
-</system></nta>
+    // List one or more processes to be composed into a system.
+    system Transport, Transport_log, Forklift, Forklift_log, Door, Door_log;
+    </system></nta>

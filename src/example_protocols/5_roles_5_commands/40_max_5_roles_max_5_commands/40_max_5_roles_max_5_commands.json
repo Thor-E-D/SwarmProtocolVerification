@@ -1,0 +1,1 @@
+{"initial":"399","transitions":[{"label":{"cmd":"R398_cmd_1","logType":["R398_e_1"],"role":"R398"},"source":"399","target":"399"},{"label":{"cmd":"R398_cmd_0","logType":["R398_e_0"],"role":"R398"},"source":"399","target":"400"}]}

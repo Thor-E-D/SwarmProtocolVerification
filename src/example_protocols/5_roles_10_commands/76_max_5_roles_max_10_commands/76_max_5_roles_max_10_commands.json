@@ -1,0 +1,1 @@
+{"initial":"1096","transitions":[{"label":{"cmd":"R1095_cmd_0","logType":["R1095_e_0"],"role":"R1095"},"source":"1096","target":"1097"},{"label":{"cmd":"R1095_cmd_1","logType":["R1095_e_1"],"role":"R1095"},"source":"1097","target":"1098"},{"label":{"cmd":"R1095_cmd_2","logType":["R1095_e_2"],"role":"R1095"},"source":"1098","target":"1099"}]}

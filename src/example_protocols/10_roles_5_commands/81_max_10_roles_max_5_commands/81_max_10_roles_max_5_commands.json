@@ -1,0 +1,1 @@
+{"initial":"1454","transitions":[{"label":{"cmd":"R1452_cmd_1","logType":["R1452_e_1"],"role":"R1452"},"source":"1454","target":"1455"},{"label":{"cmd":"R1452_cmd_0","logType":["R1452_e_0"],"role":"R1452"},"source":"1455","target":"1456"},{"label":{"cmd":"R1453_cmd_0","logType":["R1453_e_0"],"role":"R1453"},"source":"1456","target":"1457"}]}

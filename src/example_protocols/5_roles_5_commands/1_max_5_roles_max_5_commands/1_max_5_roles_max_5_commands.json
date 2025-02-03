@@ -1,0 +1,66 @@
+{
+    "initial": "12",
+    "transitions": [
+        {
+            "label": { "cmd": "R9_cmd_0", "logType": ["R9_e_0"], "role": "R9" },
+            "source": "12",
+            "target": "12"
+        },
+        {
+            "label": {
+                "cmd": "R10_cmd_0",
+                "logType": ["R10_e_0"],
+                "role": "R10"
+            },
+            "source": "12",
+            "target": "13"
+        },
+        {
+            "label": { "cmd": "R8_cmd_0", "logType": ["R8_e_0"], "role": "R8" },
+            "source": "13",
+            "target": "14"
+        },
+        {
+            "label": {
+                "cmd": "R11_cmd_1",
+                "logType": ["R11_e_1"],
+                "role": "R11"
+            },
+            "source": "14",
+            "target": "15"
+        },
+        {
+            "label": { "cmd": "R9_cmd_2", "logType": ["R9_e_2"], "role": "R9" },
+            "source": "14",
+            "target": "16"
+        },
+        {
+            "label": { "cmd": "R8_cmd_1", "logType": ["R8_e_1"], "role": "R8" },
+            "source": "15",
+            "target": "17"
+        },
+        {
+            "label": { "cmd": "R9_cmd_1", "logType": ["R9_e_1"], "role": "R9" },
+            "source": "17",
+            "target": "18"
+        },
+        {
+            "label": {
+                "cmd": "R11_cmd_0",
+                "logType": ["R11_e_0"],
+                "role": "R11"
+            },
+            "source": "18",
+            "target": "19"
+        },
+        {
+            "label": {
+                "cmd": "R10_cmd_1",
+                "logType": ["R10_e_1"],
+                "role": "R10"
+            },
+            "source": "16",
+            "target": "20"
+        }
+    ]
+}

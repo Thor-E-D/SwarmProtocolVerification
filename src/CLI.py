@@ -12,6 +12,7 @@ import os
 import subprocess
 from typing import Any, List
 import re
+import time
 
 from DataObjects.Model import Model
 from DataObjects.ModelSettings import DelayType, ModelSettings
@@ -214,11 +215,15 @@ def build_model(args):
             print("Please review the folder path with \"setPath\"")
             return
 
+        elapsed_time_projections = 0
         json_transfers = []
         global_json_transfer = None
         if len(projection_json_files) == 0:
-            print("No projection files found so auto-generating projections")
+            #print("No projection files found so auto-generating projections")
+            start_time_projections = time.time()  # Start timing
             global_json_transfer, json_transfers = parse_protocol_JSON_file(protocol_json_file)
+            end_time_projections  = time.time()  # End timing
+            elapsed_time_projections  = end_time_projections  - start_time_projections 
         else:
             global_json_transfer, auto_json_transfers = parse_protocol_JSON_file(protocol_json_file)
 
@@ -245,8 +250,12 @@ def build_model(args):
             time_transfer = parse_time_JSON(time_json_file)
             model_settings.time_json_transfer = time_transfer
 
+        start_time = time.time()  # Start timing
         currentModel = createModel(json_transfers, global_json_transfer, model_settings)
+        end_time = time.time()  # End timing
+        elapsed_time = end_time - start_time
         save_xml_to_file(currentModel.to_xml(), "uppaal_model", path_to_files)
+        return elapsed_time, elapsed_time_projections
     except Exception as e:
         print(f"Failed to build with exception {e}")
 

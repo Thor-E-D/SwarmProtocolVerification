@@ -1,0 +1,1 @@
+{"initial":"689","transitions":[{"label":{"cmd":"R688_cmd_1","logType":["R688_e_1"],"role":"R688"},"source":"689","target":"690"},{"label":{"cmd":"R688_cmd_2","logType":["R688_e_2"],"role":"R688"},"source":"690","target":"691"},{"label":{"cmd":"R688_cmd_0","logType":["R688_e_0"],"role":"R688"},"source":"691","target":"692"}]}

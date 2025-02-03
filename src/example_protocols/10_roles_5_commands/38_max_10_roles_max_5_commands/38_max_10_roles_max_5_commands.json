@@ -1,0 +1,1 @@
+{"initial":"673","transitions":[{"label":{"cmd":"R672_cmd_1","logType":["R672_e_1"],"role":"R672"},"source":"673","target":"674"},{"label":{"cmd":"R672_cmd_0","logType":["R672_e_0"],"role":"R672"},"source":"674","target":"675"}]}
