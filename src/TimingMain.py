@@ -69,6 +69,8 @@ def filter_output(file_path_input: str) -> str:
     return result
 
 def verify_query(model_path, query_path, verifyta_path, index):
+    # verifyta --hashtable-size 32 model.xml query.q
+
     command = [verifyta_path, model_path, query_path, "--query-index", f"{index}","--diagnostic", "0"]
 
     # Run the command and write the output directly to the file
@@ -208,7 +210,7 @@ def run_verify_timing_experiment():
             
         update_current_state("", highest_exp)
         if highest_exp["log_size"] == -1:
-            update_current_state("log_size", 200)
+            update_current_state("log_size", 120)
 
                     # Buld model
             build_args = Namespace(

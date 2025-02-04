@@ -69,7 +69,7 @@ def make_graph_ra_da(input_file: str, role_name: str):
     # Show the plot
     plt.show()
 
-def make_graph_logsize(input_file: str):
+def make_graph_simple(input_file: str, key: str):
     file_path = os.path.join(path_to_folder, input_file)
     df = pd.read_csv(file_path)
 
@@ -77,13 +77,13 @@ def make_graph_logsize(input_file: str):
     # Create the plot
     plt.figure(figsize=(10, 6))
 
-    plt.plot(df["log_size"], df["time"], marker='o', linestyle='-', label=f'log_size')
+    plt.plot(df[key], df["time"], marker='o', linestyle='-', label=key)
 
 
     #plt.xticks(np.unique(df[f"delay_amount.{role_name}"]))
 
     # Labels and title
-    plt.xlabel(f"Log size")
+    plt.xlabel(key)
     plt.ylabel("Verification time in seconds")
     plt.grid(True, which="both", linestyle="--", linewidth=0.5)
 
@@ -126,4 +126,5 @@ if __name__ == "__main__":
     #make_graph_ra_da_se("outputTransportES.csv", "Transport")
     #make_graph_ra_da_se("outputDoorES.csv", "Door")
     #make_graph_logsize("outputLogSize2.csv")
-    make_graph_build_time("outputBuildTime.csv")
+    #make_graph_build_time("outputBuildTime.csv")
+    make_graph_simple("outputloop2.csv", "loop_bound")

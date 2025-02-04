@@ -138,7 +138,7 @@ experiment_loopbound_configs = [{
     "verifyta_path": "",
     "base_path": "",
     "delay_type": {"Door": "E", "Forklift": "E", "Transport": "E"},
-    "loop_bound": range(1,16),
+    "loop_bound": range(10,13),
     "branch_tracking": True,
     "log_size": -1,
     "delay_amount": {
@@ -148,6 +148,22 @@ experiment_loopbound_configs = [{
     },
     "subsets": "SubsetA",
     "role_amount": {"Door": 1, "Forklift": 1, "Transport": 1}
+}]
+
+experiment_loopbound_configs_extra = [{
+    "verifyta_path": "",
+    "base_path": "",
+    "delay_type": {"Door": "E", "Forklift": "E", "Transport": "E"},
+    "loop_bound": range(1,5),
+    "branch_tracking": True,
+    "log_size": -1,
+    "delay_amount": {
+        "Door": 2,
+        "Forklift": 2,
+        "Transport": 2
+    },
+    "subsets": "SubsetA",
+    "role_amount": {"Door": 1, "Forklift": 1, "Transport": 2}
 }]
 
 experiment_delay_type_E_configs_extra = [{
@@ -246,7 +262,9 @@ def get_scaling_experiments():
     #result.extend(experiment_delay_type_E_configs)
     #result.extend(experiment_delay_type_S_configs)
     #result.extend(experiment_logsize_configs)
+    
+    #result.extend(experiment_delay_type_E_configs_extra)
+    #result.extend(experiment_delay_type_S_configs_extra)
     result.extend(experiment_loopbound_configs)
-    result.extend(experiment_delay_type_E_configs_extra)
-    result.extend(experiment_delay_type_S_configs_extra)
+    result.extend(experiment_loopbound_configs_extra)
     return result
