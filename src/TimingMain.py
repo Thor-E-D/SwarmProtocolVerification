@@ -334,9 +334,11 @@ def sort_paths_numerically(paths):
 
     return sorted(paths, key=extract_number)
 
+
 def run_building_experiment(json_files):
     json_files.pop(0)
     json_files = sort_paths_numerically(json_files)
+
     for json_file_folder in json_files:
         model_settings = ModelSettings(None, None)
         model_settings.loop_counter = 2
@@ -349,40 +351,41 @@ def run_building_experiment(json_files):
                 if file.endswith(".json"):
                     return os.path.join(folder_path, file)
             return None
-        
+
         json_file = find_json_file(json_file_folder)
-        print(json_file)
+        print(f"Processing file: {json_file}")
 
         with open(json_file, 'r') as f:
             data = json.load(f)
 
         transitions_amount = len(data["transitions"])
-        roles = set()
-        for transition in data["transitions"]:
-            role = transition["label"]["role"]
-            roles.add(role)
+        roles = {transition["label"]["role"] for transition in data["transitions"]}
         roles_amount = len(roles)
 
         generate_standard_settings(model_settings, json_file)
-
         update_current_state_protocol(path_to_current_state_protocols, model_settings)
 
         build_args = Namespace(
-                command="build",
-                path_to_folder = json_file_folder,
-                path_to_state = path_to_current_state_protocols
-                )
+            command="build",
+            path_to_folder=json_file_folder,
+            path_to_state=path_to_current_state_protocols
+        )
 
-        build_time, projection_time = build_model(build_args)
+        current_build_times = []
+        for _ in range(10):
 
-        def append_to_csv(file_path, value_list):
-            with open(file_path, mode="a", newline="") as file:
-                writer = csv.writer(file)
-                writer.writerow(value_list)
+            build_time, _ = build_model(build_args)
+            current_build_times.append(build_time)
 
-        append_to_csv(path_to_protocols_output, [transitions_amount,roles_amount,build_time,projection_time])
+            
+        append_to_csv(path_to_protocols_output, [transitions_amount, roles_amount] + current_build_times)
 
-    return 1
+
+
+def append_to_csv(file_path, value_list):
+    with open(file_path, mode="a", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(value_list)
 
 def move_json_files(json_files):
     for file_path in json_files:
@@ -399,10 +402,10 @@ def move_json_files(json_files):
 
 
 if __name__ == "__main__":
-    run_verify_timing_experiment()
+    #run_verify_timing_experiment()
 
-    #json_files = fetch_json_files(path_to_protocols)
-    #run_building_experiment(json_files)
+    json_files = fetch_json_files(path_to_protocols)
+    run_building_experiment(json_files)
 
     #move_json_files(json_files)
     #print("Found JSON files:")
