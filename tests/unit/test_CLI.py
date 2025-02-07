@@ -36,7 +36,7 @@ path_to_protocol_json_faulty = os.path.join(path_to_folder_faulty, "SwarmProtoco
 path_to_faulty_exe = os.path.join(path_to_folder_faulty, "fault.exe")
 path_to_faulty_exe2 = os.path.join(path_to_folder_faulty, "verifyta.exe")
 
-set_all_args_cmd = "setArgs -log 16 -loop 1 -dta {\"Door\": \"E\", \"Forklift\": \"S\", \"Transport\": \"E\"} -bt t -daa {\"Door\": 2, \"Forklift\": 1, \"Transport\": 2} -ra {\"Door\": 1, \"Forklift\": 1, \"Transport\": 2}"
+set_all_args_cmd = "setArgs -log 16 -path 1 -dta {\"Door\": \"E\", \"Forklift\": \"S\", \"Transport\": \"E\"} -bt t -daa {\"Door\": 2, \"Forklift\": 1, \"Transport\": 2} -ra {\"Door\": 1, \"Forklift\": 1, \"Transport\": 2}"
 
 #Helper function
 def run_and_assert(user_inputs: List[str], output_list: List[str]):
@@ -45,6 +45,14 @@ def run_and_assert(user_inputs: List[str], output_list: List[str]):
         output = mock_stdout.getvalue()
         for expected_output in output_list:
             assert expected_output in output
+
+# Used when debugging
+def run_and_print(user_inputs: List[str], output_list: List[str]):
+    output = ""
+    with patch("builtins.input", side_effect=user_inputs), patch("sys.stdout", new_callable=StringIO) as mock_stdout:
+        main()
+        output = mock_stdout.getvalue()
+    print(output)
 
 # Test for the "Welcome" message
 @pytest.mark.unit
@@ -91,7 +99,7 @@ def test_base_path():
 @pytest.mark.unit
 def test_setArgs():
     user_inputs = [set_all_args_cmd, "showArgs", "q"]
-    expected_output = "'delay_type': {'Door': 'E', 'Forklift': 'S', 'Transport': 'E'}, 'loop_bound': 1, 'branch_tracking': True, 'log_size': 16, 'delay_amount': {'Door': 2, 'Forklift': 1, 'Transport': 2}, 'subsets': 'SubsetA', 'role_amount': {'Door': 1, 'Forklift': 1, 'Transport': 2}}"
+    expected_output = "'delay_type': {'Door': 'E', 'Forklift': 'S', 'Transport': 'E'}, 'path_bound': 1, 'branch_tracking': True, 'log_size': 16, 'delay_amount': {'Door': 2, 'Forklift': 1, 'Transport': 2}, 'subsets': 'SubsetA', 'role_amount': {'Door': 1, 'Forklift': 1, 'Transport': 2}}"
 
     output_list = [expected_output]
 
@@ -149,18 +157,20 @@ Found a time json file!
 XML file saved successfully at"""
 
     expected_output_verify_validity = "Query was satisfied"
-    expected_output_verify_sizebound = "Recommended log size: 8"
+    expected_output_verify_sizebound = "Recommended log size: 13"
     expected_output_verify_timebound = """
 Transport has the following time bounds
 Location l0: [0,2]
-Location l1: [2,22],[31,126]
-Location l2: [5,82]
-Location l3: [31,95]
+Location l1: [2,20],[29,217]
+Location l2: [5,173]
+Location l3: [29,186]
 Location l4: [2,INF]"""
 
     output_list = [expected_output_build, expected_output_verify_validity, expected_output_verify_sizebound, expected_output_verify_timebound]
 
     run_and_assert(user_inputs,output_list)
+    #run_and_print(user_inputs,output_list)
+    
 
     os.remove(path_to_model)
 
@@ -248,7 +258,7 @@ def test_write_state_to_path():
 @pytest.mark.unit
 def test_load_state():
     user_inputs = [f"loadState {path_to_test_state_missing}",f"loadState {path_to_protocol_json_faulty}","loadState NOTADIRECTORWITHTHISNAME", "q"]
-    expected_output1 = "Fault format missing key loop_bound in given json"
+    expected_output1 = "Fault format missing key path_bound in given json"
     expected_output2 = "Error decoding JSON: Expecting value: line 1 column 1 (char 0)"
     expected_output3 = "Error: NOTADIRECTORWITHTHISNAME not found."
 
@@ -261,7 +271,7 @@ def test_build_faults():
     user_inputs = [f"build -pf {path_to_folder} -ps {path_to_test_state_missing}", f"build -pf {path_to_folder} -ps {path_to_test_state_delay_type}",f"build -pf {path_to_folder_faulty} -ps {path_to_test_state_delay_type}", "q"]
     expected_output1 = "Failed to build with exception string indices must be integers, not 'str'"
     expected_output2 = "Cannot find protocol JSON aborting attempt"
-    expected_output3 = "Fault format missing key loop_bound in given json"
+    expected_output3 = "Fault format missing key path_bound in given json"
 
     output_list = [expected_output1, expected_output2, expected_output3]
 

@@ -133,7 +133,7 @@ def check_state_data(data: Any):
         "verifyta_path",
         "base_path",
         "delay_type",
-        "loop_bound",
+        "path_bound",
         "branch_tracking",
         "log_size",
         "delay_amount",
@@ -179,7 +179,7 @@ def load_state_into_model_settings(state_data):
             new_delay_type[delay_type_single] = current_delay_type[delay_type_single]
 
     model_settings = ModelSettings(role_amount=state_data["role_amount"],delay_type=new_delay_type)
-    model_settings.loop_bound = state_data["loop_bound"]
+    model_settings.path_bound = state_data["path_bound"]
     model_settings.branch_tracking = state_data["branch_tracking"]
     model_settings.log_size = state_data["log_size"]
     model_settings.delay_amount = state_data["delay_amount"]
@@ -519,8 +519,8 @@ def set_arguments(args):
     if args.log_size != None:
         update_local_state("log_size", args.log_size)
 
-    if args.loop_counter != None:
-        update_local_state("loop_bound", args.loop_counter)
+    if args.path_counter != None:
+        update_local_state("path_bound", args.path_counter)
 
     if args.delay_type_all != None:
         args.delay_type_all = " ".join(args.delay_type_all)
@@ -588,9 +588,9 @@ def create_parser():
     )
 
     argument_parser.add_argument(
-        "-loop", "--loop-counter",
+        "-path", "--path-counter",
         type=int,
-        help="Maximum amount of times a loop in the model can be taken",
+        help="Maximum amount of times a path in the model can be taken",
         required=False
     )
 

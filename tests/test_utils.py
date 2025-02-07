@@ -87,7 +87,7 @@ def get_event_info():
 
     global analysis_results
     analyzer = GraphAnalyser(all_events)
-    analysis_results = (analyzer.analyse_graph(protocol_json_transfer.initial))
+    analysis_results = (analyzer.analyse_graph_loops_branches())
 
 
 # Auto generates two queries for a given swarm protocol verifying we reach the end and that the log does not overflow.
@@ -108,7 +108,7 @@ def auto_generate_queries(protocol_json_file: str, projection_json_files: Set[st
 
     return "example_queries"
 
-def calculate_approximate_log_size(events_to_amounts, all_events, branching_events, loop_events, loop_bound, initial):
+def calculate_approximate_log_size(events_to_amounts, all_events, branching_events, loop_events, path_bound, initial):
     start_loops = set()
     for key in loop_events:
         start_loops.add(key)
@@ -141,7 +141,7 @@ def calculate_approximate_log_size(events_to_amounts, all_events, branching_even
 
         elif current_event in start_loops:
             loop_total, extra = calculate_loop(current_event, 0)
-            loop_total *= loop_bound
+            loop_total *= path_bound
             return loop_total + extra
 
         else:
@@ -214,7 +214,7 @@ def generate_standard_settings(model_settings: ModelSettings, protocol_json_file
         branching_events = analysis_results["branching_events"]
         loop_events = analysis_results["loop_events"]
 
-        model_settings.log_size = (calculate_approximate_log_size(events_to_amounts, all_events,branching_events,loop_events, model_settings.loop_bound, jsonTransfer.initial)) + 1
+        model_settings.log_size = (calculate_approximate_log_size(events_to_amounts, all_events,branching_events,loop_events, model_settings.path_bound, jsonTransfer.initial)) + 1
 
 
 def do_full_test(base_path: str, model_settings: ModelSettings, name_of_query_file: str = "", time_file: str = None):

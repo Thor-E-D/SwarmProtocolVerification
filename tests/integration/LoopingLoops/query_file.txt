@@ -1,3 +1,4 @@
 A[] globalLog[logSize - 1].orderCount == 0 
 A[] forall(i: R_t) (deadlock and globalLog[logSize - 1].orderCount == 0) imply (R(i).l5)
+A[] nonExitCounterMap[0][e23_ID] <= 2 && nonExitCounterMap[0][e33_ID] <= 2 && nonExitCounterMap[0][e41_ID] <= 2 && nonExitCounterMap[0][e42_ID] <= 2
 E<> deadlock and trueGlobalLog[0].eventID == e12_ID and trueGlobalLog[1].eventID == e24_ID and trueGlobalLog[2].eventID == e41_ID and trueGlobalLog[3].eventID == e12_ID and trueGlobalLog[4].eventID == e24_ID and trueGlobalLog[5].eventID == e41_ID and trueGlobalLog[6].eventID == e12_ID and trueGlobalLog[7].eventID == e24_ID and trueGlobalLog[8].eventID == e45_ID

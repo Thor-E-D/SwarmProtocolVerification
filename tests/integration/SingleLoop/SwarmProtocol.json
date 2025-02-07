@@ -27,15 +27,6 @@
             },
             "source": "l1",
             "target": "l2"
-        },
-        {
-            "label": {
-                "cmd": "e22",
-                "logType": ["e22"],
-                "role": "R"
-            },
-            "source": "l2",
-            "target": "l2"
         }
     ]
 }

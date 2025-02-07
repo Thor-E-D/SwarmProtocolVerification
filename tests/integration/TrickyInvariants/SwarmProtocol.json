@@ -1,0 +1,32 @@
+{
+  "initial": "l0",
+  "transitions": [
+      {
+          "label": {
+              "cmd": "e00_1",
+              "logType": ["e00_1"],
+              "role": "R"
+          },
+          "source": "l0",
+          "target": "l0"
+      },
+      {
+        "label": {
+            "cmd": "e00_2",
+            "logType": ["e00_2"],
+            "role": "R"
+        },
+        "source": "l0",
+        "target": "l0"
+      },
+      {
+        "label": {
+            "cmd": "e01",
+            "logType": ["e01"],
+            "role": "R"
+        },
+        "source": "l0",
+        "target": "l1"
+      }
+  ]
+}

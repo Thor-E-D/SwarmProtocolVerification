@@ -29,6 +29,16 @@ class Location(UppaalPart):
     locationType: LocationType = LocationType.NEITHER
     invariant: Optional[str] = None
 
+    def __eq__(self, other):
+        if not isinstance(other, Location):
+            return NotImplemented
+        return (self.id == other.id and self.x == other.x and self.y == other.y and
+                self.name == other.name and self.locationType == other.locationType and
+                self.invariant == other.invariant)
+
+    def __hash__(self):
+        return hash((self.id, self.x, self.y, self.name, self.locationType, self.invariant))
+
     def to_xml(self) -> str:
         location_elem = ET.Element("location", attrib={"id": "id" + str(self.id), "x": f"{self.x}", "y": f"{self.y}"})
 

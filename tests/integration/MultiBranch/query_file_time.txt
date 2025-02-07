@@ -1,0 +1,2 @@
+A[] forall(i:O_t) forall(j:R1_t) forall(h:R2_t) forall(k:R3_t) (deadlock and globalLog[logSize - 1].orderCount == 0) imply O(i).l2 and R1(j).l2 and R2(h).l2 and R3(k).l2
+A[] globalLog[logSize - 1].orderCount == 0

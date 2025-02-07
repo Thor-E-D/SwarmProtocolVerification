@@ -59,7 +59,7 @@ class Role(Template):
          return [event.event_name for event in events if event.source == source]
 
 
-    def __init__(self, parameter: str, jsonTransfer: JSONTransfer, loop_bound: int, time_data_list: List[EventTimeData]):
+    def __init__(self, parameter: str, jsonTransfer: JSONTransfer, path_bound: int, time_data_list: List[EventTimeData]):
         name = jsonTransfer.name
         self.evetname_loopcounter = {}
 
@@ -102,6 +102,11 @@ class Role(Template):
                     declaration.add_variable("clock x;")
                     time_assignment_addition = "x := 0, "
 
+        declaration.add_variable(f"const int id_start = {jsonTransfer.log_id_start};")
+
+        # Find own branches to fix invariants
+        branch_partitions = {}
+
         for event in all_events:
             lsource = self.find_location(event.source, locations)
             ltarget = self.find_location(event.target, locations)
@@ -123,6 +128,11 @@ class Role(Template):
                 target=ltarget,
                 assignment= Utils.remove_last_two_chars(time_assignment_addition),
                 synchronisation=f"{jsonTransfer.advance_channel_names[event.event_name]}[id]?"))
+            
+            if lsource not in list(branch_partitions.keys()):
+                branch_partitions[lsource] = [event]
+            else:
+                branch_partitions[lsource].append(event)
 
             # If we emit the even we need to be able to do so with a transition
             if event in jsonTransfer.own_events:
@@ -139,44 +149,17 @@ class Role(Template):
                 elif lsource.locationType == LocationType.NEITHER:
                      time_guard_addition = f"x == 0" # Happens only when other branch is timed but this event isn't so we enforce instant emission or none at all.
 
-                # If exit path then we need to add the guard
                 exit_path_guard_addition = ""
-                if jsonTransfer.exit_events != None and event in jsonTransfer.exit_events:
-                    exit_path_guard_addition = f" || exitEventMap[{Utils.get_eventtype_UID(event.event_name)}]"
+                exit_path_assignment_addition = ""
 
-                exit_path_check_assigment_addition = ""
-                if jsonTransfer.check_loop_exit_events != None and event in jsonTransfer.check_loop_exit_events.keys():
-                    for inner_event in jsonTransfer.check_loop_exit_events[event]:
-                        exit_path_check_assigment_addition += (f", updateExitPathGuards({Utils.get_eventtype_UID(inner_event.event_name)})")
+                if (event in jsonTransfer.non_exit_events and path_bound > -1):
+                    exit_path_guard_addition = f"nonExitCounterMap[id + id_start][{Utils.get_eventtype_UID(event.event_name)}] < {path_bound}"
+                    exit_path_assignment_addition = f", nonExitCounterMap[id + id_start][{Utils.get_eventtype_UID(event.event_name)}]++"
+                
+                if (time_guard_addition != "" and exit_path_guard_addition != ""):
+                    time_guard_addition += " && "
 
-                if(jsonTransfer.loop_events != [] and event.event_name in jsonTransfer.loop_events):
-                        loop_counter_name = Utils.get_next_loopcount()
-                        self.evetname_loopcounter[Utils.get_eventtype_UID(event.event_name)] = loop_counter_name
-
-                        if (time_guard_addition != ""):
-                            time_guard_addition += " && "
-
-                        # Add disabeling part to invariant
-                        if (lsource.invariant != None):
-                            lsource.invariant += f" || {loop_counter_name}[id] == 1 || loopCountMap[{Utils.get_eventtype_UID(event.event_name)}] == {loop_bound}"
-                        else:
-                            lsource.invariant = f"{loop_counter_name}[id] == 1 || loopCountMap[{Utils.get_eventtype_UID(event.event_name)}] == {loop_bound}"
-
-                        transitions.append(Transition(
-                        id=Utils.get_next_id(),
-                        source=lsource,
-                        target=ltarget,
-                        guard=time_guard_addition + f"{loop_counter_name}[id] < 1 && loopCountMap[{Utils.get_eventtype_UID(event.event_name)}] < {loop_bound}" + exit_path_guard_addition,
-                        synchronisation=f"{jsonTransfer.do_update_channel_name}[id]!",
-                        assignment=time_assignment_addition + f"""setLogEntryForUpdate(
-        {Utils.get_eventtype_UID(event.event_name)},id,
-        -2, false), {loop_counter_name}[id]++""" + exit_path_check_assigment_addition))
-                        
-                else:
-                    if not (time_guard_addition != "" and exit_path_guard_addition != ""):
-                         exit_path_guard_addition = exit_path_guard_addition[4:]
-
-                    transitions.append(Transition(
+                transitions.append(Transition(
                         id=Utils.get_next_id(),
                         source=lsource,
                         target=ltarget,
@@ -184,7 +167,65 @@ class Role(Template):
                         synchronisation=f"{jsonTransfer.do_update_channel_name}[id]!",
                         assignment=time_assignment_addition + f"""setLogEntryForUpdate(
         {Utils.get_eventtype_UID(event.event_name)},id,
-        -2, false)""" + exit_path_check_assigment_addition))
+        -2, false)""" + exit_path_assignment_addition))
+                    
+        # We need to figure out if there are multiple branching events that this roles emits from the same location
+        # if there is we need to set the invariant accordingly.
+        if (path_bound > -1):
+            own_event_names = []
+            for own_event in jsonTransfer.own_events:
+                own_event_names.append(own_event.event_name)
+
+            event_names_exit = {event.event_name for event in jsonTransfer.non_exit_events}
+            for branch_location in branch_partitions:
+                if len(branch_partitions[branch_location]) > 1:
+                    invariant_result = ""
+                    exit_path_event = None
+                    for branch_event in branch_partitions[branch_location]:
+                        if branch_event.event_name not in event_names_exit:
+                            exit_path_event = branch_event
+
+                    source_event_names = (self.find_outgoing_events_from_location(branch_location.name, branch_partitions[branch_location]))
+                    matching_time_events = [event_data for event_data in time_data_list if event_data in source_event_names and event_data.event_name in jsonTransfer.own_events]
+
+                    sorted_time = sorted(matching_time_events, key=lambda event: (event.max_time is None, event.max_time), reverse=True)
+                    exit_path_time_data_event = next((event_data for event_data in time_data_list if event_data == exit_path_event.event_name), None)
+                    parameter_counter = 0
+                    not_all_own = len(sorted_time) != len(branch_partitions[branch_location])
+                    own_and_branching = []
+
+                    if sorted_time != []:
+                        if sorted_time[0].event_name != exit_path_event.event_name:
+                            for time_data_branch in sorted_time:
+                                own_and_branching.append(time_data_branch.event_name)
+                                if time_data_branch.event_name != exit_path_event.event_name:
+                                    if time_data_branch.max_time != None:
+                                        invariant_result += f"x <= {time_data_branch.max_time} && ( nonExitCounterMap[id + id_start][{Utils.get_eventtype_UID(time_data_branch.event_name)}] < {path_bound} || ( "
+                                        parameter_counter += 2
+                                    else:
+                                        invariant_result += f"( nonExitCounterMap[id + id_start][{Utils.get_eventtype_UID(time_data_branch.event_name)}] < {path_bound} || ( "
+                                        parameter_counter += 2
+                                else:
+                                    if exit_path_time_data_event.max_time != None:
+                                        invariant_result += f"x <= {exit_path_time_data_event.max_time}" + (")" * parameter_counter)
+                                    else:
+                                        invariant_result = ""
+                                    break
+
+                        if not not_all_own or exit_path_event.event_name in own_event_names:
+                            if sorted_time[0].event_name == exit_path_event.event_name and exit_path_time_data_event.max_time != None:
+                                invariant_result = f"x <= {exit_path_time_data_event.max_time}" 
+
+                        else:
+                            final_invariant = " || "
+                            for own_branch_event_name in own_and_branching:
+                                final_invariant += f"nonExitCounterMap[id + id_start][{Utils.get_eventtype_UID(own_branch_event_name)}] == "
+                            
+                            final_invariant += f"{path_bound}"
+
+                            invariant_result = invariant_result[:-5] + (")" * (parameter_counter-1)) + final_invariant
+
+                        branch_location.invariant = invariant_result
 
         self.graphViz_helper(locations, transitions)
 

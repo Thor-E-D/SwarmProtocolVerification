@@ -14,6 +14,7 @@ from DataObjects.JSONTransfer import JSONTransfer, EventData
 from DataObjects.Channel import Channel
 from DataObjects.ModelSettings import ModelSettings, DelayType
 from DataObjects.Model import Model
+from DataObjects.TimeJSONTransfer import EventTimeData
 from Utils import Utils
 from Functions import *
 from Log import Log
@@ -98,10 +99,8 @@ def calculate_relevant_mappings(jsonTransfers: List[JSONTransfer]):
 
     return eventnames_dict, amount_names, advance_channels, update_channels, backtrack_channels
 
-def add_functions(declaration: Declaration, using_global_event_bound: bool, all_eventname_loopcounter: Dict[str, str], exit_paths_exist: bool):
+def add_functions(declaration: Declaration, using_global_event_bound: bool):
     # Ordering is important as some functions depend on others.
-    if exit_paths_exist:
-        declaration.add_function_call(generate_function_update_exit_path_guards)
     if using_global_event_bound:
         declaration.add_function_call(generate_function_calculate_any_forced_to_propagte)
     declaration.add_function_call(generate_function_is_in_subsciption)
@@ -122,7 +121,7 @@ def add_functions(declaration: Declaration, using_global_event_bound: bool, all_
     declaration.add_function_call(generate_function_check_and_fix_branch_competetion)
     declaration.add_function_call(generate_function_handle_branching_event)
     declaration.add_function_call(generate_function_handle_event)
-    declaration.add_function_call(generate_function_update_true_global_log, all_eventname_loopcounter)
+    declaration.add_function_call(generate_function_update_true_global_log)
     declaration.add_function_call(generate_function_update_global_log)
     declaration.add_function_call(generate_function_update_log)
     declaration.add_function_call(generate_function_update_log_entry)
@@ -162,16 +161,11 @@ def create_flow_list(jsonTransfer: JSONTransfer, eventname_to_UID_dict: Dict[str
 
     return location_map[jsonTransfer.initial], flow_list
 
-def enrich_json(start_exit_path_events: List[EventData], jsonTransfers: List[JSONTransfer], eventnames_dict: Dict[str,str]):
+def enrich_json(jsonTransfers: List[JSONTransfer], eventnames_dict: Dict[str,str], global_non_exit_paths: Set[EventData]):
     for jsonTransfer in jsonTransfers:
         jsonTransfer.total_amount_of_events = len(eventnames_dict)
 
-    set_of_preceding_events = defaultdict(set)
-    max_amount_of_preceding_events = 1
     branching_events = None
-    all_loop_events = set()
-    
-    target_start_loop_events = {}
 
     for jsonTransfer in jsonTransfers:
         all_events = jsonTransfer.own_events.copy()
@@ -179,61 +173,13 @@ def enrich_json(start_exit_path_events: List[EventData], jsonTransfers: List[JSO
 
         analyzer = GraphAnalyser(all_events)
         analysis_results = (analyzer.analyse_graph(jsonTransfer.initial))
-        preceding_events = analysis_results["preceding_events"]
         branching_events = analysis_results["branching_events"]
-        loop_events = analysis_results["loop_events"]
 
-        # For bound loop events
-        jsonTransfer.loop_events = []
-        for loop_event in loop_events:
-            if loop_event in jsonTransfer.own_events:
-                jsonTransfer.loop_events.append(loop_event.event_name)
+        non_exit_paths = global_non_exit_paths
 
-            # add to all loop events
-            all_loop_events = all_loop_events.union(loop_events[loop_event])
-            all_loop_events.add(loop_event)
-
-            # Find events that lead to the start of loop as they have to check if
-            # Exit should be enabled.
-            if loop_event in start_exit_path_events:
-                for inner_event in all_events:
-                    if inner_event.target == loop_event.source:
-                        if inner_event in target_start_loop_events.keys():
-                            target_start_loop_events[inner_event].append(loop_event)
-                        else:    
-                            target_start_loop_events[inner_event] = [loop_event]
-
-        for key_event in preceding_events:
-            name_of_event = Utils.get_eventtype_UID(key_event.event_name)
-            for event in preceding_events[key_event]:
-                set_of_preceding_events[name_of_event].add(Utils.get_eventtype_UID(event.event_name))
-            
-            if len(set_of_preceding_events[name_of_event]) > max_amount_of_preceding_events:
-                max_amount_of_preceding_events = len(set_of_preceding_events[name_of_event])
+        jsonTransfer.non_exit_events = non_exit_paths  
         
-        # Have to set what events need exit path guards
-        # and what events needs to test for end of loop.
-        exit_own_events = []
-        check_loop_exit_events = {}
-        for own_event in jsonTransfer.own_events:
-            if own_event in all_loop_events and own_event.target != own_event.source and start_exit_path_events != []:
-                exit_own_events.append(own_event.event_name)
-
-            if own_event in target_start_loop_events.keys():
-                check_loop_exit_events[own_event] = target_start_loop_events[own_event]
-            
-        
-        if exit_own_events != []:
-            jsonTransfer.exit_events = exit_own_events
-        
-        if check_loop_exit_events != {}:
-            jsonTransfer.check_loop_exit_events = check_loop_exit_events
-
-    all_loop_event_names = set()
-    for loop_event in all_loop_events:
-        all_loop_event_names.add(Utils.get_eventtype_UID(loop_event.event_name))
-        
-    return branching_events, all_loop_event_names
+    return branching_events
 
 def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTransfer, model_settings: ModelSettings):
     # We first create the nessesary variable names to be used in UPPAAL.
@@ -244,23 +190,27 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     all_events = globalJsonTransfer.own_events.copy()
     all_events.extend(globalJsonTransfer.other_events)
 
+    # If some events are timed but others arent it is assumed they are instant so max = 0 and min = 0
+    if model_settings.time_json_transfer != None:
+        current_time_data_names = []
+        for time_data in model_settings.time_json_transfer.event_time_data:
+            current_time_data_names.append(time_data.event_name)
+        
+        for event in all_events:
+            if event.event_name not in current_time_data_names:
+                etd = EventTimeData(
+                    event_name=event.event_name,
+                    min_time=0,
+                    max_time=0)
+                model_settings.time_json_transfer.event_time_data.append(etd)
+
     analyzer = GraphAnalyser(all_events)
     analysis_results = (analyzer.analyse_graph(globalJsonTransfer.initial))
-    exit_paths = analysis_results["exit_paths"]
-    loop_events = analysis_results["loop_events"]
+    non_exit_paths = analysis_results["non_exit_paths"]
     global_branching_events = analysis_results["branching_events"]
-    start_looping_events = []
-    for start_loop_event in loop_events:
-        start_looping_events.append(start_loop_event)
-
-    start_exit_path_events = list(exit_paths.keys())
-
-    all_exit_events = set()
-    for exit_event in exit_paths:
-        all_exit_events.update(exit_paths[exit_event])
 
     # Set total amount of events
-    branching_events, all_loop_event_names = enrich_json(start_exit_path_events, jsonTransfers, eventnames_dict)
+    branching_events = enrich_json(jsonTransfers, eventnames_dict, non_exit_paths)
 
     # set flag if any are using global events as bounds
     using_global_event_bound = False
@@ -301,7 +251,9 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     number_of_names = []
     log_id_start_entries = {}
     log_id_start_sumizer = "0"
+    total_amount_of_instances = 0
     for name in name_amount_dict:
+        total_amount_of_instances += name_amount_dict[name]
         log_id_start_entries[name] = log_id_start_sumizer
         current_variable = f"NUMBER_OF_{name}"
         declaration.add_variable(f"const int {current_variable} = {name_amount_dict[name]};")
@@ -352,49 +304,24 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     declaration.add_variable(f"const int maxAmountOfTied = {max_branches_before};")
     declaration.add_variable(eventsTiedTo)
 
-    # Variables for exiting loops
-    if exit_paths != {}:
-        current_bool_map = []
-        loop_exit_path_maps = []
-
+    # Variables for exiting paths
+    if model_settings.path_bound > -1:
+        non_exit_path_counter_map = []
         for event_name_temp in eventnames_dict:
-            # Get int by eventname_to_UID_dict[eventnames_dict[event_name_temp]]
-            if event_name_temp in start_looping_events:
-                current_bool_map.append(False)
+            current_event = None
+            for event in all_events:
+                if event.event_name == event_name_temp:
+                    current_event = event
+                    break
+            
+            if current_event in non_exit_paths:
+                non_exit_path_counter_map.append(0)
             else:
-                current_bool_map.append(True)
+                non_exit_path_counter_map.append(-1)
 
-            if event_name_temp in start_exit_path_events:
-                current_event = None
-                for event in all_events:
-                    if event.event_name == event_name_temp:
-                        current_event = event
-                        break
-                loop_exit_path_map = []
-                for event_name_temp_two in eventnames_dict:
-                    current_event_two = None
-                    for event in all_events:
-                        if event.event_name == event_name_temp_two:
-                            current_event_two = event
-                            break
-                    if event_name_temp == event_name_temp_two:
-                        loop_exit_path_map.append(1)
-
-                    elif current_event_two in loop_events[current_event] and current_event_two in exit_paths[current_event]:
-                        loop_exit_path_map.append(1)
-
-                    elif current_event_two in loop_events[current_event]:
-                        loop_exit_path_map.append(0)
-                    else:
-                        loop_exit_path_map.append(-1)
-                loop_exit_path_maps.append(loop_exit_path_map)
-
-            else:
-                loop_exit_path_maps.append(([-1] * counter))
-
-        declaration.add_variable(f"const int loopBound = {model_settings.loop_bound};") # Need for function
-        declaration.add_variable(f"const int allExitEventMaps[amountOfUniqueEvents][amountOfUniqueEvents] = {Utils.python_list_to_uppaal_list(str(loop_exit_path_maps))};")
-        declaration.add_variable(f"int exitEventMap[amountOfUniqueEvents] = {Utils.python_list_to_uppaal_list(str(current_bool_map).lower())};")
+        all_counter_map = [non_exit_path_counter_map] * total_amount_of_instances
+            
+        declaration.add_variable(f"int nonExitCounterMap[amountOfLogs][amountOfUniqueEvents] = {Utils.python_list_to_uppaal_list(str(all_counter_map))};")
 
 
     add_branching_functionality(declaration, branching_events, eventname_to_UID_dict)
@@ -408,13 +335,6 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
         initial_pointer, flow_list = create_flow_list(jsonTransfer, eventname_to_UID_dict)
         jsonTransfer.initial_pointer = initial_pointer
         jsonTransfer.flow_list = flow_list
-
-    # looping list
-    is_in_loop_list = [False] * len(eventname_to_UID_dict)
-    for event_key in eventname_to_UID_dict:
-        if event_key in all_loop_event_names:
-            is_in_loop_list[eventname_to_UID_dict[event_key]] = True
-    declaration.add_variable(f"const int isInLoop[amountOfUniqueEvents] = {Utils.python_list_to_uppaal_list(is_in_loop_list).lower()};")
 
     # Channels
     declaration.add_channel(Channel(urgent=True,broadcast=True, name="propagate_log"))
@@ -454,16 +374,16 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
     for jsonTransfer in jsonTransfers:
         role = None
         if model_settings.time_json_transfer == None:
-            role = Role(amount_names[jsonTransfer.name] + " id", jsonTransfer, model_settings.loop_bound, [])
+            role = Role(amount_names[jsonTransfer.name] + " id", jsonTransfer, model_settings.path_bound, [])
         else:
-            role = Role(amount_names[jsonTransfer.name] + " id", jsonTransfer, model_settings.loop_bound, model_settings.time_json_transfer.event_time_data)
+            role = Role(amount_names[jsonTransfer.name] + " id", jsonTransfer, model_settings.path_bound, model_settings.time_json_transfer.event_time_data)
         roles.append(role)
         names_roles_dict[jsonTransfer.name] = role
 
         all_eventname_loopcounter.update(role.get_evetname_loopcounter())
 
     # Functions
-    add_functions(declaration, using_global_event_bound, all_eventname_loopcounter, exit_paths != {})
+    add_functions(declaration, using_global_event_bound)
 
     # Adding templates comprised of roles and logs for each jsonTransfer we create one of each.
     logs = []
@@ -477,31 +397,12 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
             # Need to keep DelayType.NOTHING as flag for log construction
             declaration.add_variable(f"int maxUpdatesSincePropagation_{jsonTransfer.name} = 0;")
 
-        # Adding loopcounter to global decleration
-        current_evetname_loopcounter = names_roles_dict[jsonTransfer.name].get_evetname_loopcounter()
-        for eventname in current_evetname_loopcounter:
-            current_loopcounter_string = (f"int {current_evetname_loopcounter[eventname]}[{name_amount_dict[jsonTransfer.name]}] = {{")
-            for i in range (name_amount_dict[jsonTransfer.name]):
-                current_loopcounter_string += "0, "
-            declaration.add_variable(current_loopcounter_string[:-2] + "};")
-        all_start_loop_events.update(jsonTransfer.loop_events)
-
         log = None
         if model_settings.time_json_transfer == None:
-            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, model_settings.log_size, model_settings.delay_type[jsonTransfer.name], using_global_event_bound)
+            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer, model_settings.log_size, model_settings.delay_type[jsonTransfer.name], using_global_event_bound)
         else:
             log_time_data_role = next((log_time_data for log_time_data in model_settings.time_json_transfer.log_time_data if log_time_data.role_name == jsonTransfer.name), None)
-            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer,current_evetname_loopcounter, model_settings.log_size,model_settings.delay_type[jsonTransfer.name], using_global_event_bound, log_time_data_role)
+            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer, model_settings.log_size,model_settings.delay_type[jsonTransfer.name], using_global_event_bound, log_time_data_role)
         logs.append(log)
-
-    #Adding start loop event to global decleration
-    all_start_loop_events = [Utils.get_eventtype_UID(event_name_UID) for event_name_UID in all_start_loop_events]
-    loop_events_string = "int loopCountMap[amountOfUniqueEvents] = {"
-    for event_name_ID in eventname_to_UID_dict:
-        if event_name_ID in all_start_loop_events:
-            loop_events_string += "0 ,"
-        else:
-            loop_events_string += "-1 ,"
-    declaration.add_variable(loop_events_string[:-2] + "};")
 
     return Model(declaration, roles, logs)

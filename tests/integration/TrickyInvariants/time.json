@@ -1,0 +1,20 @@
+{
+    "events": [
+      {
+        "logType": "e00_1",
+        "min_time": 15,
+        "max_time": 15
+      },
+      {
+        "logType": "e01",
+        "min_time": 10,
+        "max_time": 10
+      },
+      {
+        "logType": "e00_2",
+        "min_time": 20,
+        "max_time": 20
+      }
+    ]
+  }
+  

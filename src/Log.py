@@ -18,7 +18,7 @@ from Utils import Utils
 from Functions import generate_function_merge_propagation_log, generate_function_handle_log_entry
 
 class Log(Template):
-    def __init__(self, parameter: str, json_transfer: JSONTransfer, evetname_loopcounter: Dict[str,str], log_size: int, log_delay_type: DelayType, using_global_event_bound: bool,log_time_data: LogTimeData = None):
+    def __init__(self, parameter: str, json_transfer: JSONTransfer, log_size: int, log_delay_type: DelayType, using_global_event_bound: bool,log_time_data: LogTimeData = None):
         
         no_delay_flag = False
 
@@ -79,7 +79,7 @@ class Log(Template):
 
         # Adding function calls
         declaration.add_function_call(generate_function_handle_log_entry, own_event_names, other_event_names)
-        declaration.add_function_call(generate_function_merge_propagation_log,evetname_loopcounter) 
+        declaration.add_function_call(generate_function_merge_propagation_log) 
         
         l_prop1 = Location (id = Utils.get_next_id(), x=-204, y=-298, name="l_prop1", locationType = LocationType.COMMITTED)
         l_merge_log = Location (id = Utils.get_next_id(), x=-748, y=-136, name="merge_log", locationType = LocationType.COMMITTED)

@@ -46,6 +46,4 @@ class JSONTransfer:
     total_amount_of_events: Optional[int] = None
     initial_pointer: Optional[int] = 0
     flow_list: Optional[List[List[int]]] = None
-    loop_events: Optional[List[str]] = None
-    exit_events: Optional[List[str]] = None # Needs a guard
-    check_loop_exit_events: Optional[Dict[EventData, EventData]] = None # Needs to update exit guards
+    non_exit_events: Optional[List[EventData]] = None
