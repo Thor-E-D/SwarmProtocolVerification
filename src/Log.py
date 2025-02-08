@@ -96,8 +96,6 @@ class Log(Template):
         locations = [l_prop1, l_merge_log, l_initial, l_accepting_emitted_1, l_accepting_emitted_2 ,l_updating_role_1, l_prop2, l_updating_role_2, l_backtracking_1, l_backtracking_2, l_overflow]
         transitions = []
 
-
-
         # Normal model based on untimed and using DELAY.EVENT_SELF_EMITTED
         transitions.append(Transition(
             id=Utils.get_next_id(),
@@ -138,15 +136,6 @@ backTracking := true"""
 resetCount--""",
             synchronisation=f"{json_transfer.backtrack_channel_name}[id]!",
             nails = [(-978, 136)]
-        ))
-
-        transitions.append(Transition(
-            id=Utils.get_next_id(),
-            source=l_backtracking_2,
-            target=l_backtracking_1,
-            guard="!isInSubsciptions(subscriptions, currentEventResetID)",
-            assignment="""discardedEventIDs[resetCount - 1] = -1,
-resetCount--""",
         ))
 
         transitions.append(Transition(
@@ -264,15 +253,6 @@ eventsToRead := 0"""
             ))
 
         nails = [(start_x + 68, start_y), (start_x, start_y)]
-
-        transitions.append(Transition(
-            id=Utils.get_next_id(),
-            source=l_updating_role_2,
-            target=l_updating_role_1,
-            guard=f"!isInSubsciptions(subscriptions, currentLog[counter].eventID)",
-            assignment="counter++",
-            nails=nails
-        ))
 
         transitions.append(Transition(
             id=Utils.get_next_id(),

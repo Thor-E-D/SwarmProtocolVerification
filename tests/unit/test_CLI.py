@@ -189,23 +189,6 @@ def test_build_projection_and_autoverify():
 
     os.remove(path_to_model_projection)
 
-@pytest.mark.unit
-def test_build_and_verifyTrueLog():
-    user_inputs = [f"build -pf {path_to_folder} -ps {path_to_test_state}",
-                   f"verifyLog {path_to_model} {path_to_log} -vo True" , "q"]
-    
-    expected_output_build = """No projection files found so auto-generating projections
-Found a time json file!
-XML file saved successfully at"""
-
-    expected_output_verifyLog = """Verifying query: E<> trueGlobalLog[0].eventID == Open_ID and trueGlobalLog[1].eventID == Request_ID and trueGlobalLog[2].eventID == Get_ID and trueGlobalLog[3].eventID == Deliver_ID and trueGlobalLog[4].eventID == Close_ID and trueGlobalLog[4].orderCount != 0
-Query was satisfied"""
-
-    output_list = [expected_output_build, expected_output_verifyLog]
-
-    run_and_assert(user_inputs,output_list)
-
-    os.remove(path_to_model)
 
 @pytest.mark.unit
 def test_build_and_verifyLog():
@@ -225,6 +208,23 @@ Query was satisfied"""
 
     os.remove(path_to_model)
 
+@pytest.mark.unit
+def test_build_and_verifyTrueLog():
+    user_inputs = [f"build -pf {path_to_folder} -ps {path_to_test_state}",
+                   f"verifyLog {path_to_model} {path_to_log} -vo True" , "q"]
+    
+    expected_output_build = """No projection files found so auto-generating projections
+Found a time json file!
+XML file saved successfully at"""
+
+    expected_output_verifyLog = """Verifying query: E<> trueGlobalLog[0].eventID == Open_ID and trueGlobalLog[1].eventID == Request_ID and trueGlobalLog[2].eventID == Get_ID and trueGlobalLog[3].eventID == Deliver_ID and trueGlobalLog[4].eventID == Close_ID and trueGlobalLog[4].orderCount != 0
+Query was satisfied"""
+
+    output_list = [expected_output_build, expected_output_verifyLog]
+
+    run_and_assert(user_inputs,output_list)
+
+    os.remove(path_to_model)
 # ------------------------------------------- test cases for wrong inputs --------------------------------------
 
 @pytest.mark.unit
