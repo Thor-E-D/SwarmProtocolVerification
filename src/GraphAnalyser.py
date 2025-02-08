@@ -115,7 +115,7 @@ class GraphAnalyser:
         path_stack = []
         event_stack = []  # List of events in current path
 
-        def dfs(location: str, current_event: EventData = None):
+        def dfs(location: str):
             if location in path_stack:
                 loop_events = set()
 
@@ -132,7 +132,7 @@ class GraphAnalyser:
 
             for event in self.outgoing[location]:
                 event_stack.append(event)
-                dfs(event.target, event)
+                dfs(event.target)
                 event_stack.pop()
 
             path_stack.pop()

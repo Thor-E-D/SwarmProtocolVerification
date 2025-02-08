@@ -13,6 +13,7 @@ from typing import Dict, List, Any, Set
 from pathlib import Path
 import json
 import copy
+from collections import defaultdict
 
 from DataObjects.JSONTransfer import JSONTransfer, EventData
 from DataObjects.TimeJSONTransfer import LogTimeData, EventTimeData, TimeJSONTransfer
@@ -78,6 +79,37 @@ def build_graph_internal(role_own_events_dict: Dict[str, List[EventData]]) -> Gr
             graph.add_edge(edge)
     return graph
 
+# Build an index to quickly find edges from a given node
+def build_index(graph: Graph):
+    index = defaultdict(list)
+    for edge in graph.edges:
+        index[edge.source].append(edge)
+    return index
+
+def find_reachable_edges(graph: Graph, start: str) -> Set[Edge]:
+    
+    index = build_index(graph)
+    
+    visited_nodes = set()
+    reachable_edges = set()
+    
+    # Use a list as a stack for DFS.
+    stack: List[str] = [start]
+    
+    while stack:
+        node = stack.pop()
+        if node in visited_nodes:
+            continue
+        
+        visited_nodes.add(node)
+        
+        for edge in index[node]:
+            reachable_edges.add(edge)
+            if edge.target not in visited_nodes:
+                stack.append(edge.target)
+    
+    return reachable_edges
+
 def generate_projection(graph: Graph, role: str) -> Graph:
     copyGraph = Graph()
     copyGraph.set_edges(copy.deepcopy(graph.edges))
@@ -98,7 +130,6 @@ def generate_projection(graph: Graph, role: str) -> Graph:
             preceding_edges.add(edge)
 
     # Find those that are branching:
-    branching_edges = set()
     all_sources = set()
     branching_sources = set()
     for edge in graph.edges:
@@ -106,11 +137,33 @@ def generate_projection(graph: Graph, role: str) -> Graph:
             branching_sources.add(edge.source)
         all_sources.add(edge.source)
 
+    sources_to_branch_events = {}
+
     for edge in graph.edges:
         if edge.source in branching_sources:
-            branching_edges.add(edge)
+            if edge.source not in list(sources_to_branch_events.keys()):
+                sources_to_branch_events[edge.source] = [edge]
+            else:
+                sources_to_branch_events[edge.source].append(edge)
 
-    project_edges = own_edges | preceding_edges | branching_edges
+    # Paths from branching locations to all other
+    branchLoc_to_events = {}
+    for current_source in branching_sources:
+        reachable = find_reachable_edges(graph, current_source)
+        branchLoc_to_events[current_source] = reachable
+
+    nesesary_branching_edges = set()
+
+    for loc in branchLoc_to_events:
+        if len(set.intersection(own_edges, branchLoc_to_events[loc])) > 0:
+            nesesary_branching_edges.update(sources_to_branch_events[loc])
+
+
+    project_edges = own_edges | preceding_edges | nesesary_branching_edges
+
+    nesesary_branching_edges_names = set()
+    for branch_event in nesesary_branching_edges:
+        nesesary_branching_edges_names.add(branch_event.name)
 
     for edge in graph.edges:
         if edge not in project_edges:
@@ -118,6 +171,7 @@ def generate_projection(graph: Graph, role: str) -> Graph:
             copy_edge_for_removal = next(copy_edge for copy_edge in copyGraph.edges if edge.name == copy_edge)
             if copy_edge_for_removal.source == copyGraph.initial:
                 copyGraph.initial = copy_edge_for_removal.target
+
             copyGraph.remove_edge(copy_edge_for_removal)
     
     return copyGraph
@@ -154,9 +208,8 @@ def parse_protocol_JSON_file(json_file: str) -> tuple[JSONTransfer, List[JSONTra
 
     for role in graph.get_role_names():
         newGraph = generate_projection(graph,role)
-
         jsonTransfers.append(create_JSONTransfer(newGraph,role))
-
+        
     return globalJsonTransfer, jsonTransfers
 
 def parse_protocol_seperatly(json_file: str) -> JSONTransfer: 
