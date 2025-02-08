@@ -69,7 +69,7 @@ def test_welcome_message():
 def test_help_message():
     user_inputs = ["-h", "q"]  # Simulate user typing 'q' to quit
     expected_output = """positional arguments:
-  {setVer,showVer,setPath,showPath,build,setArgs,showArgs,loadState,writeState,verify,autoVerify,verifyLog,q}"""
+  {build,setArgs,showArgs,loadState,writeState,verify,autoVerify,verifyLog,q}"""
 
     output_list = [expected_output]
 
@@ -77,19 +77,19 @@ def test_help_message():
 
 @pytest.mark.unit
 def test_verifyta_path():
-    user_inputs = [f"setVer {verifyta_path}", f"setVer {verifyta_path[:-4]}", "showVer", "q"]
+    user_inputs = [f"setArgs -vp {verifyta_path}", f"setArgs -vp {verifyta_path[:-4]}", "showArgs", "q"]
     expected_output_setVer = f"Tool is present and working at: {verifyta_path}"
-    expected_output_showVer = f"Current path to verifyta set to: {verifyta_path}"
+    expected_output_showArgs = f"'verifyta_path': '{verifyta_path.replace("\\", "\\\\")}',"
 
-    output_list = [expected_output_setVer, expected_output_showVer]
+    output_list = [expected_output_setVer, expected_output_showArgs]
 
     run_and_assert(user_inputs,output_list)
 
 @pytest.mark.unit
 def test_base_path():
-    user_inputs = [f"setPath {path_to_folder}", "showPath", "q"]
+    user_inputs = [f"setArgs -pf {path_to_folder}", "showArgs", "q"]
     expected_output_setPath = f"Successfully updated base_path in state with {path_to_folder}"
-    expected_output_showPath = f"Current path to relevant folder set to: {path_to_folder}"
+    expected_output_showPath = f"'base_path': '{path_to_folder.replace("\\", "\\\\")}',"
 
     output_list = [expected_output_setPath, expected_output_showPath]
 
@@ -190,6 +190,24 @@ def test_build_projection_and_autoverify():
     os.remove(path_to_model_projection)
 
 @pytest.mark.unit
+def test_build_and_verifyTrueLog():
+    user_inputs = [f"build -pf {path_to_folder} -ps {path_to_test_state}",
+                   f"verifyLog {path_to_model} {path_to_log} -vo True" , "q"]
+    
+    expected_output_build = """No projection files found so auto-generating projections
+Found a time json file!
+XML file saved successfully at"""
+
+    expected_output_verifyLog = """Verifying query: E<> trueGlobalLog[0].eventID == Open_ID and trueGlobalLog[1].eventID == Request_ID and trueGlobalLog[2].eventID == Get_ID and trueGlobalLog[3].eventID == Deliver_ID and trueGlobalLog[4].eventID == Close_ID and trueGlobalLog[4].orderCount != 0
+Query was satisfied"""
+
+    output_list = [expected_output_build, expected_output_verifyLog]
+
+    run_and_assert(user_inputs,output_list)
+
+    os.remove(path_to_model)
+
+@pytest.mark.unit
 def test_build_and_verifyLog():
     user_inputs = [f"build -pf {path_to_folder} -ps {path_to_test_state}",
                    f"verifyLog {path_to_model} {path_to_log}" , "q"]
@@ -198,7 +216,7 @@ def test_build_and_verifyLog():
 Found a time json file!
 XML file saved successfully at"""
 
-    expected_output_verifyLog = """Verifying query: E<> trueGlobalLog[0].eventID == Open_ID and trueGlobalLog[1].eventID == Request_ID and trueGlobalLog[2].eventID == Get_ID and trueGlobalLog[3].eventID == Deliver_ID and trueGlobalLog[4].eventID == Close_ID and trueGlobalLog[4].orderCount != 0
+    expected_output_verifyLog = """Verifying query: E<> globalLog[0].eventID == Open_ID and globalLog[1].eventID == Request_ID and globalLog[2].eventID == Get_ID and globalLog[3].eventID == Deliver_ID and globalLog[4].eventID == Close_ID and globalLog[4].orderCount != 0
 Query was satisfied"""
 
     output_list = [expected_output_build, expected_output_verifyLog]
@@ -279,7 +297,7 @@ def test_build_faults():
 
 @pytest.mark.unit
 def test_verifyta_path_faults():
-    user_inputs = [f"setVer {verifyta_path[:-13]}", f"setVer {verifyta_path} + fail",f"setVer {path_to_faulty_exe}",f"setVer {path_to_faulty_exe2}", "q"]
+    user_inputs = [f"setArgs -vp {verifyta_path[:-13]}", f"setArgs -vp {verifyta_path} + fail",f"setArgs -vp {path_to_faulty_exe}",f"setArgs -vp {path_to_faulty_exe2}", "q"]
     expected_output1 = "Tool is present and working at:"
     expected_output2 = "Tool not found at path"
     expected_output3 = "Error occurred while verifying the tool:"

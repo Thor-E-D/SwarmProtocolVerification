@@ -131,14 +131,18 @@ class QueryGenerator:
         
         return role_queries_dict
     
-def generate_log_query(log: List[str]) -> str:
+def generate_log_query(log: List[str], valid_only: bool) -> str:
+    log_to_use = "globalLog"
+    if valid_only:
+        log_to_use = "trueGlobalLog"
+
     counter = 0
     result_query = "E<> "
     for logEntry in log:
-        result_query += f"trueGlobalLog[{counter}].eventID == {Utils.get_eventtype_UID(logEntry)}"
+        result_query += f"{log_to_use}[{counter}].eventID == {Utils.get_eventtype_UID(logEntry)}"
         counter += 1
         if counter == len(log):
-            result_query += f" and trueGlobalLog[{counter-1}].orderCount != 0"
+            result_query += f" and {log_to_use}[{counter-1}].orderCount != 0"
         else:
             result_query += " and "
     
