@@ -9,40 +9,6 @@ functionality, but with different length of arrays.
 
 from typing import Dict
 
-def generate_function_update_exit_path_guards() -> str:
-    return """
-void updateExitPathGuards(int currentEventID) {
-    // Check if we have reached the loopBound if so disable all loop events other than those leading to the closets end state
-    // Be aware that if other loops need a an event this loop want to disable then we cannot disable it
-    int i;
-    int j;
-    bool noOneNeedsEvent = true;
-    if (loopCountMap[currentEventID] == loopBound) {
-        for(i = 0; i &lt; amountOfUniqueEvents; i++) {
-            if (allExitEventMaps[currentEventID][i] == 1) {
-                // Do not enable other looping events they can only enable themselves
-                if (i == currentEventID || loopCountMap[i] == -1) {
-                    exitEventMap[i] = true;
-                }
-            } else if(allExitEventMaps[currentEventID][i] == 0) {
-                // Check other loops
-                for(j = 0; j &lt; amountOfUniqueEvents; j++) {
-                    if (j != i &amp;&amp; allExitEventMaps[j][i] == 1) {
-                        noOneNeedsEvent = false;
-                        j = amountOfUniqueEvents; // Break
-                    }
-                }
-                if (noOneNeedsEvent) {
-                    exitEventMap[i] = false;
-                }
-                noOneNeedsEvent = true;
-            }
-            // If it is -1 we simply ignore it
-        }
-        return;
-    }
-}"""
-
 def generate_function_calculate_any_forced_to_propagte() -> str:
     return """
 void calculateAnyForcedToPropagate() {
@@ -230,10 +196,10 @@ def generate_function_find_tiedto() -> str:
 int findTiedTo(logEntryType currentLogEntry, logEntryType &amp;tempLog[logSize]) {
     int j;
     int i;
-    for(i = logSize-1; i &gt;= 0; i--) {
+    for(i = currentLogEntry.orderCount-1; i &gt;= 0; i--) {
         if (tempLog[i].orderCount != 0) {
             for (j = 0; j&lt;maxAmountOfTied; j++) {
-                if (tempLog[i].eventID == eventsTiedTo[currentLogEntry.eventID][j]  &amp;&amp; tempLog[i].orderCount != currentLogEntry.orderCount) {
+                if (tempLog[i].eventID == eventsTiedTo[currentLogEntry.eventID][j]  &amp;&amp; tempLog[i].orderCount &lt; currentLogEntry.orderCount) {
                     return tempLog[i].orderCount;
                 }
             }
@@ -249,7 +215,7 @@ void setPropagationLog(logEntryType tempLog[logSize]) {
 }
 """
 
-def generate_function_update_true_global_log(all_eventname_loopcounter: Dict[str,str]) -> str:
+def generate_function_update_true_global_log() -> str:
     result = """
 void updateTrueGlobalLog() {
     logEntryType tmpLogEntry = tempLogEntry;
@@ -266,17 +232,9 @@ void updateTrueGlobalLog() {
             addIntToList(trueDiscardedEvents, tmpLogEntry.orderCount);
         }
         trueCurrentIndex--;
-    } else {
-        if (loopCountMap[tmpLogEntry.eventID] != -1) {
-            loopCountMap[tmpLogEntry.eventID]++;"""
-    
-    for eventname in all_eventname_loopcounter:
-        result += f"""
-            if (tmpLogEntry.eventID == {eventname}) {{
-                {all_eventname_loopcounter[eventname]}[currentLogEntryEmitterID] = 0;
-            }}"""
+    } else {"""
 
-    result += """}
+    result += """
         trueGlobalLog[trueCurrentIndex] = tmpLogEntry;
     }
 }"""
@@ -530,7 +488,7 @@ logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[lo
     
     return function_str
 
-def generate_function_merge_propagation_log(evetname_loopcounter: Dict[str,str]) -> str:
+def generate_function_merge_propagation_log() -> str:
     function_str = """
 void mergePropagationLog() {
     int currentLogCounter = 0;
@@ -635,13 +593,6 @@ void mergePropagationLog() {
         if (tmpLogEntry.ignored) {
                 // Value should be discarded
                 i--;"""
-
-    for event_name in evetname_loopcounter:
-            function_str += f"""                
-                if (tmpLogEntry.eventID == {event_name} &amp;&amp; tmpLogEntry.emitterID == id + log_id_start) {{
-                    {evetname_loopcounter[event_name]}[id] = {evetname_loopcounter[event_name]}[id] - 1;
-                }}"""
-
 
     function_str += """
                 if(inCompetetion) {

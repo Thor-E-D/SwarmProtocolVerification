@@ -36,7 +36,7 @@ path_to_protocol_json_faulty = os.path.join(path_to_folder_faulty, "SwarmProtoco
 path_to_faulty_exe = os.path.join(path_to_folder_faulty, "fault.exe")
 path_to_faulty_exe2 = os.path.join(path_to_folder_faulty, "verifyta.exe")
 
-set_all_args_cmd = "setArgs -log 16 -loop 1 -dta {\"Door\": \"E\", \"Forklift\": \"S\", \"Transport\": \"E\"} -bt t -daa {\"Door\": 2, \"Forklift\": 1, \"Transport\": 2} -ra {\"Door\": 1, \"Forklift\": 1, \"Transport\": 2}"
+set_all_args_cmd = "setArgs -log 16 -path 1 -dta {\"Door\": \"E\", \"Forklift\": \"S\", \"Transport\": \"E\"} -bt t -daa {\"Door\": 2, \"Forklift\": 1, \"Transport\": 2} -ra {\"Door\": 1, \"Forklift\": 1, \"Transport\": 2}"
 
 #Helper function
 def run_and_assert(user_inputs: List[str], output_list: List[str]):
@@ -45,6 +45,14 @@ def run_and_assert(user_inputs: List[str], output_list: List[str]):
         output = mock_stdout.getvalue()
         for expected_output in output_list:
             assert expected_output in output
+
+# Used when debugging
+def run_and_print(user_inputs: List[str], output_list: List[str]):
+    output = ""
+    with patch("builtins.input", side_effect=user_inputs), patch("sys.stdout", new_callable=StringIO) as mock_stdout:
+        main()
+        output = mock_stdout.getvalue()
+    print(output)
 
 # Test for the "Welcome" message
 @pytest.mark.unit
@@ -61,7 +69,7 @@ def test_welcome_message():
 def test_help_message():
     user_inputs = ["-h", "q"]  # Simulate user typing 'q' to quit
     expected_output = """positional arguments:
-  {setVer,showVer,setPath,showPath,build,setArgs,showArgs,loadState,writeState,verify,autoVerify,verifyLog,q}"""
+  {build,setArgs,showArgs,loadState,writeState,verify,autoVerify,verifyLog,q}"""
 
     output_list = [expected_output]
 
@@ -69,19 +77,19 @@ def test_help_message():
 
 @pytest.mark.unit
 def test_verifyta_path():
-    user_inputs = [f"setVer {verifyta_path}", f"setVer {verifyta_path[:-4]}", "showVer", "q"]
+    user_inputs = [f"setArgs -vp {verifyta_path}", f"setArgs -vp {verifyta_path[:-4]}", "showArgs", "q"]
     expected_output_setVer = f"Tool is present and working at: {verifyta_path}"
-    expected_output_showVer = f"Current path to verifyta set to: {verifyta_path}"
+    expected_output_showArgs = f"'verifyta_path': '{verifyta_path.replace("\\", "\\\\")}',"
 
-    output_list = [expected_output_setVer, expected_output_showVer]
+    output_list = [expected_output_setVer, expected_output_showArgs]
 
     run_and_assert(user_inputs,output_list)
 
 @pytest.mark.unit
 def test_base_path():
-    user_inputs = [f"setPath {path_to_folder}", "showPath", "q"]
+    user_inputs = [f"setArgs -pf {path_to_folder}", "showArgs", "q"]
     expected_output_setPath = f"Successfully updated base_path in state with {path_to_folder}"
-    expected_output_showPath = f"Current path to relevant folder set to: {path_to_folder}"
+    expected_output_showPath = f"'base_path': '{path_to_folder.replace("\\", "\\\\")}',"
 
     output_list = [expected_output_setPath, expected_output_showPath]
 
@@ -91,7 +99,7 @@ def test_base_path():
 @pytest.mark.unit
 def test_setArgs():
     user_inputs = [set_all_args_cmd, "showArgs", "q"]
-    expected_output = "'delay_type': {'Door': 'E', 'Forklift': 'S', 'Transport': 'E'}, 'loop_bound': 1, 'branch_tracking': True, 'log_size': 16, 'delay_amount': {'Door': 2, 'Forklift': 1, 'Transport': 2}, 'subsets': 'SubsetA', 'role_amount': {'Door': 1, 'Forklift': 1, 'Transport': 2}}"
+    expected_output = "'delay_type': {'Door': 'E', 'Forklift': 'S', 'Transport': 'E'}, 'path_bound': 1, 'branch_tracking': True, 'log_size': 16, 'delay_amount': {'Door': 2, 'Forklift': 1, 'Transport': 2}, 'role_amount': {'Door': 1, 'Forklift': 1, 'Transport': 2}}"
 
     output_list = [expected_output]
 
@@ -149,18 +157,20 @@ Found a time json file!
 XML file saved successfully at"""
 
     expected_output_verify_validity = "Query was satisfied"
-    expected_output_verify_sizebound = "Recommended log size: 8"
+    expected_output_verify_sizebound = "Recommended log size: 13"
     expected_output_verify_timebound = """
 Transport has the following time bounds
 Location l0: [0,2]
-Location l1: [2,22],[31,126]
-Location l2: [5,82]
-Location l3: [31,95]
+Location l1: [2,20],[29,217]
+Location l2: [5,173]
+Location l3: [29,186]
 Location l4: [2,INF]"""
 
     output_list = [expected_output_build, expected_output_verify_validity, expected_output_verify_sizebound, expected_output_verify_timebound]
 
     run_and_assert(user_inputs,output_list)
+    #run_and_print(user_inputs,output_list)
+    
 
     os.remove(path_to_model)
 
@@ -179,10 +189,29 @@ def test_build_projection_and_autoverify():
 
     os.remove(path_to_model_projection)
 
+
 @pytest.mark.unit
 def test_build_and_verifyLog():
     user_inputs = [f"build -pf {path_to_folder} -ps {path_to_test_state}",
                    f"verifyLog {path_to_model} {path_to_log}" , "q"]
+    
+    expected_output_build = """No projection files found so auto-generating projections
+Found a time json file!
+XML file saved successfully at"""
+
+    expected_output_verifyLog = """Verifying query: E<> globalLog[0].eventID == Open_ID and globalLog[1].eventID == Request_ID and globalLog[2].eventID == Get_ID and globalLog[3].eventID == Deliver_ID and globalLog[4].eventID == Close_ID and globalLog[4].orderCount != 0
+Query was satisfied"""
+
+    output_list = [expected_output_build, expected_output_verifyLog]
+
+    run_and_assert(user_inputs,output_list)
+
+    os.remove(path_to_model)
+
+@pytest.mark.unit
+def test_build_and_verifyTrueLog():
+    user_inputs = [f"build -pf {path_to_folder} -ps {path_to_test_state}",
+                   f"verifyLog {path_to_model} {path_to_log} -vo True" , "q"]
     
     expected_output_build = """No projection files found so auto-generating projections
 Found a time json file!
@@ -196,7 +225,6 @@ Query was satisfied"""
     run_and_assert(user_inputs,output_list)
 
     os.remove(path_to_model)
-
 # ------------------------------------------- test cases for wrong inputs --------------------------------------
 
 @pytest.mark.unit
@@ -248,7 +276,7 @@ def test_write_state_to_path():
 @pytest.mark.unit
 def test_load_state():
     user_inputs = [f"loadState {path_to_test_state_missing}",f"loadState {path_to_protocol_json_faulty}","loadState NOTADIRECTORWITHTHISNAME", "q"]
-    expected_output1 = "Fault format missing key loop_bound in given json"
+    expected_output1 = "Fault format missing key path_bound in given json"
     expected_output2 = "Error decoding JSON: Expecting value: line 1 column 1 (char 0)"
     expected_output3 = "Error: NOTADIRECTORWITHTHISNAME not found."
 
@@ -261,7 +289,7 @@ def test_build_faults():
     user_inputs = [f"build -pf {path_to_folder} -ps {path_to_test_state_missing}", f"build -pf {path_to_folder} -ps {path_to_test_state_delay_type}",f"build -pf {path_to_folder_faulty} -ps {path_to_test_state_delay_type}", "q"]
     expected_output1 = "Failed to build with exception string indices must be integers, not 'str'"
     expected_output2 = "Cannot find protocol JSON aborting attempt"
-    expected_output3 = "Fault format missing key loop_bound in given json"
+    expected_output3 = "Fault format missing key path_bound in given json"
 
     output_list = [expected_output1, expected_output2, expected_output3]
 
@@ -269,7 +297,7 @@ def test_build_faults():
 
 @pytest.mark.unit
 def test_verifyta_path_faults():
-    user_inputs = [f"setVer {verifyta_path[:-13]}", f"setVer {verifyta_path} + fail",f"setVer {path_to_faulty_exe}",f"setVer {path_to_faulty_exe2}", "q"]
+    user_inputs = [f"setArgs -vp {verifyta_path[:-13]}", f"setArgs -vp {verifyta_path} + fail",f"setArgs -vp {path_to_faulty_exe}",f"setArgs -vp {path_to_faulty_exe2}", "q"]
     expected_output1 = "Tool is present and working at:"
     expected_output2 = "Tool not found at path"
     expected_output3 = "Error occurred while verifying the tool:"

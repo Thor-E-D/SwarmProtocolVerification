@@ -6,15 +6,14 @@
         "Forklift": "E",
         "Transport": "E"
     },
-    "loop_bound": 15,
+    "path_bound": 12,
     "branch_tracking": true,
-    "log_size": 200,
+    "log_size": 120,
     "delay_amount": {
         "Door": 2,
         "Forklift": 2,
         "Transport": 2
     },
-    "subsets": "SubsetA",
     "role_amount": {
         "Door": 1,
         "Forklift": 1,

@@ -1,0 +1,59 @@
+{
+  "initial": "l0",
+  "transitions": [
+      {
+          "label": {
+              "cmd": "e01_1",
+              "logType": ["e01_1"],
+              "role": "R"
+          },
+          "source": "l0",
+          "target": "l1"
+      },
+      {
+        "label": {
+            "cmd": "e01_2",
+            "logType": ["e01_2"],
+            "role": "R"
+        },
+        "source": "l0",
+        "target": "l1"
+      },
+      {
+        "label": {
+            "cmd": "e01_3",
+            "logType": ["e01_3"],
+            "role": "R"
+        },
+        "source": "l0",
+        "target": "l1"
+      },
+      {
+        "label": {
+            "cmd": "e01_4",
+            "logType": ["e01_4"],
+            "role": "R"
+        },
+        "source": "l0",
+        "target": "l1"
+      },
+      {
+          "label": {
+              "cmd": "e10",
+              "logType": ["e10"],
+              "role": "O"
+          },
+          "source": "l1",
+          "target": "l0"
+      },
+      {
+          "label": {
+              "cmd": "e12",
+              "logType": ["e12"],
+              "role": "O"
+          },
+          "source": "l1",
+          "target": "l2"
+      }
+  ]
+}

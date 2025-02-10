@@ -1,5 +1,5 @@
 import json
-from typing import Set, List
+from typing import Set, List, Dict
 
 from DataObjects.JSONTransfer import JSONTransfer, EventData
 from JSONParser import build_graph_internal, parse_protocol_JSON_file, parse_projection_JSON_file
@@ -47,7 +47,8 @@ class QueryGenerator:
         graph = build_graph_internal(graph_data)
 
         # Find edges with outdegree 0
-        locations = []
+        locations = set()
+        locations_pure = set()
         for edge in graph.edges:
             current_target = edge.target
             found_end = True
@@ -56,10 +57,11 @@ class QueryGenerator:
                     found_end = False
                     break
             if found_end:
+                locations_pure.add(current_target)
                 if current_target[0].isdigit():
-                    locations.append("l" + current_target)
+                    locations.add("l" + current_target)
                 else:
-                    locations.append(current_target)
+                    locations.add(current_target)
 
         index = 'i'
         map_role_index = {}
@@ -74,10 +76,29 @@ class QueryGenerator:
 
         deadlock_query += "(deadlock and globalLog[logSize - 1].orderCount == 0) imply "
 
+        role_end_state_dict = {}
+        for role in map_role_index:
+            role_end_state_dict[role] = set()
+
+        for jsonTransfer in self.projection_data:
+            all_events = jsonTransfer.own_events.copy()
+            all_events.extend(jsonTransfer.other_events)
+            for event in all_events:
+                loc_is_end = None
+                if event.target in locations_pure:
+                    loc_is_end = event.target
+                elif event.source in locations_pure:
+                    loc_is_end = event.source
+
+                if loc_is_end != None and current_target[0].isdigit():
+                    role_end_state_dict[jsonTransfer.name].add("l" +event.target)
+                elif loc_is_end != None:
+                    role_end_state_dict[jsonTransfer.name].add(event.target)
+
         for role in map_role_index:
             current_index = map_role_index[role]
             current_role_addition = "("
-            for location in locations:
+            for location in role_end_state_dict[role]:
                 current_role_addition += f"{role}({current_index}).{location} or "
             current_role_addition = current_role_addition[:-4] + ")"
             deadlock_query += current_role_addition + " and "
@@ -91,7 +112,7 @@ class QueryGenerator:
     def generate_sizebound_query(self) -> str:
         return "sup: globalLogIndex"
     
-    def generate_timebound_queries(self) -> str:
+    def generate_timebound_queries(self) -> Dict[str,str]:
         role_queries_dict = {}
         for projection_json_transfer in self.projection_data:
             role_queries_dict[projection_json_transfer.name] = []
@@ -110,14 +131,18 @@ class QueryGenerator:
         
         return role_queries_dict
     
-def generate_log_query(log: List[str]) -> str:
+def generate_log_query(log: List[str], valid_only: bool) -> str:
+    log_to_use = "globalLog"
+    if valid_only:
+        log_to_use = "trueGlobalLog"
+
     counter = 0
     result_query = "E<> "
     for logEntry in log:
-        result_query += f"trueGlobalLog[{counter}].eventID == {Utils.get_eventtype_UID(logEntry)}"
+        result_query += f"{log_to_use}[{counter}].eventID == {Utils.get_eventtype_UID(logEntry)}"
         counter += 1
         if counter == len(log):
-            result_query += f" and trueGlobalLog[{counter-1}].orderCount != 0"
+            result_query += f" and {log_to_use}[{counter-1}].orderCount != 0"
         else:
             result_query += " and "
     

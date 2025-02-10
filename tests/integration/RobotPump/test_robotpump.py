@@ -8,7 +8,6 @@ from DataObjects.ModelSettings import ModelSettings, DelayType
 def test_pump_robot_standard_setting():
     name_of_query_file = "query_file_standard"
     model_settings = ModelSettings({"Robot": 2, "Pump": 1}, {"Robot": DelayType.EVENTS_SELF_EMITTED, "Pump": DelayType.EVENTS_SELF_EMITTED})
-    model_settings.loop_counter = 2
     model_settings.branch_tracking = True
     model_settings.delay_amount = {"Robot": 1, "Pump": 1}
     model_settings.log_size = 10
@@ -22,7 +21,6 @@ def test_pump_robot_standard_setting():
 def test_pump_robot_time():
     name_of_query_file = "query_file_time1"
     model_settings = ModelSettings({"Robot": 2, "Pump": 1}, {"Robot": DelayType.EVENTS_SELF_EMITTED, "Pump": DelayType.EVENTS_SELF_EMITTED})
-    model_settings.loop_counter = 2
     model_settings.branch_tracking = True
     model_settings.delay_amount = {"Robot": 1, "Pump": 1}
     model_settings.log_size = 10
@@ -36,7 +34,6 @@ def test_pump_robot_time():
 def test_pump_robot_timed_log():
     name_of_query_file = "query_file_time2"
     model_settings = ModelSettings({"Robot": 2, "Pump": 1}, {"Robot": DelayType.EVENTS_SELF_EMITTED, "Pump": DelayType.EVENTS_SELF_EMITTED})
-    model_settings.loop_counter = 2
     model_settings.branch_tracking = True
     model_settings.delay_amount = {"Robot": 1, "Pump": 1}
     model_settings.log_size = 10

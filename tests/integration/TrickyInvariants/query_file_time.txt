@@ -1,0 +1,2 @@
+A[] forall(i:R_t) (deadlock and globalLog[logSize - 1].orderCount == 0) imply R(i).l1
+A[] globalLog[logSize - 1].orderCount == 0

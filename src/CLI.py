@@ -134,11 +134,10 @@ def check_state_data(data: Any):
         "verifyta_path",
         "base_path",
         "delay_type",
-        "loop_bound",
+        "path_bound",
         "branch_tracking",
         "log_size",
         "delay_amount",
-        "subsets",
         "role_amount"
         ]
 
@@ -180,7 +179,7 @@ def load_state_into_model_settings(state_data):
             new_delay_type[delay_type_single] = current_delay_type[delay_type_single]
 
     model_settings = ModelSettings(role_amount=state_data["role_amount"],delay_type=new_delay_type)
-    model_settings.loop_bound = state_data["loop_bound"]
+    model_settings.path_bound = state_data["path_bound"]
     model_settings.branch_tracking = state_data["branch_tracking"]
     model_settings.log_size = state_data["log_size"]
     model_settings.delay_amount = state_data["delay_amount"]
@@ -489,14 +488,17 @@ def auto_verify_model(model_path: str, base_folder_path: str, type: str, verifyt
         
         print ("---------------------------")
 
-def verify_log(model_path: str, log_path: str, verifyta_path: str):
+def verify_log(model_path: str, log_path: str, verifyta_path: str, valid_only: bool):
+    if valid_only == None:
+        valid_only = False
+
     verifyta_path = get_verifyta_path(verifyta_path)
     
     log_line = get_lines_in_file(log_path)
     log_list = [event.strip() for event in log_line[0].split(",") if event.strip()]
 
     query_path = os.path.join(base_path, autoQuery_path)
-    query_to_verify = generate_log_query(log_list)
+    query_to_verify = generate_log_query(log_list, valid_only)
 
     print(f"Verifying query: {query_to_verify}")
 
@@ -518,14 +520,22 @@ def str2bool(value: str) -> bool:
 
 # For model setting arguments
 def set_arguments(args):
+    if args.verifyta_path != None:
+        full_path = " ".join(args.verifyta_path)
+        set_verifyta_path(full_path)
+
+    if args.path_to_folder != None:
+        full_path = " ".join(args.path_to_folder)
+        update_local_state("base_path", full_path)
+
     if args.branch_tracking != None:
         update_local_state("branch_tracking", args.branch_tracking)
 
     if args.log_size != None:
         update_local_state("log_size", args.log_size)
 
-    if args.loop_counter != None:
-        update_local_state("loop_bound", args.loop_counter)
+    if args.path_counter != None:
+        update_local_state("path_bound", args.path_counter)
 
     if args.delay_type_all != None:
         args.delay_type_all = " ".join(args.delay_type_all)
@@ -539,32 +549,9 @@ def set_arguments(args):
         args.role_amount = " ".join(args.role_amount)
         parse_json_dict("role_amount", args.role_amount)
 
-def set_base_path(path_to_files: str):
-    update_local_state("base_path", path_to_files)
-
 def create_parser():
     parser = argparse.ArgumentParser(description="Model cheking swarm protocols CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
-
-    set_uppaal_path_parser = subparsers.add_parser("setVer", help="Set the path to a verifyta distribution")
-    set_uppaal_path_parser.add_argument(
-        "path",
-        type=str,
-        nargs='+',
-        help="The absolute path to a verifyta distribution"
-    )
-
-    subparsers.add_parser("showVer", help="Displays the current path to a verifyta distribution")
-
-    base_path_parser = subparsers.add_parser("setPath", help="Sets the path to the folder containing relevant json files")
-    base_path_parser.add_argument(
-        "path",
-        type=str,
-        nargs='+',
-        help="The absolute path to a folder with relevant json files"
-    )
-
-    subparsers.add_parser("showPath", help="Displays the path to the folder containing relevant json files")
 
     build_parser = subparsers.add_parser("build", help="Build the model")
     build_parser.add_argument(
@@ -586,6 +573,22 @@ def create_parser():
     # For setting arguments for the model
     argument_parser = subparsers.add_parser("setArgs", help="Set the arguments for the build")
     argument_parser.add_argument(
+        "-vp", "--verifyta-path",
+        type=str,
+        nargs='+',
+        help="The absolute path to a verifyta distribution",
+        required=False
+    )
+
+    argument_parser.add_argument(
+        "-pf", "--path-to-folder",
+        type=str,
+        nargs='+',
+        help="The absolute path to a folder with relevant json files",
+        required=False
+    )
+
+    argument_parser.add_argument(
         "-log", "--log-size",
         type=int,
         help="Size of the log that will be used within UPPAAL",
@@ -593,9 +596,9 @@ def create_parser():
     )
 
     argument_parser.add_argument(
-        "-loop", "--loop-counter",
+        "-path", "--path-counter",
         type=int,
-        help="Maximum amount of times a loop in the model can be taken",
+        help="Maximum amount of times a path in the model can be taken. Does not apply to exit paths",
         required=False
     )
 
@@ -731,6 +734,12 @@ def create_parser():
     required=False
     )
 
+    verify_log_parser.add_argument(
+        "-vo", "--valid-only",
+        type=str2bool,
+        help="Wether or not to check the global log or only the parts that are valid events. Default is false",
+        required=False
+    )
 
     subparsers.add_parser("q", help="Quit the CLI.") 
 
@@ -750,19 +759,7 @@ def main():
         try:
             # Parse the command line arguments
             args = parser.parse_args(user_input.split())
-            if args.command == "setVer":
-                full_path = " ".join(args.path)
-                set_verifyta_path(full_path)
-            elif args.command == "showVer":
-                verifyta_path = get_state_data("verifyta_path")
-                print(f"Current path to verifyta set to: {verifyta_path}")
-            elif args.command == "setPath":
-                full_path = " ".join(args.path)
-                set_base_path(full_path)
-            elif args.command == "showPath":
-                path_to_files = get_state_data("base_path")
-                print(f"Current path to relevant folder set to: {path_to_files}")
-            elif args.command == "build":
+            if args.command == "build":
                 build_model(args)
             elif args.command == "setArgs":
                 set_arguments(args)
@@ -786,7 +783,7 @@ def main():
             elif args.command == "verifyLog":
                 model_path = " ".join(args.model_path)
                 log_path = " ".join(args.log_file_path)
-                verify_log(model_path, log_path, args.verifyta_path)
+                verify_log(model_path, log_path, args.verifyta_path, args.valid_only)
             elif args.command == "q":
                 print("Goodbye!")
                 break

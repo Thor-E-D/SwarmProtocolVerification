@@ -45,42 +45,6 @@ class GraphAnalyser:
                 res_list.add(part)
         return res_list
 
-    # Using dfs to find loops
-    def find_loops(self) -> Set[EventData]:
-        loop_starters = dict()
-        visited = set()
-        path_stack = []
-        event_stack = []  # List of events in current path
-
-        def dfs(location: str, current_event: EventData = None):
-            if location in path_stack:
-                loop_events = set()
-
-                for i in range(len(event_stack) - 1, -1, -1):
-                    event = event_stack[i]
-                    if event.source == location:
-                        loop_starters[event] = loop_events
-                        break
-                    loop_events.add(event)
-                return
-
-            path_stack.append(location)
-            visited.add(location)
-
-            for event in self.outgoing[location]:
-                event_stack.append(event)
-                dfs(event.target, event)
-                event_stack.pop()
-
-            path_stack.pop()
-
-        # Start DFS from each unvisited location
-        for location in self.locations:
-            if location not in visited:
-                dfs(location)
-
-        return loop_starters
-
     def find_branching_events(self) -> Set[EventData]:
         branching = set()
         for location in self.outgoing:
@@ -91,20 +55,16 @@ class GraphAnalyser:
     def find_shortes_path_to_exit(self, event: EventData) -> set[EventData]:
         visited = set()
         path_stack = []
-        event_stack = []  # List of events in current path
+        event_stack = []
 
         exit_paths = []
 
         def dfs(location: str, original_event: EventData):
             # We found end
             if self.outgoing[location] == []:
-                #print(f"original event: {original_event}")
-                #print(f"event_stack: {event_stack}")
                 exit_path = []
                 for i in range(len(event_stack) - 1, -1, -1):
                     event = event_stack[i]
-                    #if event.source == original_event.source:
-                    #    break
                     exit_path.append(event)
                 exit_paths.append(exit_path)
                 return
@@ -121,8 +81,8 @@ class GraphAnalyser:
                 event_stack.pop()
 
             path_stack.pop()
-        
-        dfs(event.target, event)
+
+        dfs(event.source, event)
 
         if len(exit_paths) != 0:
             exit_paths.sort(key=len)
@@ -148,52 +108,66 @@ class GraphAnalyser:
 
         return resulting_tied_to_dict
 
+    # Using dfs to find loops
+    def find_loops(self) -> Set[EventData]:
+        loop_starters = dict()
+        visited = set()
+        path_stack = []
+        event_stack = []  # List of events in current path
 
-    def analyse_graph(self, initial_name: str) -> Dict[str, Union[Dict[EventData, Set[EventData]], Set[EventData]]]:
+        def dfs(location: str):
+            if location in path_stack:
+                loop_events = set()
+
+                for i in range(len(event_stack) - 1, -1, -1):
+                    event = event_stack[i]
+                    if event.source == location:
+                        loop_starters[event] = loop_events
+                        break
+                    loop_events.add(event)
+                return
+
+            path_stack.append(location)
+            visited.add(location)
+
+            for event in self.outgoing[location]:
+                event_stack.append(event)
+                dfs(event.target)
+                event_stack.pop()
+
+            path_stack.pop()
+
+        # Start DFS from each unvisited location
+        for location in self.locations:
+            if location not in visited:
+                dfs(location)
+
+        return loop_starters
+
+    def analyse_graph_loops_branches(self):
         loop_events = self.find_loops()
         branching_events = self.find_branching_events()
 
-        preceding_events = {}
-        for event in self.events:
-            preceding = self.find_preceding_branch_events(event,branching_events)
-            if preceding:  # Only include if there are preceding events
-                preceding_events[event] = preceding
+        return {
+            'branching_events': branching_events,
+            'loop_events': loop_events
+        }
 
-        for event in preceding_events:
-            if event.source == initial_name and any(e not in loop_events for e in preceding_events[event]):
-                preceding_events[event] = {}
 
+    def analyse_graph(self, initial_name: str) -> Dict[str, Union[Dict[EventData, Set[EventData]], Set[EventData]]]:
+        branching_events = self.find_branching_events()
         # If a loop start is not branching or all branches are loop start then we need to find exit route
-        start_loop_events = []
-        for start_loop in loop_events:
-            start_loop_events.append(start_loop)
-
-        exit_paths = {}
+        exit_paths = set()
         
         current_shortest_path = None
-        for start_loop in start_loop_events:
-            if start_loop not in branching_events:
-                current_shortest_path = self.find_shortes_path_to_exit(start_loop)
-            else:
-                current_branch_partion = []
-                for branching_event in branching_events:
-                    if branching_event.source == start_loop.source:
-                        current_branch_partion.append(branching_event)
+        for event in self.events:
+            current_shortest_path = self.find_shortes_path_to_exit(event)
+            exit_paths.update(current_shortest_path)
 
-                all_looping = True
-                for part_of_branch_partition in current_branch_partion:
-                    if part_of_branch_partition not in start_loop_events:
-                        all_looping = False
-                        break
-                
-                if all_looping:
-                    current_shortest_path = self.find_shortes_path_to_exit(start_loop)
-            if current_shortest_path != None:
-                exit_paths[start_loop] = current_shortest_path
-        # return preceding_events
+        all_events = set(self.events)
+        non_exit_paths = set.difference(all_events, exit_paths)
+
         return {
-            'preceding_events': preceding_events,
             'branching_events': branching_events,
-            'loop_events': loop_events,
-            'exit_paths': exit_paths
+            'non_exit_paths': non_exit_paths
         }

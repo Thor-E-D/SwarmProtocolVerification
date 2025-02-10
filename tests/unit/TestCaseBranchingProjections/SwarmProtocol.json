@@ -1,0 +1,104 @@
+{
+    "initial": "l1",
+    "transitions": [
+        {
+            "label": {
+                "cmd": "e12",
+                "logType": ["e12"],
+                "role": "R"
+            },
+            "source": "l1",
+            "target": "l2"
+        },
+        {
+            "label": {
+                "cmd": "e23",
+                "logType": ["e23"],
+                "role": "R"
+            },
+            "source": "l2",
+            "target": "l3"
+        },
+        {
+            "label": {
+                "cmd": "e34",
+                "logType": ["e34"],
+                "role": "R1"
+            },
+            "source": "l3",
+            "target": "l4"
+        },
+        {
+            "label": {
+                "cmd": "e46",
+                "logType": ["e46"],
+                "role": "R"
+            },
+            "source": "l4",
+            "target": "l6"
+        },
+        {
+            "label": {
+                "cmd": "e35",
+                "logType": ["e35"],
+                "role": "R"
+            },
+            "source": "l3",
+            "target": "l5"
+        },
+        {
+            "label": {
+                "cmd": "e56",
+                "logType": ["e56"],
+                "role": "R"
+            },
+            "source": "l5",
+            "target": "l6"
+        },
+        {
+            "label": {
+                "cmd": "e17",
+                "logType": ["e17"],
+                "role": "R"
+            },
+            "source": "l1",
+            "target": "l7"
+        },
+        {
+            "label": {
+                "cmd": "e78",
+                "logType": ["e78"],
+                "role": "R"
+            },
+            "source": "l7",
+            "target": "l8"
+        },
+        {
+            "label": {
+                "cmd": "e79",
+                "logType": ["e79"],
+                "role": "R"
+            },
+            "source": "l7",
+            "target": "l9"
+        },
+        {
+            "label": {
+                "cmd": "e86",
+                "logType": ["e86"],
+                "role": "R"
+            },
+            "source": "l8",
+            "target": "l6"
+        },
+        {
+            "label": {
+                "cmd": "e96",
+                "logType": ["e96"],
+                "role": "R2"
+            },
+            "source": "l9",
+            "target": "l6"
+        }
+    ]
+}

@@ -1,0 +1,3 @@
+A[] forall(i:R_t) (deadlock and globalLog[logSize - 1].orderCount == 0) imply R(i).l1
+E<> R_log(0).overflow
+E<> globalLog[0].eventID == e00_2_ID && globalLog[1].eventID == e00_2_ID && globalLog[2].eventID == e00_2_ID && globalLog[3].eventID == e00_2_ID && globalLog[4].eventID == e00_2_ID && globalLog[5].eventID == e00_2_ID

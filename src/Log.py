@@ -18,7 +18,7 @@ from Utils import Utils
 from Functions import generate_function_merge_propagation_log, generate_function_handle_log_entry
 
 class Log(Template):
-    def __init__(self, parameter: str, json_transfer: JSONTransfer, evetname_loopcounter: Dict[str,str], log_size: int, log_delay_type: DelayType, using_global_event_bound: bool,log_time_data: LogTimeData = None):
+    def __init__(self, parameter: str, json_transfer: JSONTransfer, log_size: int, log_delay_type: DelayType, using_global_event_bound: bool,log_time_data: LogTimeData = None):
         
         no_delay_flag = False
 
@@ -79,7 +79,7 @@ class Log(Template):
 
         # Adding function calls
         declaration.add_function_call(generate_function_handle_log_entry, own_event_names, other_event_names)
-        declaration.add_function_call(generate_function_merge_propagation_log,evetname_loopcounter) 
+        declaration.add_function_call(generate_function_merge_propagation_log) 
         
         l_prop1 = Location (id = Utils.get_next_id(), x=-204, y=-298, name="l_prop1", locationType = LocationType.COMMITTED)
         l_merge_log = Location (id = Utils.get_next_id(), x=-748, y=-136, name="merge_log", locationType = LocationType.COMMITTED)
@@ -95,8 +95,6 @@ class Log(Template):
 
         locations = [l_prop1, l_merge_log, l_initial, l_accepting_emitted_1, l_accepting_emitted_2 ,l_updating_role_1, l_prop2, l_updating_role_2, l_backtracking_1, l_backtracking_2, l_overflow]
         transitions = []
-
-
 
         # Normal model based on untimed and using DELAY.EVENT_SELF_EMITTED
         transitions.append(Transition(
@@ -138,15 +136,6 @@ backTracking := true"""
 resetCount--""",
             synchronisation=f"{json_transfer.backtrack_channel_name}[id]!",
             nails = [(-978, 136)]
-        ))
-
-        transitions.append(Transition(
-            id=Utils.get_next_id(),
-            source=l_backtracking_2,
-            target=l_backtracking_1,
-            guard="!isInSubsciptions(subscriptions, currentEventResetID)",
-            assignment="""discardedEventIDs[resetCount - 1] = -1,
-resetCount--""",
         ))
 
         transitions.append(Transition(
@@ -264,15 +253,6 @@ eventsToRead := 0"""
             ))
 
         nails = [(start_x + 68, start_y), (start_x, start_y)]
-
-        transitions.append(Transition(
-            id=Utils.get_next_id(),
-            source=l_updating_role_2,
-            target=l_updating_role_1,
-            guard=f"!isInSubsciptions(subscriptions, currentLog[counter].eventID)",
-            assignment="counter++",
-            nails=nails
-        ))
 
         transitions.append(Transition(
             id=Utils.get_next_id(),

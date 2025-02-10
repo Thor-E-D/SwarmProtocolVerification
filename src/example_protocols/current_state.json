@@ -2,26 +2,22 @@
     "verifyta_path": "",
     "base_path": "",
     "delay_type": {
-        "R137": "N",
-        "R138": "N",
-        "R135": "N",
-        "R136": "N"
+        "R1": "N",
+        "R2": "N",
+        "R0": "N"
     },
-    "loop_bound": 2,
+    "path_bound": 2,
     "branch_tracking": true,
     "log_size": 50,
     "delay_amount": {
-        "R137": 1,
-        "R138": 1,
-        "R135": 1,
-        "R136": 1
+        "R1": 1,
+        "R2": 1,
+        "R0": 1
     },
-    "subsets": null,
     "role_amount": {
-        "R137": 1,
-        "R138": 1,
-        "R135": 1,
-        "R136": 1
+        "R1": 1,
+        "R2": 1,
+        "R0": 1
     },
     "time_json_transfer": null
 }

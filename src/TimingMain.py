@@ -91,7 +91,7 @@ def write_json_to_csv(json_file, csv_file, extra_fields=None):
         data = json.load(f)
     
     # Exclude specific keys
-    excluded_keys = {"verifyta_path", "base_path", "subsets"}
+    excluded_keys = {"verifyta_path", "base_path"}
     filtered_data = {k: v for k, v in data.items() if k not in excluded_keys}
     
     # Add extra fields if provided
@@ -341,7 +341,7 @@ def run_building_experiment(json_files):
 
     for json_file_folder in json_files:
         model_settings = ModelSettings(None, None)
-        model_settings.loop_counter = 2
+        model_settings.path_bound = 2
         model_settings.branch_tracking = True
         model_settings.delay_amount = None
         model_settings.log_size = 50
