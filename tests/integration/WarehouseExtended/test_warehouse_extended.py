@@ -20,7 +20,7 @@ def test_warehouse_extended():
 
 
 @pytest.mark.integration
-def test_warehouse_two_transport_two_transport():
+def test_warehouse_two_transport():
     name_of_query_file = "query_file2"
 
     name_amount_dict = {"Door": 1, "Forklift": 1, "Transport": 2}

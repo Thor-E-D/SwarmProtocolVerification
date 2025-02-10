@@ -99,7 +99,7 @@ def test_base_path():
 @pytest.mark.unit
 def test_setArgs():
     user_inputs = [set_all_args_cmd, "showArgs", "q"]
-    expected_output = "'delay_type': {'Door': 'E', 'Forklift': 'S', 'Transport': 'E'}, 'path_bound': 1, 'branch_tracking': True, 'log_size': 16, 'delay_amount': {'Door': 2, 'Forklift': 1, 'Transport': 2}, 'subsets': 'SubsetA', 'role_amount': {'Door': 1, 'Forklift': 1, 'Transport': 2}}"
+    expected_output = "'delay_type': {'Door': 'E', 'Forklift': 'S', 'Transport': 'E'}, 'path_bound': 1, 'branch_tracking': True, 'log_size': 16, 'delay_amount': {'Door': 2, 'Forklift': 1, 'Transport': 2}, 'role_amount': {'Door': 1, 'Forklift': 1, 'Transport': 2}}"
 
     output_list = [expected_output]
 

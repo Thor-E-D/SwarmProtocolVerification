@@ -10,7 +10,6 @@
     "branch_tracking": true,
     "log_size": 16,
     "delay_amount": "None",
-    "subsets": "SubsetA",
     "role_amount": {
         "Door": 1,
         "Forklift": 1,

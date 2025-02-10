@@ -137,7 +137,6 @@ def check_state_data(data: Any):
         "branch_tracking",
         "log_size",
         "delay_amount",
-        "subsets",
         "role_amount"
         ]
 
@@ -736,8 +735,6 @@ def create_parser():
         help="Wether or not to check the global log or only the parts that are valid events. Default is false",
         required=False
     )
-
-
 
     subparsers.add_parser("q", help="Quit the CLI.") 
 

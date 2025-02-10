@@ -1,5 +1,5 @@
 import json
-from typing import Set, List
+from typing import Set, List, Dict
 
 from DataObjects.JSONTransfer import JSONTransfer, EventData
 from JSONParser import build_graph_internal, parse_protocol_JSON_file, parse_projection_JSON_file
@@ -112,7 +112,7 @@ class QueryGenerator:
     def generate_sizebound_query(self) -> str:
         return "sup: globalLogIndex"
     
-    def generate_timebound_queries(self) -> str:
+    def generate_timebound_queries(self) -> Dict[str,str]:
         role_queries_dict = {}
         for projection_json_transfer in self.projection_data:
             role_queries_dict[projection_json_transfer.name] = []

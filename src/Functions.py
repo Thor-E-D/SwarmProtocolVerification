@@ -196,10 +196,10 @@ def generate_function_find_tiedto() -> str:
 int findTiedTo(logEntryType currentLogEntry, logEntryType &amp;tempLog[logSize]) {
     int j;
     int i;
-    for(i = logSize-1; i &gt;= 0; i--) {
+    for(i = currentLogEntry.orderCount-1; i &gt;= 0; i--) {
         if (tempLog[i].orderCount != 0) {
             for (j = 0; j&lt;maxAmountOfTied; j++) {
-                if (tempLog[i].eventID == eventsTiedTo[currentLogEntry.eventID][j]  &amp;&amp; tempLog[i].orderCount != currentLogEntry.orderCount) {
+                if (tempLog[i].eventID == eventsTiedTo[currentLogEntry.eventID][j]  &amp;&amp; tempLog[i].orderCount &lt; currentLogEntry.orderCount) {
                     return tempLog[i].orderCount;
                 }
             }

@@ -25,4 +25,3 @@ class ModelSettings:
     log_size: int = 20
     delay_amount: Optional[Dict[str, int]] = None
     time_json_transfer: Optional[TimeJSONTransfer] = None
-    subsets: Optional[str] = None #TODO make this xD
