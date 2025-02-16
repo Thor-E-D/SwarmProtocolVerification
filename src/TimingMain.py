@@ -435,7 +435,7 @@ def run_build_and_verify_experiment(json_files, valid: bool):
         model_settings.path_bound = -1
         model_settings.branch_tracking = True
         model_settings.delay_amount = None
-        model_settings.log_size = 50
+        model_settings.log_size = 8
 
         def find_json_file(folder_path):
             for file in os.listdir(folder_path):
@@ -478,7 +478,7 @@ def run_build_and_verify_experiment(json_files, valid: bool):
             result_valid, recorded_time_valid = (verify_query(path_to_current_model, path_to_protocols_query, verifyta_path, 0))        
             append_to_csv(path_to_protocols_output_verifybuild_valid, [transitions_amount, roles_amount] + [build_time] + [result_valid] + [recorded_time_valid] + [valid_run_query] + [json_file])
         else:
-            valid_run_3 = find_valid_run(data, max_depth=1)
+            valid_run_3 = find_valid_run(data, max_depth=6)
             invalid_run = find_invalid_run(valid_run_3, data)
             invalid_run_query = generate_log_query(invalid_run, True)
 
@@ -568,7 +568,7 @@ if __name__ == "__main__":
 
 
     json_files = fetch_json_files(path_to_protocols)
-    run_build_and_verify_experiment(json_files,True)
+    run_build_and_verify_experiment(json_files,False)
 
     #json_files = fetch_json_files(path_to_protocols)
     #run_build_and_verify_experiment(json_files,False)

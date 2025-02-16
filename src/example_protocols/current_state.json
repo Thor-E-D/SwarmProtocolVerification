@@ -2,28 +2,22 @@
     "verifyta_path": "",
     "base_path": "",
     "delay_type": {
-        "R891": "N",
-        "R892": "N",
-        "R890": "N",
-        "R893": "N",
-        "R889": "N"
+        "R203": "N",
+        "R201": "N",
+        "R202": "N"
     },
     "path_bound": -1,
     "branch_tracking": true,
-    "log_size": 50,
+    "log_size": 8,
     "delay_amount": {
-        "R891": 1,
-        "R892": 1,
-        "R890": 1,
-        "R893": 1,
-        "R889": 1
+        "R203": 1,
+        "R201": 1,
+        "R202": 1
     },
     "role_amount": {
-        "R891": 1,
-        "R892": 1,
-        "R890": 1,
-        "R893": 1,
-        "R889": 1
+        "R203": 1,
+        "R201": 1,
+        "R202": 1
     },
     "time_json_transfer": null
 }

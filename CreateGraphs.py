@@ -101,13 +101,13 @@ def make_graph_build_time(input_file: str, sortby: str, timing: str):
     plt.plot(df[sortby], df[timing], marker='.', linestyle = "None", label=sortby)
 
 
-    plt.xticks(np.unique(df[sortby]))
+    #plt.xticks(np.unique(df[sortby]))
     # Fit a linear trend line
     z = np.polyfit(df[sortby], df[timing], 1)  # 1 for linear fit
     p = np.poly1d(z)
     
 
-    if True:
+    if False:
         plt.plot(df[sortby], p(df[sortby]), linestyle='-', color='red', label='Trend Line')
 
         equation_text = f"y = {z[0]:.2f}x"
@@ -156,6 +156,6 @@ if __name__ == "__main__":
     #make_graph_ra_da_se("outputDoorES.csv", "Door")
     #make_graph_logsize("outputLogSize2.csv")
     #make_graph_build_time("output3.csv", "roles", "build_time")
-    make_graph_build_time("outputverifybuildvalid1.csv", "transitions", "valid_run_time")
+    make_graph_build_time("outputverifybuildinvalid.csv", "transitions", "invalid_run_time")
     #make_graph_simple("outputPathBound.csv", "path_bound")
     #computeLog3("outputPathBound.csv", "path_bound")
