@@ -138,7 +138,7 @@ experiment_pathbound_configs = [{
     "verifyta_path": "",
     "base_path": "",
     "delay_type": {"Door": "E", "Forklift": "E", "Transport": "E"},
-    "path_bound": range(1,13),
+    "path_bound": range(1,11),
     "branch_tracking": True,
     "log_size": -1,
     "delay_amount": {
@@ -266,5 +266,8 @@ def get_scaling_experiments():
     #result.extend(experiment_delay_type_E_configs_extra)
     #result.extend(experiment_delay_type_S_configs_extra)
     result.extend(experiment_pathbound_configs)
-    result.extend(experiment_pathbound_configs_extra)
+    result.extend(experiment_pathbound_configs)
+    result.extend(experiment_pathbound_configs)
+    result.extend(experiment_pathbound_configs)
+    #result.extend(experiment_pathbound_configs_extra)
     return result

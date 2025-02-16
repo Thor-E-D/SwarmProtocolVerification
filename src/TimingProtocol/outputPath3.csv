@@ -1,0 +1,11 @@
+delay_type.Door,delay_type.Forklift,delay_type.Transport,path_bound,branch_tracking,log_size,delay_amount.Door,delay_amount.Forklift,delay_amount.Transport,role_amount.Door,role_amount.Forklift,role_amount.Transport,verification_result,time
+E,E,E,1,True,43,2,2,2,1,1,1,True,0.12251400947570801
+E,E,E,2,True,43,2,2,2,1,1,1,True,0.12460923194885254
+E,E,E,3,True,43,2,2,2,1,1,1,True,0.24811315536499023
+E,E,E,4,True,43,2,2,2,1,1,1,True,0.6015222072601318
+E,E,E,5,True,43,2,2,2,1,1,1,True,1.966158390045166
+E,E,E,6,True,43,2,2,2,1,1,1,True,6.31060528755188
+E,E,E,7,True,43,2,2,2,1,1,1,True,21.790524005889893
+E,E,E,8,True,43,2,2,2,1,1,1,True,73.412513256073
+E,E,E,9,True,43,2,2,2,1,1,1,True,247.97086119651794
+E,E,E,10,True,43,2,2,2,1,1,1,True,824.5063123703003

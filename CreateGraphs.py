@@ -91,32 +91,61 @@ def make_graph_simple(input_file: str, key: str):
     plt.show()
 
 
-def make_graph_build_time(input_file: str):
+def make_graph_build_time(input_file: str, sortby: str, timing: str):
     file_path = os.path.join(base_path, "src", "example_protocols", input_file)
     df = pd.read_csv(file_path)
 
     # Create the plot
     plt.figure(figsize=(10, 6))
 
-    plt.plot(df["roles"], df["build_time"], marker='.', linestyle = "None", label=f'roles')
+    plt.plot(df[sortby], df[timing], marker='.', linestyle = "None", label=sortby)
 
 
-    #plt.xticks(np.unique(df[f"delay_amount.{role_name}"]))
+    plt.xticks(np.unique(df[sortby]))
     # Fit a linear trend line
-    z = np.polyfit(df["roles"], df["build_time"], 1)  # 1 for linear fit
+    z = np.polyfit(df[sortby], df[timing], 1)  # 1 for linear fit
     p = np.poly1d(z)
     
-    # Plot the trend line
-    plt.plot(df["roles"], p(df["roles"]), linestyle='-', color='red', label='Trend Line')
 
+    if True:
+        plt.plot(df[sortby], p(df[sortby]), linestyle='-', color='red', label='Trend Line')
+
+        equation_text = f"y = {z[0]:.2f}x"
+        plt.text(
+            x=df[sortby].min(), 
+            y=df[timing].max(), 
+            s=equation_text, 
+            fontsize=12, 
+            color='red',
+            bbox=dict(facecolor='white', alpha=0.7, edgecolor='red')
+        )
 
     # Labels and title
-    plt.xlabel(f"Roles")
-    plt.ylabel("Build time in seconds")
+    plt.xlabel(f"Number of {sortby}")
+    #plt.ylabel("Build time in seconds")
+    plt.ylabel("Verification time in seconds")
     plt.grid(True, which="both", linestyle="--", linewidth=0.5)
 
     # Show the plot
     plt.show()
+
+
+
+def computeLog3(input_file: str, key: str):
+    file_path = os.path.join(path_to_folder, input_file)
+    df = pd.read_csv(file_path)
+
+    timing_data = df["time"]
+    bounds = df[key]
+
+    # Fit an exponential model T(n) = a * 3^n
+    coeffs = np.polyfit(bounds, np.log(timing_data), 1)  # Fit log(T) = log(a) + n * log(3)
+    a_fit = np.exp(coeffs[1])  # Convert log(a) back
+    b_fit = np.exp(coeffs[0])  # This should be close to log(3) if it follows 3^n
+
+    # Return fitted parameters
+    print(f"{a_fit}, {b_fit}")
+
 
 
 if __name__ == "__main__":
@@ -126,5 +155,7 @@ if __name__ == "__main__":
     #make_graph_ra_da_se("outputTransportES.csv", "Transport")
     #make_graph_ra_da_se("outputDoorES.csv", "Door")
     #make_graph_logsize("outputLogSize2.csv")
-    #make_graph_build_time("outputBuildTime.csv")
-    make_graph_simple("outputloop2.csv", "loop_bound")
+    #make_graph_build_time("output3.csv", "roles", "build_time")
+    make_graph_build_time("outputverifybuildvalid1.csv", "transitions", "valid_run_time")
+    #make_graph_simple("outputPathBound.csv", "path_bound")
+    #computeLog3("outputPathBound.csv", "path_bound")

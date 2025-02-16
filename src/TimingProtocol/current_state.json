@@ -6,9 +6,9 @@
         "Forklift": "E",
         "Transport": "E"
     },
-    "path_bound": 12,
+    "path_bound": 10,
     "branch_tracking": true,
-    "log_size": 120,
+    "log_size": 43,
     "delay_amount": {
         "Door": 2,
         "Forklift": 2,

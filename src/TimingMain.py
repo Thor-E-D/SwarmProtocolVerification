@@ -11,6 +11,8 @@ from argparse import Namespace
 import csv
 from itertools import product
 from copy import deepcopy
+from collections import deque
+import random
 
 from DataObjects.Model import Model
 from DataObjects.ModelSettings import DelayType, ModelSettings
@@ -19,6 +21,7 @@ from ModelBuilder import createModel
 from QueryGenerator import QueryGenerator, generate_log_query
 from CLI import build_model
 from TimingExperiments import get_scaling_experiments
+
 
 base_path = os.path.dirname(os.path.abspath(__file__))
 verifyta_path = "C:\\Program Files\\UPPAAL-5.1.0-beta5\\app\\bin\\verifyta.exe"
@@ -38,6 +41,9 @@ example_protocols = "example_protocols"
 path_to_protocols = os.path.join(base_path, example_protocols)
 path_to_current_state_protocols =  os.path.join(path_to_protocols, "current_state.json")
 path_to_protocols_output =  os.path.join(path_to_protocols, "output.csv")
+path_to_protocols_output_verifybuild_valid =  os.path.join(path_to_protocols, "outputverifybuildvalid.csv")
+path_to_protocols_output_verifybuild_invalid =  os.path.join(path_to_protocols, "outputverifybuildinvalid.csv")
+path_to_protocols_query = os.path.join(path_to_protocols, "query.txt")
 
 
 # Experiments
@@ -71,7 +77,7 @@ def filter_output(file_path_input: str) -> str:
 def verify_query(model_path, query_path, verifyta_path, index):
     # verifyta --hashtable-size 32 model.xml query.q
 
-    command = [verifyta_path, model_path, query_path, "--query-index", f"{index}","--diagnostic", "0"]
+    command = [verifyta_path, model_path, query_path, "--query-index", f"{index}","--diagnostic", "0", "-d"]
 
     # Run the command and write the output directly to the file
     start_time = time.time()  # Start timing
@@ -210,7 +216,7 @@ def run_verify_timing_experiment():
             
         update_current_state("", highest_exp)
         if highest_exp["log_size"] == -1:
-            update_current_state("log_size", 120)
+            update_current_state("log_size", 90)
 
                     # Buld model
             build_args = Namespace(
@@ -334,10 +340,166 @@ def sort_paths_numerically(paths):
 
     return sorted(paths, key=extract_number)
 
+def find_valid_run(graph, max_depth=6):
+    initial_state = graph["initial"]
+    transitions = graph["transitions"]
+    
+    # Build adjacency list from transitions
+    adj_list = {}
+    for transition in transitions:
+        source = transition["source"]
+        target = transition["target"]
+        label = transition["label"]
+        
+        if source not in adj_list:
+            adj_list[source] = []
+        adj_list[source].append((target, label["logType"][0]))
+    
+    # BFS to find longest valid run up to depth 6 avoiding loops
+    queue = deque([(initial_state, [], set(), 0)])  # (current state, log path, visited states, depth)
+    best_run = []
+    
+    while queue:
+        state, path, visited, depth = queue.popleft()
+        
+        if depth >= max_depth:
+            break
+        
+        if state in adj_list:
+            neighbors = adj_list[state][:]
+            random.shuffle(neighbors)  # Randomize the order of transitions
+
+            for next_state, log_type in neighbors:
+                if next_state in visited:
+                    continue  # Avoid loops
+                new_path = path + [log_type]
+                queue.append((next_state, new_path, visited | {next_state}, depth + 1))
+                
+                if len(new_path) > len(best_run):
+                    best_run = new_path
+    
+    return best_run
+
+def find_invalid_run(valid_run, graph):
+    """ Modify the last element of a valid run to be invalid."""
+    if not valid_run:
+        return []  # No valid run found
+    
+    transitions = graph["transitions"]
+    valid_last_log = valid_run[-1]
+    all_log_types = {t["label"]["logType"][0] for t in transitions}  # Collect all log types
+    
+    # Find an invalid log type (one that is different from the valid last log)
+    for log_type in all_log_types:
+        if log_type != valid_last_log:
+            invalid_run = valid_run[:-1] + [log_type]
+            return invalid_run
+    
+    return valid_run  # In case no invalid log type is found (unlikely)
+
+def generate_valid_runs(json_files):
+    json_files.pop(0)
+    json_files = sort_paths_numerically(json_files)
+
+    for json_file_folder in json_files:
+        model_settings = ModelSettings(None, None)
+        model_settings.path_bound = -1
+        model_settings.branch_tracking = True
+        model_settings.delay_amount = None
+        model_settings.log_size = 50
+
+        def find_json_file(folder_path):
+            for file in os.listdir(folder_path):
+                if file.endswith(".json"):
+                    return os.path.join(folder_path, file)
+            return None
+
+        json_file = find_json_file(json_file_folder)
+        print(f"Processing file: {json_file}")
+
+        with open(json_file, 'r') as f:
+            data = json.load(f)
+
+        for i in range(10):
+            valid_run = find_valid_run(data, max_depth=6)
+            print(valid_run)
+      
+
+
+def run_build_and_verify_experiment(json_files, valid: bool):
+    json_files.pop(0)
+    json_files = sort_paths_numerically(json_files)
+
+    for json_file_folder in json_files:
+        model_settings = ModelSettings(None, None)
+        model_settings.path_bound = -1
+        model_settings.branch_tracking = True
+        model_settings.delay_amount = None
+        model_settings.log_size = 50
+
+        def find_json_file(folder_path):
+            for file in os.listdir(folder_path):
+                if file.endswith(".json"):
+                    return os.path.join(folder_path, file)
+            return None
+
+        json_file = find_json_file(json_file_folder)
+        print(f"Processing file: {json_file}")
+
+        with open(json_file, 'r') as f:
+            data = json.load(f)
+
+        transitions_amount = len(data["transitions"])
+        roles = {transition["label"]["role"] for transition in data["transitions"]}
+        roles_amount = len(roles)
+
+        generate_standard_settings(model_settings, json_file)
+        update_current_state_protocol(path_to_current_state_protocols, model_settings)
+
+        build_args = Namespace(
+            command="build",
+            path_to_folder=json_file_folder,
+            path_to_state=path_to_current_state_protocols
+        )
+
+        build_time, _ = build_model(build_args)
+
+        path_to_current_model = os.path.join(json_file_folder, "uppaal_model.xml")
+
+        #Construct formula
+        valid_run = find_valid_run(data, max_depth=6)
+        invalid_run = find_invalid_run(valid_run, data)
+        if (valid):
+            valid_run_query = generate_log_query(valid_run, True)
+
+            with open(path_to_protocols_query, "w") as file:
+                file.write(valid_run_query)
+
+            result_valid, recorded_time_valid = (verify_query(path_to_current_model, path_to_protocols_query, verifyta_path, 0))        
+            append_to_csv(path_to_protocols_output_verifybuild_valid, [transitions_amount, roles_amount] + [build_time] + [result_valid] + [recorded_time_valid] + [valid_run_query] + [json_file])
+        else:
+            valid_run_3 = find_valid_run(data, max_depth=1)
+            invalid_run = find_invalid_run(valid_run_3, data)
+            invalid_run_query = generate_log_query(invalid_run, True)
+
+            with open(path_to_protocols_query, "w") as file:
+                file.write(invalid_run_query)
+
+            result_invalid, recorded_time_invalid = (verify_query(path_to_current_model, path_to_protocols_query, verifyta_path, 0))
+            append_to_csv(path_to_protocols_output_verifybuild_invalid, [transitions_amount, roles_amount] + [build_time] + [result_invalid] + [recorded_time_invalid] + [invalid_run_query] + [json_file])
+        
 
 def run_building_experiment(json_files):
     json_files.pop(0)
     json_files = sort_paths_numerically(json_files)
+
+    print(f"length is {len(json_files)}")
+
+    # Removing the ones from part 1
+    for _ in range(605):
+        json_files.pop(0)
+
+    print(f"length is {len(json_files)}")
 
     for json_file_folder in json_files:
         model_settings = ModelSettings(None, None)
@@ -404,8 +566,18 @@ def move_json_files(json_files):
 if __name__ == "__main__":
     #run_verify_timing_experiment()
 
+
     json_files = fetch_json_files(path_to_protocols)
-    run_building_experiment(json_files)
+    run_build_and_verify_experiment(json_files,True)
+
+    #json_files = fetch_json_files(path_to_protocols)
+    #run_build_and_verify_experiment(json_files,False)
+    
+    
+    #json_files = fetch_json_files(path_to_protocols)
+    #run_building_experiment(json_files)
+
+
 
     #move_json_files(json_files)
     #print("Found JSON files:")
