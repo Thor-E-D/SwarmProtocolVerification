@@ -18,7 +18,7 @@ from Utils import Utils
 from Functions import generate_function_merge_propagation_log, generate_function_handle_log_entry
 
 class Log(Template):
-    def __init__(self, parameter: str, json_transfer: JSONTransfer, log_size: int, log_delay_type: DelayType, using_global_event_bound: bool,log_time_data: LogTimeData = None):
+    def __init__(self, parameter: str, json_transfer: JSONTransfer, log_size: int, log_delay_type: DelayType, using_global_event_bound: bool, eventnames_dict, log_time_data: LogTimeData = None):
         
         no_delay_flag = False
 
@@ -53,13 +53,11 @@ class Log(Template):
         declaration.add_variable("int resetCount = 0;")
         declaration.add_variable("int eventsToRead = 0;")
 
-        subscription_str = "int subscriptions[amountOfUniqueEvents] = {"
-        subscription_counter = 0
-        for subscription in json_transfer.subscriptions:
-            subscription_counter += 1
-            subscription_str += Utils.get_eventtype_UID(subscription) +", "
 
-        subscription_str += "-1, " * (json_transfer.total_amount_of_events - subscription_counter)
+        subscription_str = "const bool subscriptions[amountOfUniqueEvents] = {"
+        for event_key in eventnames_dict:
+            subscription_str += f"{event_key in json_transfer.subscriptions}, ".lower()
+
         declaration.add_variable(subscription_str[:-2] + "};")
 
         # Flow list and pointer

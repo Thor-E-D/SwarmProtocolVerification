@@ -1,3 +1,5 @@
 A[] forall(i:O_t) forall(j:R_t) (deadlock and globalLog[logSize - 1].orderCount == 0) imply O(i).l5 and R(j).l5
 A[] exists(i:logSize_t) forall(j:logSize_t) (deadlock and trueGlobalLog[i].eventID == e12_ID and i != j) imply trueGlobalLog[j].eventID != e13_ID
 A[] deadlock imply trueGlobalLog[3].tiedTo == trueGlobalLog[1].orderCount
+A[] forall(i:O_t) ((O_log(i).initial and (!O_log(i).newUpdates)) and forall(j:R_t)(R_log(j).initial and (!R_log(j).newUpdates))) imply forall(h: logSize_t) exists(k: logSize_t) forall(i:O_t) trueGlobalLog[h].orderCount == 0 or ((trueGlobalLog[h].orderCount == O_log(i).currentLog[k].orderCount and k<=h) or !(O_log(i).subscriptions[trueGlobalLog[h].eventID]))
+A[] forall(i:O_t) ((O_log(i).initial and (!O_log(i).newUpdates)) and forall(j:R_t)(R_log(j).initial and (!R_log(j).newUpdates))) imply forall(h: logSize_t) exists(k: logSize_t) forall(j:R_t) trueGlobalLog[h].orderCount == 0 or ((trueGlobalLog[h].orderCount == R_log(j).currentLog[k].orderCount and k<=h) or !(R_log(j).subscriptions[trueGlobalLog[h].eventID]))

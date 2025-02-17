@@ -399,10 +399,10 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
 
         log = None
         if model_settings.time_json_transfer == None:
-            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer, model_settings.log_size, model_settings.delay_type[jsonTransfer.name], using_global_event_bound)
+            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer, model_settings.log_size, model_settings.delay_type[jsonTransfer.name], using_global_event_bound, eventnames_dict)
         else:
             log_time_data_role = next((log_time_data for log_time_data in model_settings.time_json_transfer.log_time_data if log_time_data.role_name == jsonTransfer.name), None)
-            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer, model_settings.log_size,model_settings.delay_type[jsonTransfer.name], using_global_event_bound, log_time_data_role)
+            log = Log(amount_names[jsonTransfer.name] + " id", jsonTransfer, model_settings.log_size,model_settings.delay_type[jsonTransfer.name], using_global_event_bound, eventnames_dict, log_time_data_role)
         logs.append(log)
 
     return Model(declaration, roles, logs)

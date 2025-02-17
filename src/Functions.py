@@ -299,7 +299,7 @@ void consolidateLogs(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logS
                     currentLocation = eventLocationMap[currentEvent.eventID][1];
                 }
             } else if (isBranchingList[currentEvent.eventID]) {
-                if (isInBranchingConflict(isInBranchingPartion[currentEvent.eventID], correctBranchEvent.eventID) &amp;&amp; correctBranchEvent.basedOnOrderCount == currentEvent.basedOnOrderCount &amp;&amp; correctBranchEvent.tiedTo == currentEvent.tiedTo) {
+                if (isInBranchingConflict(isInBranchingPartion[currentEvent.eventID], correctBranchEvent.eventID) &amp;&amp; correctBranchEvent.tiedTo == currentEvent.tiedTo) {
                     if (isIntInList(trueDiscardedEvents, currentEvent.orderCount)) {
                         addIntToList(discardedEvents, currentEvent.orderCount);
                         addIntToList(basedOnList, currentEvent.orderCount);
@@ -319,7 +319,7 @@ void consolidateLogs(logEntryType &amp;tmpLogEntry,logEntryType &amp;resLog[logS
                 }
             }
         } 
-        if (discardedDueToCompetionEvents[i] != 0 &amp;&amp; discardedDueToCompetionEvents[i] != 0) {
+        if (discardedDueToCompetionEvents[i] == 0 &amp;&amp; discardedEvents[i] == 0) {
             i = logSize;
         }
     }
@@ -333,7 +333,7 @@ void checkAndFixBranchCompetetion(logEntryType &amp;tmpLogEntry,logEntryType &am
     // Check if we have witnessed the correct event
     for (i = 0; i &lt; logSize; i++) {
         if (trueGlobalLog[i].orderCount != 0) {
-            if (isInBranchingConflict(isInBranchingPartion[tmpLogEntry.eventID], trueGlobalLog[i].eventID) &amp;&amp; trueGlobalLog[i].basedOnOrderCount == tmpLogEntry.basedOnOrderCount &amp;&amp; trueGlobalLog[i].tiedTo == tmpLogEntry.tiedTo) {
+            if (isInBranchingConflict(isInBranchingPartion[tmpLogEntry.eventID], trueGlobalLog[i].eventID) &amp;&amp; trueGlobalLog[i].tiedTo == tmpLogEntry.tiedTo) {
                 if (isOrderCountInLog(resLog, trueGlobalLog[i].eventID)) {
                     // Consolidate
                     consolidateLogs(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, trueGlobalLog[i], currentIndex, currentLocation, eventLocationMap);
