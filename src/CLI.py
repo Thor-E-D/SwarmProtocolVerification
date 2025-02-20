@@ -25,8 +25,9 @@ autoQuery_path = "PermanentState\\autoQueries.txt" # Hardcoded relative path to 
 
 str_validity = "validity"
 str_sizebound = "sizebound"
+str_eventualfidelity = "fidelity"
 str_timebound = "timebound"
-auto_query_choices = [str_validity, str_sizebound, str_timebound]
+auto_query_choices = [str_validity, str_sizebound, str_eventualfidelity, str_timebound]
 
 # Mapping user-friendly strings to DelayType values
 DELAY_TYPE_MAPPING = {
@@ -466,6 +467,15 @@ def auto_verify_model(model_path: str, base_folder_path: str, type: str, verifyt
         else:
             print("Model overflow!! Cannot find optimal logsize")
             print("Set a larger logsize before trying again.")
+
+    elif (type == str_eventualfidelity):
+        role_queries_dict = query_generator.generate_eventual_fidelity_queries()
+
+        for role in role_queries_dict:
+            with open(query_path, 'w') as file:
+                file.write(role_queries_dict[role])
+            print(f"Verifying query for {role}: {role_queries_dict[role]}")
+            print(verify_query(model_path, query_path, verifyta_path, 0)) 
     
     elif (type == str_timebound):
         role_queries_dict = query_generator.generate_timebound_queries()
@@ -694,7 +704,8 @@ def create_parser():
     default=str_validity,
     help=f"""Type of auto query wanted:
     - {str_validity}: (Defualt). Ensures all roles reach an endstate eventually. 
-    - {str_sizebound}: Returns the smalles log size that does not cause overflow
+    - {str_sizebound}: Returns the smalles log size that does not cause overflow.
+    - {str_eventualfidelity}: Returns wether or not eventual fidelity holds for all roles of the gives model.
     - {str_timebound}: Returns the global time reachable for all locations of all roles (Warning SLOW) (ONLY WORKS WITH UPPAAL 5.1.0-beta)"""
     )
 

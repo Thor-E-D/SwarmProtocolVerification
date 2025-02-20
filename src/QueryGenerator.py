@@ -131,6 +131,38 @@ class QueryGenerator:
         
         return role_queries_dict
     
+    def generate_eventual_fidelity_queries(self) -> Dict[str,str]:
+        role_querie_dict = {}
+        roles = set()
+        for projection_json_transfer in self.projection_data:
+            roles.add(projection_json_transfer.name)
+
+        # First part of query
+        index = 'i'            
+        query_first_part = "A[] ("
+        for role in roles:
+            query_first_part += f"forall({index}: {role}_t) ({role}_log({index}).initial && (!{role}_log({index}).newUpdates)) && "
+            index = chr(ord(index) + 1)
+        query_first_part = query_first_part[:-4] + ")"
+
+        for role in roles:
+            # What is in global log is also in local log
+            log_index = 'i'
+            role_index = 'j'
+            role_log_index = 'h'
+            log = f"{role}_log({role_index})"
+            query_global_local_part = f"forall({log_index}: logSize_t) forall({role_index}: {role}_t) exists({role_log_index}: logSize_t) ((trueGlobalLog[{log_index}].orderCount == {log}.currentLog[{role_log_index}].orderCount and {log}.unSubCount[{role_log_index}] + {role_log_index} == {log_index})"
+            query_global_local_part += f" || !({log}.subscriptions[trueGlobalLog[{log_index}].eventID]))"
+
+            # What is in local log is also in global log
+            query_local_global_part = f"forall({role_log_index}: logSize_t) forall({role_index}: {role}_t) exists({log_index}: logSize_t) {log}.currentLog[{role_log_index}].orderCount == 0"
+            query_local_global_part += f" || ({log}.currentLog[{role_log_index}].orderCount == trueGlobalLog[{log_index}].orderCount and {log}.unSubCount[{role_log_index}] + {role_log_index} == {log_index})"
+
+            final_query = query_first_part + " imply " + query_global_local_part + " && " + query_local_global_part
+            role_querie_dict[role] = final_query
+
+        return role_querie_dict
+    
 def generate_log_query(log: List[str], valid_only: bool) -> str:
     log_to_use = "globalLog"
     if valid_only:

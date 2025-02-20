@@ -58,7 +58,7 @@ def test_warehouse_two_transports_global_emitted_no_branch_tracking():
     model_settings = ModelSettings(name_amount_dict, {"Door": DelayType.EVENTS_EMITTED, "Forklift": DelayType.EVENTS_SELF_EMITTED, "Transport": DelayType.EVENTS_EMITTED})
     model_settings.branch_tracking = False
     model_settings.delay_amount = {"Door": 5, "Forklift": 1, "Transport": 3}
-    model_settings.log_size = 14
+    model_settings.log_size = 20
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -74,6 +74,22 @@ def test_warehouse_two_transports_global_emitted():
     model_settings.branch_tracking = True
     model_settings.delay_amount = {"Door": 5, "Forklift": 1, "Transport": 3}
     model_settings.log_size = 15
+
+    base_path = os.path.dirname(os.path.abspath(__file__))
+
+    do_full_test(base_path, model_settings, name_of_query_file)
+
+@pytest.mark.integration
+def test_warehouse_two_transports_eventual_fidelity():
+    name_of_query_file = "query_file5"
+
+    name_amount_dict = {"Door": 1, "Forklift": 1, "Transport": 2}
+
+    model_settings = ModelSettings(name_amount_dict, {"Door": DelayType.EVENTS_EMITTED, "Forklift": DelayType.EVENTS_SELF_EMITTED, "Transport": DelayType.EVENTS_EMITTED})
+    model_settings.branch_tracking = True
+    model_settings.path_bound = 1
+    model_settings.delay_amount = {"Door": 2, "Forklift": 2, "Transport": 2}
+    model_settings.log_size = 20
 
     base_path = os.path.dirname(os.path.abspath(__file__))
 

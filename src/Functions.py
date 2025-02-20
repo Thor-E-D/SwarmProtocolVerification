@@ -478,9 +478,33 @@ logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[lo
         function_str += "        inCompetetion = handleEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);\n"
         function_str += "    }"
     
-    function_str += f" else {{\n"
-    function_str += "        tmpLogEntry.ignored = true;\n"
-    function_str += "    }"
+    function_str += """else {
+        int i;
+        bool valid = false;
+        for(i = 0; i &lt; logSize; i++) {
+            if (trueGlobalLog[i].orderCount != 0) {
+                if (trueGlobalLog[i].orderCount == tmpLogEntry.orderCount)
+                    valid = true;
+            } else {
+                i = logSize;
+            }
+        }
+        if (valid) {
+            // We have to find what index to increment from
+            int startFrom = 0;
+            for(i = 0; i &lt; logSize; i++) {
+                if (currentLog[i].orderCount &gt; tmpLogEntry.orderCount || currentLog[i].orderCount == 0) {
+                    startFrom = i;
+                    i = logSize;
+                }
+            }
+
+            for (i = startFrom; i &lt; logSize; i++) {
+                unSubCount[i]++;
+            }
+        }
+        tmpLogEntry.ignored = true;
+    }"""
 
 
     function_str += "\n    return tmpLogEntry;\n"

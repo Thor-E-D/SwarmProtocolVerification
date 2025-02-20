@@ -171,7 +171,22 @@ Location l4: [2,INF]"""
     run_and_assert(user_inputs,output_list)
     #run_and_print(user_inputs,output_list)
     
+    os.remove(path_to_model)
 
+@pytest.mark.unit
+def test_build_and_autoverify_fidelity():
+    user_inputs = [set_all_args_cmd, f"build", f"autoVerify {path_to_model} {path_to_folder} --type validity",
+                   f"autoVerify {path_to_model} {path_to_folder} --type fidelity -vp {verifyta_path}", "q"]
+    
+    expected_output_1 = "|| (Transport_log(j).currentLog[h].orderCount == trueGlobalLog[i].orderCount and Transport_log(j).unSubCount[h] + h == i)"
+    expected_output_2 = "|| (Door_log(j).currentLog[h].orderCount == trueGlobalLog[i].orderCount and Door_log(j).unSubCount[h] + h == i)"
+    expected_output_3 = "|| (Forklift_log(j).currentLog[h].orderCount == trueGlobalLog[i].orderCount and Forklift_log(j).unSubCount[h] + h == i)"
+
+    output_list = [expected_output_1, expected_output_2, expected_output_3]
+
+    run_and_assert(user_inputs,output_list)
+    #run_and_print(user_inputs,output_list)
+    
     os.remove(path_to_model)
 
 @pytest.mark.unit

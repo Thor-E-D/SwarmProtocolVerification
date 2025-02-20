@@ -44,6 +44,7 @@ class Log(Template):
         declaration.add_variable("bool backTracking = false;")
         declaration.add_variable("bool didLogChange = false;")
         declaration.add_variable("int currentSizeOfLog = 0;")
+        declaration.add_variable("int unSubCount[logSize];") #For query use only
 
         empty_array_str = ""
         for _ in range (0,log_size):
