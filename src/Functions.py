@@ -395,18 +395,10 @@ bool handleEvent(logEntryType &amp;currentLogEntry,logEntryType &amp;resLog[logS
     }
 
     if (eventLocationMap[currentLogEntry.eventID][0] != currentLocation) {
-        if (eventLocationMap[currentLogEntry.eventID][0] != -1) { //In subsciptions
-            currentLogEntry.ignored = true;
-        }
-
         if (isBranchingList[currentLogEntry.eventID]) {
             return handleBranchingEvent(currentLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);
         }
-        if (isIntInList(discardedDueToCompetionEvents, currentLogEntry.basedOnOrderCount)) {
-            currentLogEntry.ignored = true;
-            return false;
-        }
-
+        currentLogEntry.ignored = true;
         return false;
     } else {
         if (isIntInList(discardedDueToCompetionEvents, currentLogEntry.basedOnOrderCount)) {

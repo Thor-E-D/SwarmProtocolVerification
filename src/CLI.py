@@ -486,10 +486,14 @@ def auto_verify_model(model_path: str, base_folder_path: str, type: str, verifyt
                     file.write(query)
 
                 result = verify_query(model_path, query_path, verifyta_path, 0)
-                result = result.replace("âˆž)", "INF]")
+                #print(f"results is: {result}")
                 match_query = re.search(r"\.(l\d+)", query)
                 if match_query:
-                    print (f"Location {match_query.group(1)}: {result.split(": ")[1]}")
+                    if "Query not satisfied" in result:
+                        print (f"Location {match_query.group(1)}: Unreachable")
+                    else:
+                        result = result.replace("âˆž)", "INF]")
+                        print (f"Location {match_query.group(1)}: {result.split(": ")[1]}")
         
         print ("---------------------------")
 
