@@ -1,7 +1,7 @@
 """\
 The representation of a transition.
 guards, synchronisation and assignments are all represented with strings.
-Nails are points along the edges.
+Nails are points along the transitions.
 
 """
 

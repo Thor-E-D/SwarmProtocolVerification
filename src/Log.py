@@ -3,9 +3,9 @@ Creates and holds all information for a log.
 Log is constructed differently depeding on given settings,
 such as if time is included and what kind of delay in propagation is used.
 
+In the same fashion as a prototype design pattern, a base is first created and
+then changed later according to settings.
 """
-
-from typing import Dict
 
 from DataObjects.Declaration import Declaration
 from DataObjects.Transition import Transition

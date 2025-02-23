@@ -351,7 +351,9 @@ Giving the output:
     ---------------------------
 
 ## test suite
-We have two different kinds of tests both using py-test and can be run from the root folder using
+We have two different kinds of tests both using py-test and can be run from the root folder using.
+
+Note that the variable "verifyta_path" in tests/test_utils.py have to be replaced with a path to a Verifyta exe with a valid licence.
 
 For all:
 

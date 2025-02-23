@@ -1,7 +1,9 @@
 """\
 Test base keeping code shared for testing to avoid code duplication.
 Additionally holds logic for creating automatic queries for testing.
-Overall approach is build model and test that all queries are verifed
+Overall approach is 
+    - build model 
+    - test that all queries are verifed
 
 """
 
@@ -18,7 +20,7 @@ from DataObjects.ModelSettings import ModelSettings, DelayType
 from JSONParser import Graph, parse_time_JSON, parse_projection_JSON_file, parse_protocol_seperatly, parse_protocol_JSON_file, build_graph
 
 #verifyta_path = "C:\\Program Files\\uppaal-5.0.0-win64\\bin\\verifyta" # 5.0.0
-verifyta_path = "C:\\Program Files\\UPPAAL-5.1.0-beta5\\app\\bin\\verifyta" # 5.1.0 beta-5
+verifyta_path = "C:\\Program Files\\UPPAAL-5.1.0-beta5\\app\\bin\\verifyta.exe" # 5.1.0 beta-5
 
 all_events = None
 analysis_results = None
@@ -98,7 +100,7 @@ def auto_generate_queries(protocol_json_file: str, projection_json_files: Set[st
     # Add size of log query
     overflow_query = query_generator.generate_overflow_query()
     queries = overflow_query + "\n"
-    queries += query_generator.generate_end_state_query()
+    queries += query_generator.generate_end_state_query() + "\n"
 
     try:
         with open(base_path + "\\example_queries.txt", 'w') as file:

@@ -1,7 +1,12 @@
-import json
+"""\
+Creates querys based exlusively on the json files given as input.
+
+Some queries do not require any input and are therefore not part of the class functions.
+"""
+
 from typing import Set, List, Dict
 
-from DataObjects.JSONTransfer import JSONTransfer, EventData
+from DataObjects.JSONTransfer import JSONTransfer
 from JSONParser import build_graph_internal, parse_protocol_JSON_file, parse_projection_JSON_file
 from Utils import Utils
 

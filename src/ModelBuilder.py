@@ -1,11 +1,11 @@
 """\
-Creates and holds all information for a log.
-Log is constructed differently depeding on given settings,
-such as if time is included and what kind of delay in propagation is used.
+Creates all global variables and functions.
+Along with the required number of role and log templates.
+
+Most central logic is captured within this class
 
 """
 from typing import List, Dict, Set
-from collections import defaultdict
 from itertools import groupby
 from operator import attrgetter
 
@@ -103,7 +103,6 @@ def add_functions(declaration: Declaration, using_global_event_bound: bool):
     # Ordering is important as some functions depend on others.
     if using_global_event_bound:
         declaration.add_function_call(generate_function_calculate_any_forced_to_propagte)
-    declaration.add_function_call(generate_function_is_in_subsciption)
     declaration.add_function_call(generate_function_is_int_in_list)
     declaration.add_function_call(generate_function_is_order_count_in_log)
     declaration.add_function_call(generate_function_get_entry_from_order_count)

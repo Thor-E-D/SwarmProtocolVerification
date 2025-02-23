@@ -5,10 +5,11 @@ import os
 import json
 from typing import List
 
+from test_utils import verifyta_path
+
 from CLI import main, save_xml_to_file, get_state_data, update_local_state
 
 base_path = os.path.dirname(os.path.abspath(__file__))
-verifyta_path = "C:\\Program Files\\UPPAAL-5.1.0-beta5\\app\\bin\\verifyta.exe"
 
 # Paths to internal TestCase
 folder_name = "TestCase"

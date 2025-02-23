@@ -8,7 +8,6 @@ additional information used in the creation of both role templates and log templ
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict
 
-# 
 
 @dataclass
 class EventData:

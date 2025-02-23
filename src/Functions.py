@@ -7,8 +7,6 @@ functionality, but with different length of arrays.
 
 """
 
-from typing import Dict
-
 def generate_function_calculate_any_forced_to_propagte() -> str:
     return """
 void calculateAnyForcedToPropagate() {
@@ -19,23 +17,6 @@ void calculateAnyForcedToPropagate() {
     }
     anyForcedToPropagate = tempAnyForcedToPropagate;
 }"""
-
-
-def generate_function_is_in_subsciption() -> str:
-    return """
-bool isInSubsciptions(int tmpList[amountOfUniqueEvents], int possibleEntry) {
-    int i = 0;
-    for (i = 0; i &lt; amountOfUniqueEvents; i++) {
-        if (tmpList[i] == possibleEntry) {
-            return true;
-        } else if (tmpList[i] == -1) {
-            return false;
-        }
-    }
-    return false;
-}"""
-
-
 
 def generate_function_is_int_in_list() -> str:
     return """

@@ -7,8 +7,6 @@ One to one correclation with what is contained within a UPPAAL xml file.
 from dataclasses import dataclass
 from typing import List
 
-import xml.etree.ElementTree as ET
-
 from UppaalPart import UppaalPart
 from Log import Log
 from Role import Role

@@ -13,15 +13,14 @@ import subprocess
 from typing import Any, List
 import re
 
-from DataObjects.Model import Model
 from DataObjects.ModelSettings import DelayType, ModelSettings
-from JSONParser import parse_time_JSON, parse_projection_JSON_file, parse_protocol_JSON_file, build_graph
+from JSONParser import parse_time_JSON, parse_projection_JSON_file, parse_protocol_JSON_file
 from ModelBuilder import createModel
 from QueryGenerator import QueryGenerator, generate_log_query
 
 base_path = os.path.dirname(os.path.abspath(__file__))
-state_path = "PermanentState\\state.json" # Hardcoded relative path to local state file
-autoQuery_path = "PermanentState\\autoQueries.txt" # Hardcoded relative path to local state file.
+state_path = os.path.join("PermanentState", "state.json") # Hardcoded relative path to local state file
+autoQuery_path = os.path.join("PermanentState", "autoQueries.txt") # Hardcoded relative path to local state file.
 
 str_validity = "validity"
 str_sizebound = "sizebound"
