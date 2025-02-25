@@ -1,12 +1,17 @@
-import argparse
+"""\
+This class conduct all the timing experiments writing the output to csv. files
+
+Disclaimer: This file is a mess as it was constantly changed to conduct new timing experiments
+chat GPT was used when creating a fair few of the methods in here however most where changed slightly for correctness
+since it did not always get it right.
+"""
+
 import json
 import os
 import subprocess
-from typing import Any, List
+from typing import Any
 import re
 import time
-from unittest.mock import patch
-from io import StringIO
 from argparse import Namespace
 import csv
 from itertools import product
@@ -14,11 +19,9 @@ from copy import deepcopy
 from collections import deque
 import random
 
-from DataObjects.Model import Model
-from DataObjects.ModelSettings import DelayType, ModelSettings
-from JSONParser import parse_time_JSON, parse_projection_JSON_file, parse_protocol_JSON_file, build_graph
-from ModelBuilder import createModel
-from QueryGenerator import QueryGenerator, generate_log_query
+from DataObjects.ModelSettings import  ModelSettings
+from JSONParser import build_graph
+from QueryGenerator import generate_log_query
 from CLI import build_model
 from TimingExperiments import get_scaling_experiments
 
@@ -50,6 +53,7 @@ path_to_protocols_query = os.path.join(path_to_protocols, "query.txt")
 experiment_configs = get_scaling_experiments()
 
 
+# Simplified version of the one from CLI
 def filter_output(file_path_input: str) -> str:
     property_satisfied_pattern = re.compile(r"-- Formula is satisfied.")
     sup_result_pattern = re.compile(r"-- Result: (\d+)")
@@ -74,6 +78,7 @@ def filter_output(file_path_input: str) -> str:
 
     return result
 
+# Same as the one from CLI but with timings
 def verify_query(model_path, query_path, verifyta_path, index):
     # verifyta --hashtable-size 32 model.xml query.q
 
@@ -147,16 +152,6 @@ def update_current_state(key: Any, value: Any):
     with open(path_to_current_state, 'w') as json_file:
         json.dump(data, json_file, indent=4)
 
-def update_base_state(key: Any, value: Any):
-    with open(path_to_base_state, 'r') as json_file:
-        data = json.load(json_file)
-    
-    if (key != ""):
-        data[key] = value
-    
-    with open(path_to_base_state, 'w') as json_file:
-        json.dump(data, json_file, indent=4)
-
 def generate_experiments_nested(config):
     varying_params = []
     varying_keys = []
@@ -188,6 +183,8 @@ def generate_experiments_nested(config):
 
     return experiments
 
+# When given a range of settings finds the one with the highest setting
+# used for finding the lowest possible log size.
 def get_highest_settings(config):
     highest_config = deepcopy(config)
 
@@ -202,6 +199,7 @@ def get_highest_settings(config):
 
     return highest_config
 
+
 def run_verify_timing_experiment():
     counter = 1
     for experiment_config in experiment_configs:
@@ -210,7 +208,6 @@ def run_verify_timing_experiment():
         highest_exp = get_highest_settings(experiment_config)
 
         print(f"running experiment {counter} with higest setting: {highest_exp}")
-
 
         current_optimal_logsize = 0
             
@@ -332,7 +329,8 @@ def generate_standard_settings(model_settings: ModelSettings, protocol_json_file
     if model_settings.delay_amount == None:
         model_settings.delay_amount = delay_amount
 
-
+# used for the auto generated example protocols.
+# sorted since it is prefered to run the one with the lowest settings first
 def sort_paths_numerically(paths):
     def extract_number(path):
         match = re.search(r'\d+', path)  # Find the first number in the path
@@ -340,6 +338,7 @@ def sort_paths_numerically(paths):
 
     return sorted(paths, key=extract_number)
 
+# Used for finding a valid run through given a swarm protocol (graph)
 def find_valid_run(graph, max_depth=6):
     initial_state = graph["initial"]
     transitions = graph["transitions"]
@@ -380,8 +379,9 @@ def find_valid_run(graph, max_depth=6):
     
     return best_run
 
+# Modify the last element of a valid run to be invalid.
+# Be aware that this currently fails for some small swarm protocols unsure why
 def find_invalid_run(valid_run, graph):
-    """ Modify the last element of a valid run to be invalid."""
     if not valid_run:
         return []  # No valid run found
     
@@ -424,7 +424,6 @@ def generate_valid_runs(json_files):
             valid_run = find_valid_run(data, max_depth=6)
             print(valid_run)
       
-
 
 def run_build_and_verify_experiment(json_files, valid: bool):
     json_files.pop(0)
@@ -563,6 +562,7 @@ def move_json_files(json_files):
         os.rename(file_path, new_file_path)
 
 
+# Choose which experiment to run here
 if __name__ == "__main__":
     #run_verify_timing_experiment()
 

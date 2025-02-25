@@ -1,3 +1,11 @@
+"""\
+This class holds the different settings needed for the timing experiments conducted
+The settings hold ranges that will be construct every possible setting within the given ranges.
+
+"""
+
+
+
 
 old_experiment_configs = [{
     "verifyta_path": "",
