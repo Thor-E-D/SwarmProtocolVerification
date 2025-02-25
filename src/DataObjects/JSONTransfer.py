@@ -41,7 +41,7 @@ class JSONTransfer:
     advance_channel_names: Optional[Dict[str, str]] = None
 
     # Additional information need locally in templates
-    log_id_start: Optional[str] = None
+    id_start: Optional[str] = None
     total_amount_of_events: Optional[int] = None
     initial_pointer: Optional[int] = 0
     flow_list: Optional[List[List[int]]] = None

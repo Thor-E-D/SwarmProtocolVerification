@@ -248,20 +248,20 @@ def createModel(jsonTransfers: List[JSONTransfer], globalJsonTransfer: JSONTrans
         declaration.add_variable(f"clock globalTime;")
 
     number_of_names = []
-    log_id_start_entries = {}
-    log_id_start_sumizer = "0"
+    id_start_entries = {}
+    id_start_sumizer = "0"
     total_amount_of_instances = 0
     for name in name_amount_dict:
         total_amount_of_instances += name_amount_dict[name]
-        log_id_start_entries[name] = log_id_start_sumizer
+        id_start_entries[name] = id_start_sumizer
         current_variable = f"NUMBER_OF_{name}"
         declaration.add_variable(f"const int {current_variable} = {name_amount_dict[name]};")
         declaration.add_variable(f"typedef int[0,{current_variable}-1] {amount_names[name]};")
         number_of_names.append(current_variable)
-        log_id_start_sumizer += f" + {current_variable}"
+        id_start_sumizer += f" + {current_variable}"
 
     for jsonTransfer in jsonTransfers:
-        jsonTransfer.log_id_start = log_id_start_entries[jsonTransfer.name]  
+        jsonTransfer.id_start = id_start_entries[jsonTransfer.name]  
 
     amount_of_logs_string = "const int amountOfLogs = "
     for number_of_name in number_of_names:

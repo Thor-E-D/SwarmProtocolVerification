@@ -426,23 +426,14 @@ void updateLogEntry(logEntryType &amp;tempLog[logSize], int &amp;emittedOrderCou
 }}"""
     return function_str
 
-def generate_function_handle_log_entry(own_events: list[str], other_events: list[str]) -> str:
+def generate_function_handle_log_entry(subscriptions: list[str]) -> str:
     function_str = """
 logEntryType handleLogEntry(logEntryType tmpLogEntry,logEntryType &amp;resLog[logSize], int &amp;currentIndex) {
     // We first find the event Type
     int currentEventType = tmpLogEntry.eventID;\n"""
     
     first = True
-    for event in other_events:
-        if first:
-            function_str += f"    if (currentEventType == {event}) {{\n"
-            first = False
-        else:
-            function_str += f" else if (currentEventType == {event}) {{\n"
-        function_str += "        inCompetetion = handleEvent(tmpLogEntry, resLog, discardedEvents, discardedDueToCompetionEvents, currentIndex, currentLocation, eventLocationMap);\n"
-        function_str += "    }"
-    
-    for event in own_events:
+    for event in subscriptions:
         if first:
             function_str += f"    if (currentEventType == {event}) {{\n"
             first = False

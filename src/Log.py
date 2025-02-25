@@ -6,6 +6,7 @@ such as if time is included and what kind of delay in propagation is used.
 In the same fashion as a prototype design pattern, a base is first created and
 then changed later according to settings.
 """
+from typing import Dict
 
 from DataObjects.Declaration import Declaration
 from DataObjects.Transition import Transition
@@ -18,7 +19,7 @@ from Utils import Utils
 from Functions import generate_function_merge_propagation_log, generate_function_handle_log_entry
 
 class Log(Template):
-    def __init__(self, parameter: str, json_transfer: JSONTransfer, log_size: int, log_delay_type: DelayType, using_global_event_bound: bool, eventnames_dict, log_time_data: LogTimeData = None):
+    def __init__(self, parameter: str, json_transfer: JSONTransfer, log_size: int, log_delay_type: DelayType, using_global_event_bound: bool, eventnames_dict: Dict[str,str], log_time_data: LogTimeData = None):
         
         no_delay_flag = False
 
@@ -34,7 +35,7 @@ class Log(Template):
         declaration.add_variable("bool newUpdates = false;")
         declaration.add_variable("int counter = 0;")
 
-        declaration.add_variable(f"int log_id_start = {json_transfer.log_id_start};")
+        declaration.add_variable(f"int id_start = {json_transfer.id_start};")
 
         declaration.add_variable("int emittedOrderCounts[logSize];")
         declaration.add_variable("int discardedEvents[logSize];")
@@ -70,6 +71,8 @@ class Log(Template):
         own_event_names = []
         other_event_names = []
 
+        UID_subscriptions = list(map(Utils.get_eventtype_UID, json_transfer.subscriptions))
+
         for eventData in json_transfer.own_events:
             own_event_names.append(Utils.get_eventtype_UID(eventData.event_name))
         
@@ -77,7 +80,7 @@ class Log(Template):
             other_event_names.append(Utils.get_eventtype_UID(eventData.event_name))
 
         # Adding function calls
-        declaration.add_function_call(generate_function_handle_log_entry, own_event_names, other_event_names)
+        declaration.add_function_call(generate_function_handle_log_entry, UID_subscriptions)
         declaration.add_function_call(generate_function_merge_propagation_log) 
         
         l_prop1 = Location (id = Utils.get_next_id(), x=-204, y=-298, name="l_prop1", locationType = LocationType.COMMITTED)
@@ -101,7 +104,7 @@ class Log(Template):
             source=l_initial,
             target=l_prop1,
             guard="newUpdates",
-            assignment="""currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+            assignment="""currentLogToPropagate = (id_start + id + 1) % amountOfLogs,
 updatesSincePropagation := 0,
 newUpdates := false,
 setPropagationLog(currentLog)""",
@@ -157,7 +160,7 @@ resetCount--""",
             source=l_initial,
             target=l_accepting_emitted_1,
             synchronisation=f"{json_transfer.do_update_channel_name}[id]?",
-            assignment=f"""updateLogEntry(currentLog,emittedOrderCounts,log_id_start),
+            assignment=f"""updateLogEntry(currentLog,emittedOrderCounts,id_start),
 updatesSincePropagation++,
 newUpdates := true,
 currentSizeOfLog++"""
@@ -182,7 +185,7 @@ currentSizeOfLog++"""
             source=l_accepting_emitted_2,
             target=l_prop2,
             guard=f"updatesSincePropagation > maxUpdatesSincePropagation_{json_transfer.name}",
-            assignment="""currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+            assignment="""currentLogToPropagate = (id_start + id + 1) % amountOfLogs,
 updatesSincePropagation := 0,
 newUpdates := false"""
         ))
@@ -199,7 +202,7 @@ newUpdates := false"""
             id=Utils.get_next_id(),
             source=l_initial,
             target=l_merge_log,
-            guard="currentLogToPropagate == log_id_start + id",
+            guard="currentLogToPropagate == id_start + id",
             synchronisation="propagate_log?",
             assignment="mergePropagationLog()"
         ))
@@ -350,8 +353,8 @@ eventsToRead := 0"""
             target=l_initial,
             guard="""currentLog[counter].orderCount == 0 &&
                 anyForcedToPropagate &&
-                currentLogToPropagate == log_id_start + id && 
-                !forcedToPropagate[id + log_id_start]""",
+                currentLogToPropagate == id_start + id && 
+                !forcedToPropagate[id + id_start]""",
             synchronisation="attempt_propagation!",
             assignment="""didLogChange := false,
                 backTracking := false,
@@ -365,7 +368,7 @@ eventsToRead := 0"""
             target=l_initial,
             guard="""currentLog[counter].orderCount == 0 &&
                 anyForcedToPropagate &&
-                currentLogToPropagate != log_id_start + id""",
+                currentLogToPropagate != id_start + id""",
             synchronisation="propagate_log!",
             assignment="""didLogChange := false,
                 backTracking := false,
@@ -378,7 +381,7 @@ eventsToRead := 0"""
             id=Utils.get_next_id(),
             source=l_forced_prop_1,
             target=l_forced_prop_2,
-            guard="""(currentLogToPropagate + 1) % amountOfLogs == log_id_start + id
+            guard="""(currentLogToPropagate + 1) % amountOfLogs == id_start + id
                 && amountOfPropagation == 0""",
             synchronisation="propagate_log?"
             ))
@@ -396,7 +399,7 @@ eventsToRead := 0"""
                 locations.append(l_forced_prop_3)
 
                 current_transition = self.find_transition(transitions, l_source=l_initial, l_target=l_accepting_emitted_1)
-                current_transition.assignment=f"updateLogEntry(currentLog,emittedOrderCounts,log_id_start),currentSizeOfLog++"
+                current_transition.assignment=f"updateLogEntry(currentLog,emittedOrderCounts,id_start),currentSizeOfLog++"
 
                 current_transition = self.find_transition(transitions, l_source=l_accepting_emitted_1, l_target=l_accepting_emitted_2)
                 current_transition.guard = current_transition.guard +  "&& newUpdates"
@@ -433,8 +436,8 @@ eventsToRead := 0"""
                 target=l_forced_prop_3,
                 guard="""currentLog[counter].orderCount == 0 &&
                     anyForcedToPropagate &&
-                    currentLogToPropagate == log_id_start + id && 
-                    forcedToPropagate[id + log_id_start]""",
+                    currentLogToPropagate == id_start + id && 
+                    forcedToPropagate[id + id_start]""",
                 synchronisation="attempt_propagation!",
                 assignment="""didLogChange := false,
                     backTracking := false,
@@ -448,7 +451,7 @@ eventsToRead := 0"""
                 target=l_forced_prop_3,
                 guard=f"newUpdates && !(updatesSincePropagation + maxUpdatesSincePropagation_{json_transfer.name} > globalLogIndex)",
                 synchronisation="force_propagate?",
-                assignment="forcedToPropagate[id + log_id_start] := true"
+                assignment="forcedToPropagate[id + id_start] := true"
                 ))
 
                 transitions.append(Transition(
@@ -456,7 +459,7 @@ eventsToRead := 0"""
                 source=l_initial,
                 target=l_forced_prop_3,
                 synchronisation="attempt_propagation?",
-                guard="forcedToPropagate[id + log_id_start]",
+                guard="forcedToPropagate[id + id_start]",
                 nails=[(238,-204)]
                 ))
 
@@ -481,12 +484,12 @@ eventsToRead := 0"""
                 source=l_forced_prop_3,
                 target=l_prop1,
                 guard="""(forcedToPropagate[forcedPropagationCounter]) &&
-                    forcedPropagationCounter == (id + log_id_start)""",
+                    forcedPropagationCounter == (id + id_start)""",
                 synchronisation="abandon_propagation!",
                 assignment="""forcedToPropagate[forcedPropagationCounter] := false,
                     forcedPropagationCounter := 0,
                     calculateAnyForcedToPropagate(),
-                    currentLogToPropagate = (log_id_start + id + 1) % amountOfLogs,
+                    currentLogToPropagate = (id_start + id + 1) % amountOfLogs,
                     updatesSincePropagation := 0,
                     newUpdates := false,
                     setPropagationLog(currentLog)"""

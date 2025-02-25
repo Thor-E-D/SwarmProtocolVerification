@@ -102,7 +102,7 @@ class Role(Template):
                     declaration.add_variable("clock x;")
                     time_assignment_addition = "x := 0, "
 
-        declaration.add_variable(f"const int id_start = {jsonTransfer.log_id_start};")
+        declaration.add_variable(f"const int id_start = {jsonTransfer.id_start};")
 
         # Find own branches to fix invariants
         branch_partitions = {}
@@ -190,7 +190,7 @@ class Role(Template):
 
                     sorted_time = sorted(matching_time_events, key=lambda event: (event.max_time is None, event.max_time), reverse=True)
                     exit_path_time_data_event = next((event_data for event_data in time_data_list if event_data == exit_path_event.event_name), None)
-                    parameter_counter = 0
+                    parenthesis_counter = 0
                     not_all_own = len(sorted_time) != len(branch_partitions[branch_location])
                     own_and_branching = []
 
@@ -201,13 +201,13 @@ class Role(Template):
                                 if time_data_branch.event_name != exit_path_event.event_name:
                                     if time_data_branch.max_time != None:
                                         invariant_result += f"x <= {time_data_branch.max_time} && ( nonExitCounterMap[id + id_start][{Utils.get_eventtype_UID(time_data_branch.event_name)}] < {path_bound} || ( "
-                                        parameter_counter += 2
+                                        parenthesis_counter += 2
                                     else:
                                         invariant_result += f"( nonExitCounterMap[id + id_start][{Utils.get_eventtype_UID(time_data_branch.event_name)}] < {path_bound} || ( "
-                                        parameter_counter += 2
+                                        parenthesis_counter += 2
                                 else:
                                     if exit_path_time_data_event.max_time != None:
-                                        invariant_result += f"x <= {exit_path_time_data_event.max_time}" + (")" * parameter_counter)
+                                        invariant_result += f"x <= {exit_path_time_data_event.max_time}" + (")" * parenthesis_counter)
                                     else:
                                         invariant_result = ""
                                     break
@@ -223,7 +223,7 @@ class Role(Template):
                             
                             final_invariant += f"{path_bound}"
 
-                            invariant_result = invariant_result[:-5] + (")" * (parameter_counter-1)) + final_invariant
+                            invariant_result = invariant_result[:-5] + (")" * (parenthesis_counter-1)) + final_invariant
 
                         branch_location.invariant = invariant_result
 
