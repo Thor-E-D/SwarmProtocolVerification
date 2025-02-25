@@ -15,7 +15,11 @@ After this, the CLI can be run with:
 
     python .\src\CLI.py
 
+
+
 # Example usage
+
+This application expects input in the form of a folder containing a swarm protcol in JSON format an example can be seen here https://github.com/Actyx/machines/blob/master/examples/swarm-workflow-example/src/index.test.ts. Additionally, the projections of each role in the swarm protocol can be supplied as JSON files as well in the same folder. If a role does not have a projection JSON file a projection will be generated and used internally in the application. It is possible to create projection in the machine library using the createJSONForAnalysis method an example can be seen here https://github.com/Actyx/machines/blob/master/machine-check/examples/esm/swarm-wellformed.test.ts.
 
 Due to the nature of swarms and their propagation, it becomes extremely taxing to verify some queries when the propagation can happen in any order with any delay in between. Therefore the tool comes with a set of choices for how to delay propagation. 
 
@@ -381,5 +385,7 @@ Linux/Mac:
 
     open htmlcov/index.html
 
+## Disclaimer
 
+Chat GPT was used in some parts of this project during development. However, the code it supplied have been tested, corrected, and changed in order to ensure correctness.
 
