@@ -1,0 +1,3 @@
+A[] forall(i:Door_t) forall(j:Forklift_t) forall(t:Transport_t) deadlock imply Door(i).l3 and Forklift(j).l3 and Transport(t).l3
+E<> Transport(0).l2 && globalTime > 241
+E<> deadlock and forall(i:logSize_t) not (trueGlobalLog[i].eventID == Request_ID and trueGlobalLog[i].orderCount != 0)

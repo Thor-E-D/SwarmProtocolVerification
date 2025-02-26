@@ -19,5 +19,3 @@ tests/integration/GeneratedTests/Protocols/2_max_10_roles_max_10_commands/exampl
 tests/integration/GeneratedTests/Protocols/4_max_5_roles_max_10_commands/example_queries.txt
 
 tests/integration/GeneratedTests/Protocols/5_max_5_roles_max_5_commands/example_queries.txt
-
-tests/integration/Warehouse/query_file_time.txt

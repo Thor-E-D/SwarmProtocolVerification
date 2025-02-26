@@ -212,7 +212,7 @@ def build_model(args):
 
         if protocol_json_file == None:
             print("Cannot find protocol JSON aborting attempt")
-            print("Please review the folder path with \"setPath\"")
+            print("Please review the folder path with \"setArgs -pf\"")
             return
 
         json_transfers = []

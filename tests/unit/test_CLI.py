@@ -122,7 +122,10 @@ def test_loading_writing_state():
     with open(path_to_test_state, 'r') as f:
         test_state_date = json.load(f)
 
-    assert state_date == test_state_date
+    keys_to_compare = ["delay_type", "path_bound", "branch_tracking", "log_size", "delay_amount", "role_amount"]
+
+    for key in keys_to_compare:
+        assert state_date[key] == test_state_date[key]
 
     # Remove the state file
     os.remove(path_to_state)

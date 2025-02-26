@@ -5,7 +5,7 @@ This project contains a tool capable of converting a JSON representation of a sw
 It was created in conjunction with the work of the master's thesis titled Exploring the use of model based verification of swarm protocols. 
 
 # Installation
-To run the code Python 3.12 (https://www.python.org/downloads/release/python-3120/) or newer is required along with a version of UPPAAL (https://uppaal.org/downloads/) some features will only function with 5.1.0-beta5 otherwise 5.0.0 will do.
+To run the code Python 3.12 (https://www.python.org/downloads/release/python-3120/) or newer is required along with a version of UPPAAL (https://uppaal.org/downloads/) some features will only function with 5.1.0-beta5 otherwise 5.0.0 will do. Additionally, a installation of Graphviz is required (https://graphviz.org/download/) if on a windows machine the Path variable needs to be set.
 
 Once a working Python installation is working it should come with pip. Allowing for installing all requirements with:
 
@@ -160,6 +160,12 @@ The json representation would be as follows:
 
 We now have to set the path to the folder containing the JSON file. Note it is possible to include JSON files containing the projections of each role in the swarm, it is assumed these are WELL-FORMED.
 
+To allow the program to find the json the path to the folder the JSON file is in (Not the json file itself) needs to be set as:
+
+    setArgs -pf path
+
+Where path is replaced with the absolute path to where the JSON file is located.
+
 In order to build a model we would first need to set the desired settings which can be done through the following commands:
 
     setArgs -ra {"Door": 1, "Forklift": 2, "Transport": 1}
@@ -189,7 +195,59 @@ We simply put those lines into a .txt file and run
 
     verify model_path query_file_path
     
-To get the results. If a query is not satisfied it will print a fault trace that led to the erroneous state.
+Where the model_path is the path to the folder the json is in with \uppaal_model.xml appended and the query_file_path depends on where the .txt file was put.
+
+This gives the output:
+    Verifying query 0: A[] forall(i:Door_t) forall(j:Forklift_t) forall(t:Transport_t) deadlock imply Door(i).l3 and Forklift(j).l3 and Transport(t).l3
+
+    Query was satisfied
+
+    Verifying query 1: E[] not Transport(0).l1
+    Query was satisfied
+    State: ['Transport(0).l0', 'Door(0).l0', 'Forklift(0).l0', 'Forklift(1).l0']
+    Transition:   Door(0).l0->Door(0).l3  Close
+    State: ['Transport(0).l0', 'Door(0).l3', 'Forklift(0).l0', 'Forklift(1).l0']
+    Role   Door(0) propagated to all other roles
+    State: ['Transport(0).l0', 'Door(0).l3', 'Forklift(0).l3', 'Forklift(1).l0']
+    State: ['Transport(0).l0', 'Door(0).l3', 'Forklift(0).l3', 'Forklift(1).l3']
+    State: ['Transport(0).l3', 'Door(0).l3', 'Forklift(0).l3', 'Forklift(1).l3']
+
+If a query is cabable it will print a fault trace leading to the result of the query.
+
+We can now test if a series of events can be created by the swarm protocol simply by putting the series of events into a txt file such as:
+
+    Request, Get, Deliver, Close
+
+And by running:
+
+    verifyLog model_path log_file_path
+
+We get the following output:
+
+    Verifying query: E<> globalLog[0].eventID == Request_ID and globalLog[1].eventID == Get_ID and globalLog[2].eventID == Deliver_ID and globalLog[3].eventID == Close_ID and globalLog[3].orderCount != 0
+    Query was satisfied
+    State: ['Transport(0).l0', 'Door(0).l0', 'Forklift(0).l0', 'Forklift(1).l0']
+    Transition:   Transport(0).l0->Transport(0).l1  Request
+    State: ['Transport(0).l1', 'Door(0).l0', 'Forklift(0).l0', 'Forklift(1).l0']
+    Role   Transport(0) propagated to all other roles
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l0', 'Forklift(1).l0']
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l1', 'Forklift(1).l0']
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l1', 'Forklift(1).l1']
+    Transition:   Forklift(0).l1->Forklift(0).l0  Get
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l0', 'Forklift(1).l1']
+    Role   Forklift(0) propagated to all other roles
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l0', 'Forklift(1).l0']
+    State: ['Transport(0).l2', 'Door(0).l2', 'Forklift(0).l0', 'Forklift(1).l0']
+    Transition:   Transport(0).l2->Transport(0).l0  Deliver
+    State: ['Transport(0).l0', 'Door(0).l2', 'Forklift(0).l0', 'Forklift(1).l0']
+    Role   Transport(0) propagated to all other roles
+    State: ['Transport(0).l0', 'Door(0).l0', 'Forklift(0).l0', 'Forklift(1).l0']
+    Transition:   Door(0).l0->Door(0).l3  Close
+    State: ['Transport(0).l0', 'Door(0).l3', 'Forklift(0).l0', 'Forklift(1).l0']
+
+Be aware that verifyLog has a -vo that specifies wether the log refers to valid only events or not. However this specific log will statify for both.
+
+
 
 We can now extend the model even more by creating a time JSON file that could look like the following:
 
@@ -239,82 +297,83 @@ We have to ensure that the time JSON file is in the same folder as the JSON file
 
 Now we could change the query.txt file to include:
 
-    E<> Transport(0).l2 && globalTime > 241
+    E<> Transport(0).l2 && globalTime > 240
   
-We once again run "build" to get a timed version of our model and then verify.
+We once again run "build" to get a timed version of our model and then verify as before.
 
 Which for the added query gives the output:
 
-    Verifying query 0: E<> Transport(0).l2 && globalTime > 241
-    Query was satisfied 
-    State: ['Door(0).l0', 'Transport(0).l0', 'Forklift(0).l0', 'Forklift(1).l0']
+    Verifying query 0: E<> Transport(0).l2 && globalTime > 240
+    Query was satisfied
+    State: ['Transport(0).l0', 'Door(0).l0', 'Forklift(0).l0', 'Forklift(1).l0']
     globalTime=0
     Delay: 10  globalTime=10
-    Transition:   Transport(0).l0->Transport(0).l1 
-    State: ['Door(0).l0', 'Transport(0).l1', 'Forklift(0).l0', 'Forklift(1).l0']
-    Transition:   Door(0).l0->Door(0).l3 
-    State: ['Door(0).l3', 'Transport(0).l1', 'Forklift(0).l0', 'Forklift(1).l0']
+    Transition:   Transport(0).l0->Transport(0).l1  Request
+    State: ['Transport(0).l1', 'Door(0).l0', 'Forklift(0).l0', 'Forklift(1).l0']
+    Transition:   Door(0).l0->Door(0).l3  Close
+    State: ['Transport(0).l1', 'Door(0).l3', 'Forklift(0).l0', 'Forklift(1).l0']
     Delay: 21  globalTime=31
-    Role   Door(0) propagted to all other roles
-    State: ['Door(0).l3', 'Transport(0).l1', 'Forklift(0).l3', 'Forklift(1).l0']
-    State: ['Door(0).l3', 'Transport(0).l1', 'Forklift(0).l3', 'Forklift(1).l3']
+    Role   Door(0) propagated to all other roles
+    State: ['Transport(0).l1', 'Door(0).l3', 'Forklift(0).l3', 'Forklift(1).l0']
+    State: ['Transport(0).l1', 'Door(0).l3', 'Forklift(0).l3', 'Forklift(1).l3']
     Delay: 12  globalTime=43
-    Role   Transport(0) propagted to all other roles
-    State: ['Door(0).l3', 'Transport(0).l1', 'Forklift(0).l0', 'Forklift(1).l3']
-    State: ['Door(0).l3', 'Transport(0).l1', 'Forklift(0).l1', 'Forklift(1).l3']
-    State: ['Door(0).l3', 'Transport(0).l1', 'Forklift(0).l1', 'Forklift(1).l0']
-    State: ['Door(0).l3', 'Transport(0).l1', 'Forklift(0).l1', 'Forklift(1).l1']
-    State: ['Door(0).l0', 'Transport(0).l1', 'Forklift(0).l1', 'Forklift(1).l1']
-    State: ['Door(0).l2', 'Transport(0).l1', 'Forklift(0).l1', 'Forklift(1).l1']
+    Role   Transport(0) propagated to all other roles
+    State: ['Transport(0).l1', 'Door(0).l0', 'Forklift(0).l3', 'Forklift(1).l3']
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l3', 'Forklift(1).l3']
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l0', 'Forklift(1).l3']
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l1', 'Forklift(1).l3']
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l1', 'Forklift(1).l0']
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l1', 'Forklift(1).l1']
     Delay: 52  globalTime=95
-    Transition:   Forklift(0).l1->Forklift(0).l0
-    State: ['Door(0).l2', 'Transport(0).l1', 'Forklift(0).l0', 'Forklift(1).l1']
-    Transition:   Forklift(1).l1->Forklift(1).l0
-    State: ['Door(0).l2', 'Transport(0).l1', 'Forklift(0).l0', 'Forklift(1).l0']
+    Transition:   Forklift(0).l1->Forklift(0).l0  Get
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l0', 'Forklift(1).l1']
+    Transition:   Forklift(1).l1->Forklift(1).l0  Get
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l0', 'Forklift(1).l0']
     Delay: 12  globalTime=107
-    Role   Forklift(0) propagted to all other roles
-    State: ['Door(0).l2', 'Transport(0).l2', 'Forklift(0).l0', 'Forklift(1).l0']
-    Role   Forklift(1) propagted to all other roles
+    Role   Forklift(0) propagated to all other roles
+    State: ['Transport(0).l2', 'Door(0).l2', 'Forklift(0).l0', 'Forklift(1).l0']
+    Role   Forklift(1) propagated to all other roles
     Delay: 13  globalTime=120
-    Transition:   Transport(0).l2->Transport(0).l0
-    State: ['Door(0).l2', 'Transport(0).l0', 'Forklift(0).l0', 'Forklift(1).l0']
-    Delay: 12  globalTime=132
-    Role   Transport(0) propagted to all other roles
-    State: ['Door(0).l0', 'Transport(0).l0', 'Forklift(0).l0', 'Forklift(1).l0']
-    Transition:   Transport(0).l0->Transport(0).l1
-    State: ['Door(0).l0', 'Transport(0).l1', 'Forklift(0).l0', 'Forklift(1).l0']
-    Delay: 10  globalTime=142
-    Transition:   Door(0).l0->Door(0).l3
-    State: ['Door(0).l3', 'Transport(0).l1', 'Forklift(0).l0', 'Forklift(1).l0']
-    Delay: 21  globalTime=163
-    Role   Door(0) propagted to all other roles
-    State: ['Door(0).l3', 'Transport(0).l1', 'Forklift(0).l3', 'Forklift(1).l0']
-    State: ['Door(0).l3', 'Transport(0).l1', 'Forklift(0).l3', 'Forklift(1).l3']
-    Delay: 2  globalTime=165
-    Role   Transport(0) propagted to all other roles
-    State: ['Door(0).l3', 'Transport(0).l1', 'Forklift(0).l0', 'Forklift(1).l3']
-    State: ['Door(0).l3', 'Transport(0).l1', 'Forklift(0).l1', 'Forklift(1).l3']
-    State: ['Door(0).l3', 'Transport(0).l1', 'Forklift(0).l1', 'Forklift(1).l0']
-    State: ['Door(0).l3', 'Transport(0).l1', 'Forklift(0).l1', 'Forklift(1).l1']
-    State: ['Door(0).l0', 'Transport(0).l1', 'Forklift(0).l1', 'Forklift(1).l1']
-    State: ['Door(0).l2', 'Transport(0).l1', 'Forklift(0).l1', 'Forklift(1).l1']
-    Delay: 52  globalTime=217
-    Transition:   Forklift(0).l1->Forklift(0).l0
-    State: ['Door(0).l2', 'Transport(0).l1', 'Forklift(0).l0', 'Forklift(1).l1']
-    Transition:   Forklift(1).l1->Forklift(1).l0
-    State: ['Door(0).l2', 'Transport(0).l1', 'Forklift(0).l0', 'Forklift(1).l0']
-    Delay: 12  globalTime=229
-    Role   Forklift(0) propagted to all other roles
-    State: ['Door(0).l2', 'Transport(0).l2', 'Forklift(0).l0', 'Forklift(1).l0']
-    Role   Forklift(1) propagted to all other roles
-    Delay: 13  globalTime=242
+    Transition:   Transport(0).l2->Transport(0).l0  Deliver
+    State: ['Transport(0).l0', 'Door(0).l2', 'Forklift(0).l0', 'Forklift(1).l0']
+    Delay: 11  globalTime=131
+    Role   Transport(0) propagated to all other roles
+    State: ['Transport(0).l0', 'Door(0).l0', 'Forklift(0).l0', 'Forklift(1).l0']
+    Transition:   Transport(0).l0->Transport(0).l1  Request
+    State: ['Transport(0).l1', 'Door(0).l0', 'Forklift(0).l0', 'Forklift(1).l0']
+    Delay: 10  globalTime=141
+    Transition:   Door(0).l0->Door(0).l3  Close
+    State: ['Transport(0).l1', 'Door(0).l3', 'Forklift(0).l0', 'Forklift(1).l0']
+    Delay: 21  globalTime=162
+    Role   Door(0) propagated to all other roles
+    State: ['Transport(0).l1', 'Door(0).l3', 'Forklift(0).l3', 'Forklift(1).l0']
+    State: ['Transport(0).l1', 'Door(0).l3', 'Forklift(0).l3', 'Forklift(1).l3']
+    Delay: 2  globalTime=164
+    Role   Transport(0) propagated to all other roles
+    State: ['Transport(0).l1', 'Door(0).l0', 'Forklift(0).l3', 'Forklift(1).l3']
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l3', 'Forklift(1).l3']
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l0', 'Forklift(1).l3']
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l1', 'Forklift(1).l3']
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l1', 'Forklift(1).l0']
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l1', 'Forklift(1).l1']
+    Delay: 52  globalTime=216
+    Transition:   Forklift(0).l1->Forklift(0).l0  Get
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l0', 'Forklift(1).l1']
+    Transition:   Forklift(1).l1->Forklift(1).l0  Get
+    State: ['Transport(0).l1', 'Door(0).l2', 'Forklift(0).l0', 'Forklift(1).l0']
+    Delay: 12  globalTime=228
+    Role   Forklift(0) propagated to all other roles
+    State: ['Transport(0).l2', 'Door(0).l2', 'Forklift(0).l0', 'Forklift(1).l0']
+    Role   Forklift(1) propagated to all other roles
+    Delay: 13  globalTime=241
 
 Showing the trace that led to a satisfied query.
-However, it also gives the following:
+
+If we once again attempt to verify E[] not Transport(0).l1 we get:
 
     Verifying query 1: E[] not Transport(0).l1
-    
-    Query not satisfied 
+
+    Query not satified
 
 This shows that with the given timing constraints there is no run of the swarm protocol where Transport does not at least once visit location l1.
 
