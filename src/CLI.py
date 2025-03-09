@@ -485,7 +485,9 @@ def auto_verify_model(model_path: str, base_folder_path: str, type: str, verifyt
                     file.write(query)
 
                 result = verify_query(model_path, query_path, verifyta_path, 0)
-                #print(f"results is: {result}")
+                if len(result) == 0: # Error encountered
+                    return
+
                 match_query = re.search(r"\.(l\d+)", query)
                 if match_query:
                     if "Query not satisfied" in result:
